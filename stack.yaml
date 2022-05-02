@@ -1,0 +1,11 @@
+resolver: lts-18.19
+
+packages:
+- '.'
+extra-deps: [
+  'http-client-0.7.8@sha256:ed76dcd7edec3aaebe012541ca0a52594405e9b21d69420d26c0223bc4d5dc82,5400'
+]
+
+flags: {}
+
+extra-package-dbs: []
