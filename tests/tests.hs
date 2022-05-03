@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Main where
 
-import           Control.Monad.IO.Class (liftIO)
+-- import           Control.Monad.IO.Class (liftIO)
+import           Data.Foldable (for_)
 import           Unknot.Client
 import           Unknot.Types
 import           Network.HTTP.Client (newManager)
@@ -41,8 +43,26 @@ main = do
     describe "create wire account" $ do
       it "creates a new wire account" $ do
         result <- circleTest config manager $ createWireAccount exampleWireAccountDetails
-        liftIO $ print result
         result `shouldSatisfy` isRight
         let Right CircleResponse {..} = result
         circleResponseCode `shouldBe` Nothing
         circleResponseMessage `shouldBe` Nothing
+    describe "get wire accounts" $ do
+      it "gets a list of wire accounts" $ do
+        result <- circleTest config manager $ getWireAccounts
+        result `shouldSatisfy` isRight
+        let Right CircleResponse {..} = result
+        circleResponseCode `shouldBe` Nothing
+        circleResponseMessage `shouldBe` Nothing
+    describe "get wire account" $ do
+      it "gets a single wire account" $ do
+        createdAccount <- circleTest config manager $ createWireAccount exampleWireAccountDetails
+        createdAccount `shouldSatisfy` isRight
+        let Right CircleResponse {circleResponseData} = createdAccount
+        for_ circleResponseData $ \WireAccountData {..} -> do
+          result <- circleTest config manager $ getWireAccount wireAccountDataId
+          result `shouldSatisfy` isRight
+          let Right CircleResponse {circleResponseCode, circleResponseMessage} = result
+          circleResponseCode `shouldBe` Nothing
+          circleResponseMessage `shouldBe` Nothing
+

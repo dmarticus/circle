@@ -21,9 +21,9 @@ paramsToByteString ::
     [Query]
     -> BS8.ByteString
 paramsToByteString []           = mempty
-paramsToByteString [x] = fst (unQuery x) <> "=" <> (snd $ unQuery x)
+paramsToByteString [x] = fst (unQuery x) <> "=" <> snd (unQuery x)
 paramsToByteString (x : xs) =
-    mconcat [fst $ unQuery x, "=", (snd $ unQuery x), "&"] <> paramsToByteString xs
+    mconcat [fst $ unQuery x, "=", snd $ unQuery x, "&"] <> paramsToByteString xs
 
 -- | Create a bank account for a wire
 -- https://developers.circle.com/reference/payments-bank-accounts-wires-create
@@ -33,6 +33,25 @@ createWireAccount wireAccountDetails = do
   where
     url = "businessAccount/banks/wires"
     params = Params (Just $ Body (encode wireAccountDetails)) []
+
+-- | Get a list of wire accounts
+-- https://developers.circle.com/reference/getbusinessaccountwirebankaccounts
+getWireAccounts :: CircleRequest WireAccountsRequest TupleBS8 BSL.ByteString
+getWireAccounts = do
+  mkCircleRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/banks/wires"
+    params = Params Nothing []
+
+getWireAccount :: T.Text -> CircleRequest WireAccountRequest TupleBS8 BSL.ByteString
+getWireAccount wireAccountId = do
+  mkCircleRequest NHTM.methodGet url params
+  where
+    url = T.append "businessAccount/banks/wires/" wireAccountId
+    params = Params Nothing []
+
+
+-- | General methods
 
 circle' :: CircleConfig
           -> CircleRequest a TupleBS8 BSL.ByteString

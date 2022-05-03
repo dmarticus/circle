@@ -34,7 +34,9 @@ module Unknot.Types
   , CircleResponse (..)
   , mkCircleRequest
   , WireAccountDetails (..)
+  , WireAccountData (..)
   , WireAccountRequest
+  , WireAccountsRequest
   , CircleReturn
   , Host
   , CircleHost(..)
@@ -89,6 +91,9 @@ type family CircleReturn a :: *
 
 data WireAccountRequest
 type instance CircleReturn WireAccountRequest = CircleResponse WireAccountData
+
+data WireAccountsRequest
+type instance CircleReturn WireAccountsRequest = CircleResponse [WireAccountData]
 
 data WireAccountDetails = WireAccountDetails
   { idempotencyKey :: ExternalId -- UUID type
