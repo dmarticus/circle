@@ -37,36 +37,36 @@ paramsToByteString (x : xs) =
 
 -- | Create a bank account for a wire
 -- https://developers.circle.com/reference/createbusinesswireaccount
-createWireAccount :: WireAccountDetails -> CircleRequest WireAccountRequest TupleBS8 BSL.ByteString
+createWireAccount :: WireAccountDetails -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
 createWireAccount wireAccountDetails = do
-  mkCircleRequest NHTM.methodPost url params
+  mkCircleAPIRequest NHTM.methodPost url params
   where
     url = "businessAccount/banks/wires"
     params = Params (Just $ Body (encode wireAccountDetails)) []
 
 -- | Get a list of wire accounts
 -- https://developers.circle.com/reference/listbusinesswireaccounts
-getWireAccounts :: CircleRequest WireAccountsRequest TupleBS8 BSL.ByteString
+getWireAccounts :: CircleAPIRequest WireAccountsRequest TupleBS8 BSL.ByteString
 getWireAccounts = do
-  mkCircleRequest NHTM.methodGet url params
+  mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/banks/wires"
     params = Params Nothing []
 
 -- | Get a single wire account, accepts the wire account Id as a parameter
 -- https://developers.circle.com/reference/getbusinesswireaccount
-getWireAccount :: T.Text -> CircleRequest WireAccountRequest TupleBS8 BSL.ByteString
+getWireAccount :: T.Text -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
 getWireAccount wireAccountId = do
-  mkCircleRequest NHTM.methodGet url params
+  mkCircleAPIRequest NHTM.methodGet url params
   where
     url = T.append "businessAccount/banks/wires/" wireAccountId
     params = Params Nothing []
 
 -- | Get the wire transfer instructions into the Circle bank account given your bank account id.
 -- https://developers.circle.com/reference/getbusinesswireaccountinstructions
-getWireAccountInstructions :: T.Text -> CircleRequest WireInstructionsRequest TupleBS8 BSL.ByteString
+getWireAccountInstructions :: T.Text -> CircleAPIRequest WireInstructionsRequest TupleBS8 BSL.ByteString
 getWireAccountInstructions wireAccountId = do
-  mkCircleRequest NHTM.methodGet url params
+  mkCircleAPIRequest NHTM.methodGet url params
   where
     url = T.append "businessAccount/banks/wires/" wireAccountId <> "/instructions"
     params = Params Nothing []
@@ -74,18 +74,18 @@ getWireAccountInstructions wireAccountId = do
 -- | Balance endpoints
 
 -- | List all balances
-listAllBalances :: CircleRequest BalanceRequest TupleBS8 BSL.ByteString
+listAllBalances :: CircleAPIRequest BalanceRequest TupleBS8 BSL.ByteString
 listAllBalances = do
-  mkCircleRequest NHTM.methodGet url params
+  mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/balances"
     params = Params Nothing []
 
 -- | General methods
 circle' :: CircleConfig
-          -> CircleRequest a TupleBS8 BSL.ByteString
+          -> CircleAPIRequest a TupleBS8 BSL.ByteString
           -> IO (Response BSL.ByteString)
-circle' CircleConfig {..} CircleRequest {..} = do
+circle' CircleConfig {..} CircleAPIRequest {..} = do
   manager <- newManager tlsManagerSettings
   initReq <- parseRequest $ T.unpack $ T.append (hostUri host) endpoint
   let reqBody | rMethod == NHTM.methodGet = mempty
@@ -107,10 +107,10 @@ data CircleError =
 
 -- | Create a request to `circle`'s API
 circle
-  :: (FromJSON (CircleReturning a))
+  :: (FromJSON (CircleRequest a))
   => CircleConfig
-  -> CircleRequest a TupleBS8 BSL.ByteString
-  -> IO (Either CircleError (CircleReturning a))
+  -> CircleAPIRequest a TupleBS8 BSL.ByteString
+  -> IO (Either CircleError (CircleRequest a))
 circle config request = do
   liftIO $ print request
   response <- circle' config request
@@ -123,11 +123,11 @@ circle config request = do
 -- | This function is only used internally to speed up the test suite.
 -- Instead of creating a new Manager we reuse the same one.
 circleTest ::
-     (FromJSON (CircleReturning a))
+     (FromJSON (CircleRequest a))
   => CircleConfig
   -> Manager
-  -> CircleRequest a TupleBS8 BSL.ByteString
-  -> IO (Either CircleError (CircleReturning a))
+  -> CircleAPIRequest a TupleBS8 BSL.ByteString
+  -> IO (Either CircleError (CircleRequest a))
 circleTest config tlsManager request = do
   liftIO $ print request
   response <- circleTest' config request tlsManager
@@ -138,10 +138,10 @@ circleTest config tlsManager request = do
     Right r -> return (Right r)
 
 circleTest' :: CircleConfig
-              -> CircleRequest a TupleBS8 BSL.ByteString
+              -> CircleAPIRequest a TupleBS8 BSL.ByteString
               -> Manager
               -> IO (Response BSL.ByteString)
-circleTest' CircleConfig {..} CircleRequest {..} manager = do
+circleTest' CircleConfig {..} CircleAPIRequest {..} manager = do
   initReq <- parseRequest $ T.unpack $ T.append (hostUri host) endpoint
   let reqBody | rMethod == NHTM.methodGet = mempty
               | isNothing (paramsBody params) = mempty

@@ -34,9 +34,9 @@ module Unknot.Types
   , ExternalId (..)
   , Reply
   , Method
-  , CircleRequest (..)
+  , CircleAPIRequest (..)
   , CircleResponse (..)
-  , mkCircleRequest
+  , mkCircleAPIRequest
   , WireAccountDetails (..)
   , WireAccountData (..)
   , WireInstructionsData (..)
@@ -44,7 +44,7 @@ module Unknot.Types
   , WireAccountsRequest
   , WireInstructionsRequest
   , BalanceRequest
-  , CircleReturning
+  , CircleRequest
   , Host
   , CircleHost(..)
   , CircleConfig (..)
@@ -86,19 +86,19 @@ newtype ApiToken = ApiToken
   } deriving (Read, Show, Eq)
 
 
-data CircleRequest a b c = CircleRequest
-  { rMethod  :: Method -- ^ Method of CircleRequest
-  , endpoint :: Text -- ^ Endpoint of CircleRequest
-  , params   :: Params TupleBS8 BSL.ByteString -- ^ Request params of CircleRequest
+data CircleAPIRequest a b c = CircleAPIRequest
+  { rMethod  :: Method -- ^ Method of CircleAPIRequest
+  , endpoint :: Text -- ^ Endpoint of CircleAPIRequest
+  , params   :: Params TupleBS8 BSL.ByteString -- ^ Request params of CircleAPIRequest
   } deriving (Show)
 
-mkCircleRequest :: Method
+mkCircleAPIRequest :: Method
                   -> Text
                   -> Params TupleBS8 BSL.ByteString
-                  -> CircleRequest a b c
-mkCircleRequest = CircleRequest
+                  -> CircleAPIRequest a b c
+mkCircleAPIRequest = CircleAPIRequest
 
-type family CircleReturning a :: *
+type family CircleRequest a :: *
 
 ---------------------------------------------------------------
 -- Balance endpoints
@@ -106,7 +106,7 @@ type family CircleReturning a :: *
 ---------------------------------------------------------------
 
 data BalanceRequest
-type instance CircleReturning BalanceRequest =  CircleResponse BalanceData
+type instance CircleRequest BalanceRequest =  CircleResponse BalanceData
 
 data BalanceData =  BalanceData
   { available :: [CurrencyBalances],
@@ -138,13 +138,13 @@ instance FromJSON CurrencyBalances where
 ---------------------------------------------------------------
 
 data WireAccountRequest
-type instance CircleReturning WireAccountRequest = CircleResponse WireAccountData
+type instance CircleRequest WireAccountRequest = CircleResponse WireAccountData
 
 data WireAccountsRequest
-type instance CircleReturning WireAccountsRequest = CircleResponse [WireAccountData]
+type instance CircleRequest WireAccountsRequest = CircleResponse [WireAccountData]
 
 data WireInstructionsRequest
-type instance CircleReturning WireInstructionsRequest = CircleResponse WireInstructionsData
+type instance CircleRequest WireInstructionsRequest = CircleResponse WireInstructionsData
 
 data WireAccountDetails = WireAccountDetails
   { idempotencyKey :: ExternalId -- UUID type
@@ -534,8 +534,8 @@ class (ToCircleParam param) => CircleHasParam request param where
 -- | Add an optional query parameter
 (-&-)
   :: CircleHasParam r param
-  => CircleRequest r b c -> param -> CircleRequest r b c
-circleRequest -&- param =
-  circleRequest
-  { params = toCircleParam param (params circleRequest)
+  => CircleAPIRequest r b c -> param -> CircleAPIRequest r b c
+circleAPIRequest -&- param =
+  circleAPIRequest
+  { params = toCircleParam param (params circleAPIRequest)
   }
