@@ -34,16 +34,17 @@ module Unknot.Types
   , ExternalId (..)
   , Reply
   , Method
-  , CircleRequest (..)
+  , CircleAPIRequest (..)
   , CircleResponse (..)
-  , mkCircleRequest
+  , mkCircleAPIRequest
   , WireAccountDetails (..)
   , WireAccountData (..)
   , WireInstructionsData (..)
   , WireAccountRequest
   , WireAccountsRequest
   , WireInstructionsRequest
-  , CircleReturn
+  , BalanceRequest
+  , CircleRequest
   , Host
   , CircleHost(..)
   , CircleConfig (..)
@@ -85,33 +86,65 @@ newtype ApiToken = ApiToken
   } deriving (Read, Show, Eq)
 
 
-data CircleRequest a b c = CircleRequest
-  { rMethod  :: Method -- ^ Method of CircleRequest
-  , endpoint :: Text -- ^ Endpoint of CircleRequest
-  , params   :: Params TupleBS8 BSL.ByteString -- ^ Request params of CircleRequest
+data CircleAPIRequest a b c = CircleAPIRequest
+  { rMethod  :: Method -- ^ Method of CircleAPIRequest
+  , endpoint :: Text -- ^ Endpoint of CircleAPIRequest
+  , params   :: Params TupleBS8 BSL.ByteString -- ^ Request params of CircleAPIRequest
   } deriving (Show)
 
-mkCircleRequest :: Method
+mkCircleAPIRequest :: Method
                   -> Text
                   -> Params TupleBS8 BSL.ByteString
-                  -> CircleRequest a b c
-mkCircleRequest = CircleRequest
+                  -> CircleAPIRequest a b c
+mkCircleAPIRequest = CircleAPIRequest
 
-type family CircleReturn a :: *
+type family CircleRequest a :: *
 
 ---------------------------------------------------------------
--- Create wire account endpoint 
--- https://developers.circle.com/reference/payments-bank-accounts-wires-create
+-- Balance endpoints
+-- https://developers.circle.com/reference/listbusinessbalances
+---------------------------------------------------------------
+
+data BalanceRequest
+type instance CircleRequest BalanceRequest =  CircleResponse BalanceData
+
+data BalanceData =  BalanceData
+  { available :: [CurrencyBalances],
+    unsettled :: [CurrencyBalances]
+  } deriving (Show)
+
+instance FromJSON BalanceData where
+  parseJSON = withObject "BalanceData" parse
+    where
+      parse o = BalanceData
+        <$> o .: "available"
+        <*> o .: "unsettled"
+
+data CurrencyBalances = CurrencyBalances
+  { magnitude :: Text, -- TODO this should be a numeric type
+    currency :: Text -- TODO this should be a sum type of allowed currencies: USD, EUR, BTC, ETH
+  } deriving (Show)
+
+instance FromJSON CurrencyBalances where
+  parseJSON = withObject "CurrencyBalances" parse
+    where
+      parse o = CurrencyBalances
+        <$> o .: "amount"
+        <*> o .: "currency" 
+
+---------------------------------------------------------------
+-- Wire endpoints 
+-- https://developers.circle.com/reference/createbusinesswireaccount
 ---------------------------------------------------------------
 
 data WireAccountRequest
-type instance CircleReturn WireAccountRequest = CircleResponse WireAccountData
+type instance CircleRequest WireAccountRequest = CircleResponse WireAccountData
 
 data WireAccountsRequest
-type instance CircleReturn WireAccountsRequest = CircleResponse [WireAccountData]
+type instance CircleRequest WireAccountsRequest = CircleResponse [WireAccountData]
 
 data WireInstructionsRequest
-type instance CircleReturn WireInstructionsRequest = CircleResponse WireInstructionsData
+type instance CircleRequest WireInstructionsRequest = CircleResponse WireInstructionsData
 
 data WireAccountDetails = WireAccountDetails
   { idempotencyKey :: ExternalId -- UUID type
@@ -501,8 +534,8 @@ class (ToCircleParam param) => CircleHasParam request param where
 -- | Add an optional query parameter
 (-&-)
   :: CircleHasParam r param
-  => CircleRequest r b c -> param -> CircleRequest r b c
-circleRequest -&- param =
-  circleRequest
-  { params = toCircleParam param (params circleRequest)
+  => CircleAPIRequest r b c -> param -> CircleAPIRequest r b c
+circleAPIRequest -&- param =
+  circleAPIRequest
+  { params = toCircleParam param (params circleAPIRequest)
   }

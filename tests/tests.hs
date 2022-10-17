@@ -75,3 +75,11 @@ main = do
           let Right CircleResponse {circleResponseCode, circleResponseMessage} = wireAccountInstructions
           circleResponseCode `shouldBe` Nothing
           circleResponseMessage `shouldBe` Nothing
+    describe "list balances" $ do
+      it "should list all balances for the newly-created wire account" $ do
+        balances <- circleTest config manager listAllBalances
+        balances `shouldSatisfy` isRight
+        let Right CircleResponse {circleResponseCode, circleResponseMessage} = balances
+        circleResponseCode `shouldBe` Nothing
+        circleResponseMessage `shouldBe` Nothing
+        -- TODO should probably actually seed balances, I'll do that when I write the API for that
