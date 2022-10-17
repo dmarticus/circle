@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE StrictData                 #-}
 
 module Unknot.Types
   ( ApiToken (..)
@@ -17,6 +18,9 @@ module Unknot.Types
   , District (..)
   , BankAddress (..)
   , BillingDetails (..)
+  , BeneficiaryBankDetails (..)
+  , BeneficiaryDetails
+  , SwiftCode (..)
   , Region (..)
   , Country (..)
   , Currency (..)
@@ -35,8 +39,10 @@ module Unknot.Types
   , mkCircleRequest
   , WireAccountDetails (..)
   , WireAccountData (..)
+  , WireInstructionsData (..)
   , WireAccountRequest
   , WireAccountsRequest
+  , WireInstructionsRequest
   , CircleReturn
   , Host
   , CircleHost(..)
@@ -52,15 +58,24 @@ module Unknot.Types
   ) where
 
 import           Control.Applicative ((<|>))
-import           Data.Aeson
+import Data.Aeson
+    ( (.:),
+      (.:?),
+      withObject,
+      withText,
+      object,
+      FromJSON(parseJSON),
+      Value(String, Array, Null),
+      KeyValue((.=)),
+      ToJSON(toJSON) )
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import           Data.Time.Clock
+import Data.Time.Clock ( UTCTime )
 import qualified Data.Vector as V
-import           Network.HTTP.Client
+import Network.HTTP.Client ( Response )
 import qualified Network.HTTP.Types.Method as NHTM
 import           System.Environment (getEnv)
 
@@ -80,7 +95,7 @@ mkCircleRequest :: Method
                   -> Text
                   -> Params TupleBS8 BSL.ByteString
                   -> CircleRequest a b c
-mkCircleRequest m e p = CircleRequest m e p
+mkCircleRequest = CircleRequest
 
 type family CircleReturn a :: *
 
@@ -94,6 +109,9 @@ type instance CircleReturn WireAccountRequest = CircleResponse WireAccountData
 
 data WireAccountsRequest
 type instance CircleReturn WireAccountsRequest = CircleResponse [WireAccountData]
+
+data WireInstructionsRequest
+type instance CircleReturn WireInstructionsRequest = CircleResponse WireInstructionsData
 
 data WireAccountDetails = WireAccountDetails
   { idempotencyKey :: ExternalId -- UUID type
@@ -179,11 +197,70 @@ instance FromJSON BankAddress where
           <*> o .: "line2"
           <*> o .: "district"
 
+data BeneficiaryDetails = BeneficiaryDetails
+  { beneficiaryDetailsName :: Text,
+    beneficiaryDetailsAddress1 :: Maybe AddressLine, -- address type
+    beneficiaryDetailsAddress2 :: Maybe AddressLine -- secondary address type
+  } deriving (Eq, Show)
+
+instance FromJSON BeneficiaryDetails where
+  parseJSON = withObject "BeneficiaryDetails" parse
+    where
+      parse o =
+        BeneficiaryDetails
+          <$> o .: "name"
+          <*> o .: "address1" -- todo check these
+          <*> o .: "address2" -- todo check these
+
+
+data BeneficiaryBankDetails = BeneficiaryBankDetails
+  { beneficiaryBankDetailsName :: Text,
+    beneficiaryBankDetailsSwiftCode :: SwiftCode, -- todo this screams custom type
+    beneficiaryBankDetailsRoutingNumber :: RoutingNumber,
+    beneficiaryBankDetailsAccountNumber :: AccountNumber,
+    beneficiaryBankDetailsCurrency :: Currency,
+    beneficiaryBankDetailsAddress :: AddressLine,
+    beneficiaryBankDetailsCity :: City,
+    beneficiaryBankDetailsPostalCode :: PostalCode,
+    beneficiaryBankDetailsCountry :: Country
+  }
+  deriving (Eq, Show)
+instance FromJSON BeneficiaryBankDetails where
+  parseJSON = withObject "BeneficiaryBankDetails" parse
+    where
+      parse o =
+        BeneficiaryBankDetails
+          <$> o .: "name"
+          <*> o .: "swiftCode" -- todo check these
+          <*> o .: "routingNumber" -- todo check these
+          <*> o .: "accountNumber" -- todo check these
+          <*> o .: "currency"
+          <*> o .: "address" -- todo check these
+          <*> o .: "city" -- todo check these
+          <*> o .: "postalCode" -- todo check these
+          <*> o .: "country" -- todo check these
+
+data WireInstructionsData = WireInstructionsData
+  { wireInstructionsDataTrackingRef :: Text, -- this might be typical or at least have a length req
+    wireInstructionsDataBeneficiaryDetails :: BeneficiaryDetails,
+    wireInstructionsDataBeneficiaryBankDetails :: BeneficiaryBankDetails
+  }
+  deriving (Eq, Show)
+
+instance FromJSON WireInstructionsData where
+  parseJSON = withObject "WireInstructionsData" parse
+    where
+      parse o =
+        WireInstructionsData
+          <$> o .: "trackingRef"
+          <*> o .: "beneficiary"
+          <*> o .: "beneficiaryBank"
+
 data WireAccountData = WireAccountData
   { wireAccountDataId :: Text, -- TODO newtype this
     wireAccountDataStatus :: Text, -- TODO enum this
     wireAccountDataDescription :: Text, -- TODO better type
-    wireAccountDataTrackingRef :: Text, -- this might be typical or at least have a lenght req
+    wireAccountDataTrackingRef :: Text, -- this might be typical or at least have a length req
     wireAccountDataFingerprint :: Text, -- same newtype as id, should be a UUI
     wireAccountDataBillingDetails :: BillingDetails,
     wireAccountDataBankAddress :: BankAddress,
@@ -240,6 +317,10 @@ newtype City = City
 
 newtype PostalCode = PostalCode
   { unPostalCode :: Text
+  } deriving (Eq, Show, ToJSON, FromJSON)
+
+newtype SwiftCode = SwiftCode
+  { unSwiftCode :: Text
   } deriving (Eq, Show, ToJSON, FromJSON)
 
 newtype Region = Region

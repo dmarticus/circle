@@ -4,14 +4,14 @@
 
 module Main where
 
--- import           Control.Monad.IO.Class (liftIO)
-import           Data.Foldable (for_)
-import           Unknot.Client
-import           Unknot.Types
-import           Network.HTTP.Client (newManager)
-import           Network.HTTP.Client.TLS (tlsManagerSettings)
-import           Test.Hspec
-import           Test.Hspec.Expectations.Contrib (isRight)
+-- import Control.Monad.IO.Class (liftIO)
+import Data.Foldable (for_)
+import Unknot.Client
+import Unknot.Types
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Test.Hspec
+import Test.Hspec.Expectations.Contrib (isRight)
 
 exampleWireAccountDetails :: WireAccountDetails
 exampleWireAccountDetails =
@@ -27,7 +27,7 @@ exampleWireAccountDetails =
       (Just (AddressLine "Room 315"))
       (Just (District "WA"))
       (PostalCode "85283"))
-    (BankAddress 
+    (BankAddress
       (Just "Test Bank")
       (Just (City "Snoqualmie"))
       (Just (Country "US"))
@@ -42,16 +42,16 @@ main = do
   hspec $ parallel $ do
     describe "create wire account" $ do
       it "creates a new wire account" $ do
-        result <- circleTest config manager $ createWireAccount exampleWireAccountDetails
-        result `shouldSatisfy` isRight
-        let Right CircleResponse {..} = result
+        createNewWireResult <- circleTest config manager $ createWireAccount exampleWireAccountDetails
+        createNewWireResult `shouldSatisfy` isRight
+        let Right CircleResponse {..} = createNewWireResult
         circleResponseCode `shouldBe` Nothing
         circleResponseMessage `shouldBe` Nothing
     describe "get wire accounts" $ do
       it "gets a list of wire accounts" $ do
-        result <- circleTest config manager $ getWireAccounts
-        result `shouldSatisfy` isRight
-        let Right CircleResponse {..} = result
+        getWireAccountsResults <- circleTest config manager getWireAccounts
+        getWireAccountsResults `shouldSatisfy` isRight
+        let Right CircleResponse {..} = getWireAccountsResults
         circleResponseCode `shouldBe` Nothing
         circleResponseMessage `shouldBe` Nothing
     describe "get wire account" $ do
@@ -60,9 +60,18 @@ main = do
         createdAccount `shouldSatisfy` isRight
         let Right CircleResponse {circleResponseData} = createdAccount
         for_ circleResponseData $ \WireAccountData {..} -> do
-          result <- circleTest config manager $ getWireAccount wireAccountDataId
-          result `shouldSatisfy` isRight
-          let Right CircleResponse {circleResponseCode, circleResponseMessage} = result
+          wireAccount <- circleTest config manager $ getWireAccount wireAccountDataId
+          wireAccount `shouldSatisfy` isRight
+          let Right CircleResponse {circleResponseCode, circleResponseMessage} = wireAccount
           circleResponseCode `shouldBe` Nothing
           circleResponseMessage `shouldBe` Nothing
-
+      it "gets wire instructions for a wire account" $ do
+        createdAccount <- circleTest config manager $ createWireAccount exampleWireAccountDetails
+        createdAccount `shouldSatisfy` isRight
+        let Right CircleResponse {circleResponseData} = createdAccount
+        for_ circleResponseData $ \WireAccountData {..} -> do
+          wireAccountInstructions <- circleTest config manager $ getWireAccountInstructions wireAccountDataId
+          wireAccountInstructions `shouldSatisfy` isRight
+          let Right CircleResponse {circleResponseCode, circleResponseMessage} = wireAccountInstructions
+          circleResponseCode `shouldBe` Nothing
+          circleResponseMessage `shouldBe` Nothing

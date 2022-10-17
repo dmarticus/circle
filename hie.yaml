@@ -1,0 +1,7 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "unknot:lib"
+
+    - path: "./tests"
+      component: "unknot:test:tests"

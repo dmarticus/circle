@@ -4,16 +4,24 @@
 
 module Unknot.Client where
 
-import           Unknot.Types
-import           Control.Monad.IO.Class (liftIO)
-import           Data.Aeson                 (eitherDecode, encode)
-import           Data.Aeson.Types
+import Unknot.Types
+import Control.Monad.IO.Class (liftIO)
+import Data.Aeson (eitherDecode, encode)
+import Data.Aeson.Types ( FromJSON )
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
-import           Data.Maybe                 (isNothing, fromJust)
-import qualified Data.Text                  as T
-import           Network.HTTP.Client
-import           Network.HTTP.Client.TLS
+import Data.Maybe (isNothing, fromJust)
+import qualified Data.Text as T
+import Network.HTTP.Client
+    ( httpLbs,
+      newManager,
+      applyBearerAuth,
+      parseRequest,
+      Manager,
+      Request(method, requestBody, queryString),
+      RequestBody(RequestBodyLBS),
+      Response(responseBody) )
+import Network.HTTP.Client.TLS ( tlsManagerSettings )
 import qualified Network.HTTP.Types.Method  as NHTM
 
 -- | Conversion of a key value pair to a query parameterized string
@@ -26,7 +34,7 @@ paramsToByteString (x : xs) =
     mconcat [fst $ unQuery x, "=", snd $ unQuery x, "&"] <> paramsToByteString xs
 
 -- | Create a bank account for a wire
--- https://developers.circle.com/reference/payments-bank-accounts-wires-create
+-- https://developers.circle.com/reference/createbusinesswireaccount
 createWireAccount :: WireAccountDetails -> CircleRequest WireAccountRequest TupleBS8 BSL.ByteString
 createWireAccount wireAccountDetails = do
   mkCircleRequest NHTM.methodPost url params
@@ -35,7 +43,7 @@ createWireAccount wireAccountDetails = do
     params = Params (Just $ Body (encode wireAccountDetails)) []
 
 -- | Get a list of wire accounts
--- https://developers.circle.com/reference/getbusinessaccountwirebankaccounts
+-- https://developers.circle.com/reference/listbusinesswireaccounts
 getWireAccounts :: CircleRequest WireAccountsRequest TupleBS8 BSL.ByteString
 getWireAccounts = do
   mkCircleRequest NHTM.methodGet url params
@@ -43,6 +51,8 @@ getWireAccounts = do
     url = "businessAccount/banks/wires"
     params = Params Nothing []
 
+-- | Get a single wire account, accepts the wire account Id as a parameter
+-- https://developers.circle.com/reference/getbusinesswireaccount
 getWireAccount :: T.Text -> CircleRequest WireAccountRequest TupleBS8 BSL.ByteString
 getWireAccount wireAccountId = do
   mkCircleRequest NHTM.methodGet url params
@@ -50,9 +60,16 @@ getWireAccount wireAccountId = do
     url = T.append "businessAccount/banks/wires/" wireAccountId
     params = Params Nothing []
 
+-- | Get the wire transfer instructions into the Circle bank account given your bank account id.
+-- https://developers.circle.com/reference/getbusinesswireaccountinstructions
+getWireAccountInstructions :: T.Text -> CircleRequest WireInstructionsRequest TupleBS8 BSL.ByteString
+getWireAccountInstructions wireAccountId = do
+  mkCircleRequest NHTM.methodGet url params
+  where
+    url = T.append "businessAccount/banks/wires/" wireAccountId <> "/instructions"
+    params = Params Nothing []
 
 -- | General methods
-
 circle' :: CircleConfig
           -> CircleRequest a TupleBS8 BSL.ByteString
           -> IO (Response BSL.ByteString)
