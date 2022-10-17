@@ -33,6 +33,8 @@ paramsToByteString [x] = fst (unQuery x) <> "=" <> snd (unQuery x)
 paramsToByteString (x : xs) =
     mconcat [fst $ unQuery x, "=", snd $ unQuery x, "&"] <> paramsToByteString xs
 
+-- | Wire endpoints
+
 -- | Create a bank account for a wire
 -- https://developers.circle.com/reference/createbusinesswireaccount
 createWireAccount :: WireAccountDetails -> CircleRequest WireAccountRequest TupleBS8 BSL.ByteString
@@ -69,6 +71,16 @@ getWireAccountInstructions wireAccountId = do
     url = T.append "businessAccount/banks/wires/" wireAccountId <> "/instructions"
     params = Params Nothing []
 
+-- | Balance endpoints
+
+-- | List all balances
+listAllBalances :: CircleRequest BalanceRequest TupleBS8 BSL.ByteString
+listAllBalances = do
+  mkCircleRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/balances"
+    params = Params Nothing []
+
 -- | General methods
 circle' :: CircleConfig
           -> CircleRequest a TupleBS8 BSL.ByteString
@@ -95,10 +107,10 @@ data CircleError =
 
 -- | Create a request to `circle`'s API
 circle
-  :: (FromJSON (CircleReturn a))
+  :: (FromJSON (CircleReturning a))
   => CircleConfig
   -> CircleRequest a TupleBS8 BSL.ByteString
-  -> IO (Either CircleError (CircleReturn a))
+  -> IO (Either CircleError (CircleReturning a))
 circle config request = do
   liftIO $ print request
   response <- circle' config request
@@ -111,11 +123,11 @@ circle config request = do
 -- | This function is only used internally to speed up the test suite.
 -- Instead of creating a new Manager we reuse the same one.
 circleTest ::
-     (FromJSON (CircleReturn a))
+     (FromJSON (CircleReturning a))
   => CircleConfig
   -> Manager
   -> CircleRequest a TupleBS8 BSL.ByteString
-  -> IO (Either CircleError (CircleReturn a))
+  -> IO (Either CircleError (CircleReturning a))
 circleTest config tlsManager request = do
   liftIO $ print request
   response <- circleTest' config request tlsManager

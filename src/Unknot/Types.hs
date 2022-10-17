@@ -43,7 +43,8 @@ module Unknot.Types
   , WireAccountRequest
   , WireAccountsRequest
   , WireInstructionsRequest
-  , CircleReturn
+  , BalanceRequest
+  , CircleReturning
   , Host
   , CircleHost(..)
   , CircleConfig (..)
@@ -97,21 +98,53 @@ mkCircleRequest :: Method
                   -> CircleRequest a b c
 mkCircleRequest = CircleRequest
 
-type family CircleReturn a :: *
+type family CircleReturning a :: *
 
 ---------------------------------------------------------------
--- Create wire account endpoint 
--- https://developers.circle.com/reference/payments-bank-accounts-wires-create
+-- Balance endpoints
+-- https://developers.circle.com/reference/listbusinessbalances
+---------------------------------------------------------------
+
+data BalanceRequest
+type instance CircleReturning BalanceRequest =  CircleResponse BalanceData
+
+data BalanceData =  BalanceData
+  { available :: [CurrencyBalances],
+    unsettled :: [CurrencyBalances]
+  } deriving (Show)
+
+instance FromJSON BalanceData where
+  parseJSON = withObject "BalanceData" parse
+    where
+      parse o = BalanceData
+        <$> o .: "available"
+        <*> o .: "unsettled"
+
+data CurrencyBalances = CurrencyBalances
+  { magnitude :: Text, -- TODO this should be a numeric type
+    currency :: Text -- TODO this should be a sum type of allowed currencies: USD, EUR, BTC, ETH
+  } deriving (Show)
+
+instance FromJSON CurrencyBalances where
+  parseJSON = withObject "CurrencyBalances" parse
+    where
+      parse o = CurrencyBalances
+        <$> o .: "amount"
+        <*> o .: "currency" 
+
+---------------------------------------------------------------
+-- Wire endpoints 
+-- https://developers.circle.com/reference/createbusinesswireaccount
 ---------------------------------------------------------------
 
 data WireAccountRequest
-type instance CircleReturn WireAccountRequest = CircleResponse WireAccountData
+type instance CircleReturning WireAccountRequest = CircleResponse WireAccountData
 
 data WireAccountsRequest
-type instance CircleReturn WireAccountsRequest = CircleResponse [WireAccountData]
+type instance CircleReturning WireAccountsRequest = CircleResponse [WireAccountData]
 
 data WireInstructionsRequest
-type instance CircleReturn WireInstructionsRequest = CircleResponse WireInstructionsData
+type instance CircleReturning WireInstructionsRequest = CircleResponse WireInstructionsData
 
 data WireAccountDetails = WireAccountDetails
   { idempotencyKey :: ExternalId -- UUID type
