@@ -150,7 +150,7 @@ instance FromJSON CurrencyBalance where
 ---------------------------------------------------------------
 data PayoutRequest
 
-type instance CircleRequest PayoutRequest = CircleResponse PayoutData
+type instance CircleRequest PayoutRequest = CircleResponse [PayoutData]
 
 data PayoutData = PayoutData
   { id :: Text, -- TODO UUID

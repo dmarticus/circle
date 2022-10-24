@@ -83,3 +83,12 @@ main = do
         circleResponseCode `shouldBe` Nothing
         circleResponseMessage `shouldBe` Nothing
         -- TODO should probably actually seed balances, I'll do that when I write the API for that
+    describe "list payouts" $ do
+      it "should list all payouts for a given business account" $ do
+        -- TODO this param needs to be modified to accept query params
+        payouts <- circleTest config manager listAllPayouts
+        payouts `shouldSatisfy` isRight
+        let Right CircleResponse {circleResponseCode, circleResponseMessage} = payouts
+        circleResponseCode `shouldBe` Nothing
+        circleResponseMessage `shouldBe` Nothing
+        -- TODO should probably actually seed balances, I'll do that when I write the API for that
