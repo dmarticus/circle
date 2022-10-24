@@ -1,37 +1,38 @@
-{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Unknot.Client where
 
-import Unknot.Types
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode, encode)
-import Data.Aeson.Types ( FromJSON )
+import Data.Aeson.Types (FromJSON)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
-import Data.Maybe (isNothing, fromJust)
+import Data.Maybe (fromJust, isNothing)
 import qualified Data.Text as T
 import Network.HTTP.Client
-    ( httpLbs,
-      newManager,
-      applyBearerAuth,
-      parseRequest,
-      Manager,
-      Request(method, requestBody, queryString),
-      RequestBody(RequestBodyLBS),
-      Response(responseBody) )
-import Network.HTTP.Client.TLS ( tlsManagerSettings )
-import qualified Network.HTTP.Types.Method  as NHTM
+  ( Manager,
+    Request (method, queryString, requestBody),
+    RequestBody (RequestBodyLBS),
+    Response (responseBody),
+    applyBearerAuth,
+    httpLbs,
+    newManager,
+    parseRequest,
+  )
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+import qualified Network.HTTP.Types.Method as NHTM
+import Unknot.Types
 
 -- | Conversion of a key value pair to a query parameterized string
 paramsToByteString ::
-    [Query]
-    -> BS8.ByteString
-paramsToByteString []           = mempty
+  [Query] ->
+  BS8.ByteString
+paramsToByteString [] = mempty
 paramsToByteString [x] = fst (unQuery x) <> "=" <> snd (unQuery x)
 paramsToByteString (x : xs) =
-    mconcat [fst $ unQuery x, "=", snd $ unQuery x, "&"] <> paramsToByteString xs
+  mconcat [fst $ unQuery x, "=", snd $ unQuery x, "&"] <> paramsToByteString xs
 
 -- | Wire endpoints
 
@@ -74,6 +75,7 @@ getWireAccountInstructions wireAccountId = do
 -- | Balance endpoints
 
 -- | List all balances
+-- https://developers.circle.com/reference/listbusinesspayouts
 listAllBalances :: CircleAPIRequest BalanceRequest TupleBS8 BSL.ByteString
 listAllBalances = do
   mkCircleAPIRequest NHTM.methodGet url params
@@ -81,36 +83,49 @@ listAllBalances = do
     url = "businessAccount/balances"
     params = Params Nothing []
 
+-- | Payout endpoints
+-- https://developers.circle.com/reference/listbusinessbalances
+listAllPayouts :: CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+listAllPayouts = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/payouts"
+    params = Params Nothing []
+
 -- | General methods
-circle' :: CircleConfig
-          -> CircleAPIRequest a TupleBS8 BSL.ByteString
-          -> IO (Response BSL.ByteString)
+circle' ::
+  CircleConfig ->
+  CircleAPIRequest a TupleBS8 BSL.ByteString ->
+  IO (Response BSL.ByteString)
 circle' CircleConfig {..} CircleAPIRequest {..} = do
   manager <- newManager tlsManagerSettings
   initReq <- parseRequest $ T.unpack $ T.append (hostUri host) endpoint
-  let reqBody | rMethod == NHTM.methodGet = mempty
-              | isNothing (paramsBody params) = mempty
-              | otherwise = unBody $ fromJust $ paramsBody params
-      req = initReq { method = rMethod
-                    , requestBody = RequestBodyLBS reqBody
-                    , queryString = paramsToByteString $ paramsQuery params
-                    }
+  let reqBody
+        | rMethod == NHTM.methodGet = mempty
+        | isNothing (paramsBody params) = mempty
+        | otherwise = unBody $ fromJust $ paramsBody params
+      req =
+        initReq
+          { method = rMethod,
+            requestBody = RequestBodyLBS reqBody,
+            queryString = paramsToByteString $ paramsQuery params
+          }
       circleToken = unApiToken token
       authorizedRequest = applyBearerAuth circleToken req
   httpLbs authorizedRequest manager
 
-data CircleError =
-  CircleError {
-    parseError       :: String
-  , circleResponse :: Response BSL.ByteString
-  } deriving (Show)
+data CircleError = CircleError
+  { parseError :: String,
+    circleResponse :: Response BSL.ByteString
+  }
+  deriving (Show)
 
 -- | Create a request to `circle`'s API
-circle
-  :: (FromJSON (CircleRequest a))
-  => CircleConfig
-  -> CircleAPIRequest a TupleBS8 BSL.ByteString
-  -> IO (Either CircleError (CircleRequest a))
+circle ::
+  (FromJSON (CircleRequest a)) =>
+  CircleConfig ->
+  CircleAPIRequest a TupleBS8 BSL.ByteString ->
+  IO (Either CircleError (CircleRequest a))
 circle config request = do
   liftIO $ print request
   response <- circle' config request
@@ -123,11 +138,11 @@ circle config request = do
 -- | This function is only used internally to speed up the test suite.
 -- Instead of creating a new Manager we reuse the same one.
 circleTest ::
-     (FromJSON (CircleRequest a))
-  => CircleConfig
-  -> Manager
-  -> CircleAPIRequest a TupleBS8 BSL.ByteString
-  -> IO (Either CircleError (CircleRequest a))
+  (FromJSON (CircleRequest a)) =>
+  CircleConfig ->
+  Manager ->
+  CircleAPIRequest a TupleBS8 BSL.ByteString ->
+  IO (Either CircleError (CircleRequest a))
 circleTest config tlsManager request = do
   liftIO $ print request
   response <- circleTest' config request tlsManager
@@ -137,19 +152,23 @@ circleTest config tlsManager request = do
     Left s -> return (Left (CircleError s response))
     Right r -> return (Right r)
 
-circleTest' :: CircleConfig
-              -> CircleAPIRequest a TupleBS8 BSL.ByteString
-              -> Manager
-              -> IO (Response BSL.ByteString)
+circleTest' ::
+  CircleConfig ->
+  CircleAPIRequest a TupleBS8 BSL.ByteString ->
+  Manager ->
+  IO (Response BSL.ByteString)
 circleTest' CircleConfig {..} CircleAPIRequest {..} manager = do
   initReq <- parseRequest $ T.unpack $ T.append (hostUri host) endpoint
-  let reqBody | rMethod == NHTM.methodGet = mempty
-              | isNothing (paramsBody params) = mempty
-              | otherwise = unBody $ fromJust $ paramsBody params
-      req = initReq { method = rMethod
-                    , requestBody = RequestBodyLBS reqBody
-                    , queryString = paramsToByteString $ paramsQuery params
-                    }
+  let reqBody
+        | rMethod == NHTM.methodGet = mempty
+        | isNothing (paramsBody params) = mempty
+        | otherwise = unBody $ fromJust $ paramsBody params
+      req =
+        initReq
+          { method = rMethod,
+            requestBody = RequestBodyLBS reqBody,
+            queryString = paramsToByteString $ paramsQuery params
+          }
       circleToken = unApiToken token
       authorizedRequest = applyBearerAuth circleToken req
   httpLbs authorizedRequest manager
