@@ -4,7 +4,7 @@
 
 module Unknot.Client where
 
-import Control.Monad.IO.Class (liftIO)
+-- import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode, encode)
 import Data.Aeson.Types (FromJSON)
 import qualified Data.ByteString.Char8 as BS8
@@ -20,10 +20,12 @@ import Network.HTTP.Client
     httpLbs,
     newManager,
     parseRequest,
+    requestHeaders,
   )
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import qualified Network.HTTP.Types.Method as NHTM
 import Unknot.Types
+import Network.HTTP.Types.Header ( hContentType ) 
 
 -- | Conversion of a key value pair to a query parameterized string
 paramsToByteString ::
@@ -85,12 +87,26 @@ listAllBalances = do
 
 -- | Payout endpoints
 -- https://developers.circle.com/reference/listbusinessbalances
-listAllPayouts :: CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+listAllPayouts :: CircleAPIRequest PayoutsRequest TupleBS8 BSL.ByteString
 listAllPayouts = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/payouts"
     params = Params Nothing []
+
+getPayout :: T.Text -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+getPayout payoutId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/payouts" <> payoutId
+    params = Params Nothing []
+
+createPayout :: PayoutDetails -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+createPayout payoutDetails = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "businessAccount/payouts"
+    params = Params (Just $ Body (encode payoutDetails)) []
 
 -- | General methods
 circle' ::
@@ -127,9 +143,9 @@ circle ::
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
   IO (Either CircleError (CircleRequest a))
 circle config request = do
-  liftIO $ print request
+  -- liftIO $ print request
   response <- circle' config request
-  liftIO $ print response
+  -- liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
     Left s -> return (Left (CircleError s response))
@@ -144,9 +160,9 @@ circleTest ::
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
   IO (Either CircleError (CircleRequest a))
 circleTest config tlsManager request = do
-  liftIO $ print request
+  -- liftIO $ print request
   response <- circleTest' config request tlsManager
-  liftIO $ print response
+  -- liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
     Left s -> return (Left (CircleError s response))
@@ -167,8 +183,10 @@ circleTest' CircleConfig {..} CircleAPIRequest {..} manager = do
         initReq
           { method = rMethod,
             requestBody = RequestBodyLBS reqBody,
+            requestHeaders = [(hContentType, "application/json")], -- TODO maybe cleaner way to do this
             queryString = paramsToByteString $ paramsQuery params
           }
       circleToken = unApiToken token
       authorizedRequest = applyBearerAuth circleToken req
+  -- liftIO $ print (requestHeaders authorizedRequest)
   httpLbs authorizedRequest manager
