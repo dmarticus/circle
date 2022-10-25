@@ -5,3 +5,7 @@
 [source](https://en.wikipedia.org/wiki/Unknot)
 
 I'm not knot theorist, but it seemed like as good a name as any for this library, which is an API Client for [Circle](https://developers.circle.com/)
+
+Inspired by Alexey Zabelin's [shipwire](https://www.shipwire.com/) API wrapper: [ballast](https://github.com/alexeyzab/ballast) and David Johnson's [stripe](https://github.com/dmjio/stripe) API wrapper.
+
+You'll need to set the environment variable `CIRCLE_API_KEY` to test this library locally.  Get your keys [here](https://developers.circle.com/docs/api-keys).

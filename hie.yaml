@@ -3,5 +3,5 @@ cradle:
     - path: "./src"
       component: "unknot:lib"
 
-    - path: "./tests"
-      component: "unknot:test:tests"
+    - path: "./test"
+      component: "unknot:test:test"

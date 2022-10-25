@@ -5,10 +5,10 @@ repl:
 	stack repl
 
 test-repl:
-	stack repl unknot:tests
+	stack repl unknot:test
 
 watch:
 	stack build --file-watch --fast
 
-test:
+tests:
 	stack test
