@@ -6,8 +6,6 @@
 
 I'm not knot theorist, but it seemed like as good a name as any for this library, which is an API Client for [Circle](https://developers.circle.com/)
 
-Inspired by Alexey Zabalin's [ballast](https://github.com/alexeyzab/ballast) API client wrapper.  
+Inspired by Alexey Zabelin's [shipwire](https://www.shipwire.com/) API wrapper: [ballast](https://github.com/alexeyzab/ballast) and David Johnson's [stripe](https://github.com/dmjio/stripe) API wrapper.
 
 You'll need to set the environment variable `CIRCLE_API_KEY` to test this library locally.  Get your keys [here](https://developers.circle.com/docs/api-keys).
-
-Actually, what happens when you use this library in a different project?  Will it also require a `CIRCLE_API_KEY`?  What if the client wants to use a different variable?  Is there a way to export that control?
