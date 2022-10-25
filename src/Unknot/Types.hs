@@ -224,7 +224,6 @@ instance FromJSON PayoutStatus where
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
--- Response data
 data PayoutData = PayoutData
   { id :: !UUID,
     sourceWalletId :: !UUID,
@@ -260,6 +259,8 @@ instance FromJSON PayoutData where
           <*> o .: "payoutReturn"
           <*> o .: "createDate"
           <*> o .: "updateDate"
+
+-- General Utility types (to-do reorganize them)
 
 data BankAccountType = Wire | Sen deriving (Eq, Show)
 
@@ -655,19 +656,6 @@ newtype Country = Country
   { unCountry :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
-
--- data Currency
---   = USD
---   deriving (Eq, Show)
-
--- instance ToJSON Currency where
---   toJSON USD = String "USD"
-
--- instance FromJSON Currency where
---   parseJSON = withText "Currency" parse
---     where
---       parse "USD" = pure USD
---       parse o = fail $ "Unexpected Currency: " <> show o
 
 omitNulls :: [(Text, Value)] -> Value
 omitNulls = object . filter notNull

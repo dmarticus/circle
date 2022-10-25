@@ -124,6 +124,7 @@ circle' CircleConfig {..} CircleAPIRequest {..} = do
         initReq
           { method = rMethod,
             requestBody = RequestBodyLBS reqBody,
+            requestHeaders = [(hContentType, "application/json")],
             queryString = paramsToByteString $ paramsQuery params
           }
       circleToken = unApiToken token
@@ -183,7 +184,7 @@ circleTest' CircleConfig {..} CircleAPIRequest {..} manager = do
         initReq
           { method = rMethod,
             requestBody = RequestBodyLBS reqBody,
-            requestHeaders = [(hContentType, "application/json")], -- TODO maybe cleaner way to do this
+            requestHeaders = [(hContentType, "application/json")],
             queryString = paramsToByteString $ paramsQuery params
           }
       circleToken = unApiToken token
