@@ -26,6 +26,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 
 ### Core Functionality
 
+- [] differentiate between query params and the request body.  Right now I don't think I do that.
 - [] Wrap API Overview endpoints (small)
 - [] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
 - [] Wrap Addresses endpoint (medium)

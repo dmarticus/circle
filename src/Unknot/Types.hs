@@ -55,11 +55,7 @@ module Unknot.Types
     getBranchCodeFromSwiftCode,
     ResponseStatus (..),
     ResponseMessage (..),
-    -- Error (..),
     ErrorCode (..),
-    -- ErrorMessage (..),
-    -- ErrorType (..),
-    Id (..),
     UUID (..),
     Reply,
     Method,
@@ -119,6 +115,7 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import Data.Coerce (coerce)
 import Data.Fixed (Centi, Fixed (MkFixed))
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -830,8 +827,8 @@ newtype SwiftCode = SwiftCode Text
   deriving stock (Show, Lift)
   deriving newtype (Eq, Ord, ToJSON)
 
--- swiftCountryCodes :: Set.Set Text
--- swiftCountryCodes = Set.fromList $ "XK" : (alphaTwoUpper <$> ([minBound .. maxBound] :: [Country]))
+swiftCountryCodes :: Set.Set Text
+swiftCountryCodes = Set.fromList $ "XK" : (alphaTwoUpper <$> ([minBound .. maxBound] :: [Country]))
 
 swiftCodeRegex :: Regex
 swiftCodeRegex = [re|^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$|]
@@ -840,7 +837,7 @@ mkSwiftCode :: Text -> Maybe SwiftCode
 mkSwiftCode txt = do
   let t = T.toUpper $ T.strip txt
   guard $ t =~ swiftCodeRegex
-  -- guard $ Set.member (getCountryFromSwiftCodeText t) swiftCountryCodes
+  guard $ Set.member (getCountryFromSwiftCodeText t) swiftCountryCodes
   pure $ SwiftCode t
 
 instance FromJSON SwiftCode where
@@ -932,6 +929,7 @@ instance FromJSON a => FromJSON (CircleResponse a) where
           <*> o .:? "message"
           <*> o .:? "data"
 
+-- these types have to do with Circle's actual API
 newtype ResponseStatus = ResponseStatus
   { unResponseStatus :: Integer
   }
@@ -942,58 +940,28 @@ newtype ResponseMessage = ResponseMessage
   }
   deriving (Eq, Show, FromJSON)
 
--- data Error = Error
---   { errorCode :: ErrorCode,
---     errorMessage :: ErrorMessage,
---     errorType :: ErrorType
---   }
---   deriving (Eq, Show)
-
--- instance FromJSON Error where
---   parseJSON = withObject "Error" parse
---     where
---       parse o =
---         Unknot.Types.Error
---           <$> o .: "code"
---           <*> o .: "message"
---           <*> o .: "type"
-
--- data ErrorCode
---   = ErrorCodeText Text
---   | ErrorCodeInteger Integer
---   deriving (Eq, Show)
-
--- instance FromJSON ErrorCode where
---   parseJSON o = (ErrorCodeText <$> parseJSON o) <|> (ErrorCodeInteger <$> parseJSON o)
-
--- newtype ErrorMessage = ErrorMessage
---   { unErrorMessage :: Text
---   }
---   deriving (Eq, Show, FromJSON)
-
--- data ErrorType
---   = ErrorWarning
---   | ErrorError
---   deriving (Eq, Show)
-
--- instance FromJSON ErrorType where
---   parseJSON = withText "ErrorType" parse
---     where
---       parse "warning" = pure ErrorWarning
---       parse "error" = pure ErrorError
---       parse o = fail $ "Unexpected ErrorType: " <> show o
-
-newtype Id = Id
-  { unId :: Integer
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
-
--- BIG TODO, replace this with an actual UUID type that enforces shape + correctness.  Either bring in
--- a library or enforce it yourself, shouldn't be too bad.
+-- TODO, consider replacing this hand-rolled validation with the Data.UUID library if you really care about accurate UUIDs.  
+-- This is fine for now, though.
 newtype UUID = UUID
   { unUUID :: Text
   }
-  deriving (Eq, Show, ToJSON, FromJSON)
+  deriving (Eq, Show)
+  deriving newtype (ToJSON)
+
+uuidRegex :: Regex
+uuidRegex = [re|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|]
+
+mkUUID :: Text -> Maybe UUID
+mkUUID t =
+  if t =~ uuidRegex
+    then Just (UUID t)
+    else Nothing
+
+instance FromJSON UUID where
+  parseJSON = withText "UUID"  $ \t ->
+    case mkUUID t of
+      Nothing -> fail $ "Invalid UUID: " ++ T.unpack t
+      Just uuid -> pure uuid
 
 type Reply = Network.HTTP.Client.Response BSL.ByteString
 

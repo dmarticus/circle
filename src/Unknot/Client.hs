@@ -23,9 +23,9 @@ import Network.HTTP.Client
     requestHeaders,
   )
 import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Network.HTTP.Types.Header (hContentType)
 import qualified Network.HTTP.Types.Method as NHTM
 import Unknot.Types
-import Network.HTTP.Types.Header ( hContentType ) 
 
 -- | Conversion of a key value pair to a query parameterized string
 paramsToByteString ::
