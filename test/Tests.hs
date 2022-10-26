@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
@@ -17,12 +18,12 @@ testWireAccountDetails :: WireAccountDetails
 testWireAccountDetails =
   WireAccountDetails
     (UUID "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
-    (AccountNumber "123456789")
+    [compileAccountNumber|446043103366|]
     (RoutingNumber "021000021")
     (BillingDetails
       "Test Recipient"
       (City "Snoqualmie")
-      (Country "US")
+      (ISO3166Alpha2 unitedStatesOfAmerica)
       (AddressLine "6501 Railroad Avenue SE")
       (Just (AddressLine "Room 315"))
       (Just (District "WA"))
@@ -30,7 +31,7 @@ testWireAccountDetails =
     (BankAddress
       (Just "Test Bank")
       (Just (City "Snoqualmie"))
-      (Just (Country "US"))
+      (Just (ISO3166Alpha2 unitedStatesOfAmerica))
       (Just (AddressLine "6501 Railroad Avenue SE"))
       (Just (AddressLine "Room 315"))
       (Just (District "WA")))
@@ -133,7 +134,7 @@ main = do
                     (UUID "e81b86e4-c4ba-4337-97ff-08486301b618")
                     (DestinationBankAccount
                       Wire
-                      (UUID wireAccountDataId)
+                      wireAccountDataId
                       Nothing)
                     (USDOrEURAmount
                       (Amount 100.00)

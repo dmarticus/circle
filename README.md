@@ -20,6 +20,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [] Split the code into more modules so it's easier to navigate around the various different bits.  Seems like better organization than one mega module.  Or, if you don't split it up, at _least_ put some comments breaking up different sections.
 - [] Add CI pipeline to run tests
 - [] Add some aeson utilities to reduce boilerplate + code reuse
+- [] Maybe add TemplateHaskell and do some `deriveJSON` to get rid of all those hand-rolled derivations
 - [] Look into sharing some request/response types if there's enough in common
 - [] Add PR template and contribution guide
 
