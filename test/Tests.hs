@@ -10,13 +10,6 @@ import Data.Foldable (for_)
 import Network.HTTP.Client (newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Test.Hspec
-  ( describe,
-    hspec,
-    it,
-    parallel,
-    shouldBe,
-    shouldSatisfy,
-  )
 import Test.Hspec.Expectations.Contrib (isRight)
 import Unknot.Client
 import Unknot.Types
@@ -45,32 +38,79 @@ testWireAccountDetails =
         (Just (District "WA"))
     )
 
+testSubscriptionBody :: SubscriptionBody
+testSubscriptionBody =
+  -- TODO this fucking URL doesn't work
+  SubscriptionBody "https://example.org/handler/for/notifications"
+
 main :: IO ()
 main = do
   manager <- newManager tlsManagerSettings
   config <- sandboxEnvConfig
   hspec $
     parallel $ do
-      describe "wire accounts" $ do
+      describe "overview endpoints" $ do
+        describe "management" $ do
+          it "gets configuration info" $ do
+            configurationInfo <- circleTest config manager getConfigurationInfo
+            let Right CircleResponse {..} = configurationInfo
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "encryption" $ do
+          it "gets public key info" $ do
+            keyInfo <- circleTest config manager getPublicKey
+            let Right CircleResponse {..} = keyInfo
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "channels" $ do
+          it "lists all channels" $ do
+            channels <- circleTest config manager listAllChannels
+            let Right CircleResponse {..} = channels
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "stablecoins" $ do
+          it "lists all stablecoins" $ do
+            stablecoins <- circleTest config manager listAllStablecoins
+            let Right CircleResponse {..} = stablecoins
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "subscriptions" $ do
+          it "creates a new subscription" $ do
+            subscription <- circleTest config manager $ createSubscription testSubscriptionBody
+            let Right CircleResponse {..} = subscription
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` (Just (ResponseMessage "Unable to complete request. One or more request parameters are invalid."))
+          it "deletes a subscription" $ do
+            deletionResponse <- circleTest config manager $ deleteSubscription (UUID "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
+            let Right CircleResponse {..} = deletionResponse
+            circleResponseCode `shouldBe` Nothing
+            -- TODO we don't have a resource so it'll fail
+            circleResponseMessage `shouldBe` (Just (ResponseMessage "Resource not found"))
+          it "lists all subscription" $ do
+            subcriptions <- circleTest config manager listAllNotificationSubscriptions
+            let Right CircleResponse {..} = subcriptions
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+      describe "wire endpoints" $ do
         describe "create wire account" $ do
           it "creates a new wire account" $ do
-            createNewWireResult <- circleTest config manager $ createWireAccount testWireAccountDetails
-            createNewWireResult `shouldSatisfy` isRight
-            let Right CircleResponse {..} = createNewWireResult
+            newWireAccount <- circleTest config manager $ createWireAccount testWireAccountDetails
+            newWireAccount `shouldSatisfy` isRight
+            let Right CircleResponse {..} = newWireAccount
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "get wire accounts" $ do
           it "gets a list of wire accounts" $ do
-            getWireAccountsResults <- circleTest config manager getWireAccounts
-            getWireAccountsResults `shouldSatisfy` isRight
-            let Right CircleResponse {..} = getWireAccountsResults
+            wireAccounts <- circleTest config manager getWireAccounts
+            wireAccounts `shouldSatisfy` isRight
+            let Right CircleResponse {..} = wireAccounts
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "get wire account" $ do
           it "gets a single wire account" $ do
-            createdAccount <- circleTest config manager $ createWireAccount testWireAccountDetails
-            createdAccount `shouldSatisfy` isRight
-            let Right CircleResponse {circleResponseData} = createdAccount
+            wireAccount1 <- circleTest config manager $ createWireAccount testWireAccountDetails
+            wireAccount1 `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseData} = wireAccount1
             for_ circleResponseData $ \WireAccountData {..} -> do
               wireAccount <- circleTest config manager $ getWireAccount wireAccountDataId
               wireAccount `shouldSatisfy` isRight
@@ -78,16 +118,16 @@ main = do
               circleResponseCode `shouldBe` Nothing
               circleResponseMessage `shouldBe` Nothing
           it "gets wire instructions for a wire account" $ do
-            createdAccount <- circleTest config manager $ createWireAccount testWireAccountDetails
-            createdAccount `shouldSatisfy` isRight
-            let Right CircleResponse {circleResponseData} = createdAccount
+            wireAccount2 <- circleTest config manager $ createWireAccount testWireAccountDetails
+            wireAccount2 `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseData} = wireAccount2
             for_ circleResponseData $ \WireAccountData {..} -> do
               wireAccountInstructions <- circleTest config manager $ getWireAccountInstructions wireAccountDataId
               wireAccountInstructions `shouldSatisfy` isRight
               let Right CircleResponse {circleResponseCode, circleResponseMessage} = wireAccountInstructions
               circleResponseCode `shouldBe` Nothing
               circleResponseMessage `shouldBe` Nothing
-      describe "balances" $ do
+      describe "balance endpoints" $ do
         describe "list balances" $ do
           it "should list all balances for the newly-created wire account" $ do
             balances <- circleTest config manager listAllBalances
@@ -96,7 +136,7 @@ main = do
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
       -- TODO should probably actually seed balances, I'll do that when I wrap that API endpoint
-      describe "payouts" $ do
+      describe "payout endpoints" $ do
         describe "list payouts" $ do
           it "should list all payouts for a given business account" $ do
             -- TODO this param could to be modified to accept query params

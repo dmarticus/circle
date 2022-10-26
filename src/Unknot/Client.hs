@@ -27,17 +27,9 @@ import Network.HTTP.Types.Header (hContentType)
 import qualified Network.HTTP.Types.Method as NHTM
 import Unknot.Types
 
--- | Conversion of a key value pair to a query parameterized string
-paramsToByteString ::
-  [Query] ->
-  BS8.ByteString
-paramsToByteString [] = mempty
-paramsToByteString [x] = fst (unQuery x) <> "=" <> snd (unQuery x)
-paramsToByteString (x : xs) =
-  mconcat [fst $ unQuery x, "=", snd $ unQuery x, "&"] <> paramsToByteString xs
-
--- | Wire endpoints
-
+---------------------------------------------------------------
+-- Wire endpoints
+---------------------------------------------------------------
 -- | Create a bank account for a wire
 -- https://developers.circle.com/reference/createbusinesswireaccount
 createWireAccount :: WireAccountDetails -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
@@ -62,7 +54,7 @@ getWireAccount :: UUID -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteS
 getWireAccount wireAccountId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
-    url = T.append "businessAccount/banks/wires/" (unUUID wireAccountId)
+    url = "businessAccount/banks/wires/" <> (unUUID wireAccountId)
     params = Params Nothing []
 
 -- | Get the wire transfer instructions into the Circle bank account given your bank account id.
@@ -72,11 +64,12 @@ getWireAccountInstructions :: UUID -> CircleAPIRequest WireInstructionsRequest T
 getWireAccountInstructions wireAccountId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
-    url = T.append "businessAccount/banks/wires/" (unUUID wireAccountId) <> "/instructions"
+    url = "businessAccount/banks/wires/" <> (unUUID wireAccountId) <> "/instructions"
     params = Params Nothing []
 
--- | Balance endpoints
-
+---------------------------------------------------------------
+-- Balance endpoints
+---------------------------------------------------------------
 -- | List all balances
 -- https://developers.circle.com/reference/listbusinesspayouts
 listAllBalances :: CircleAPIRequest BalanceRequest TupleBS8 BSL.ByteString
@@ -86,7 +79,87 @@ listAllBalances = do
     url = "businessAccount/balances"
     params = Params Nothing []
 
--- | Payout endpoints
+---------------------------------------------------------------
+-- Management endpoint
+---------------------------------------------------------------
+-- | Get configuration info
+-- https://developers.circle.com/reference/getaccountconfig
+getConfigurationInfo :: CircleAPIRequest ConfigurationRequest TupleBS8 BSL.ByteString
+getConfigurationInfo = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "configuration"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Encryption endpoint
+---------------------------------------------------------------
+-- | Get encryption info
+-- https://developers.circle.com/reference/getpublickey
+getPublicKey :: CircleAPIRequest EncryptionRequest TupleBS8 BSL.ByteString
+getPublicKey = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "encryption/public"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Channels endpoint
+---------------------------------------------------------------
+-- | List all channels
+-- https://developers.circle.com/reference/listchannels
+listAllChannels :: CircleAPIRequest ChannelsRequest TupleBS8 BSL.ByteString
+listAllChannels = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "channels"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Stablecoins endpoint
+---------------------------------------------------------------
+-- | List all stablecoins
+-- https://developers.circle.com/reference/listchannels
+listAllStablecoins :: CircleAPIRequest StablecoinsRequest TupleBS8 BSL.ByteString
+listAllStablecoins = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "stablecoins"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Subscriptions endpoints
+---------------------------------------------------------------
+-- | List all subscriptions
+-- https://developers.circle.com/reference/listsubscriptions
+listAllNotificationSubscriptions :: CircleAPIRequest SubscriptionsRequest TupleBS8 BSL.ByteString
+listAllNotificationSubscriptions = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "notifications/subscriptions"
+    params = Params Nothing []
+
+-- | Create new subscription
+-- https://developers.circle.com/reference/createsubscribtion
+createSubscription :: SubscriptionBody -> CircleAPIRequest SubscriptionsRequest TupleBS8 BSL.ByteString
+createSubscription subscriptionBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "notifications/subscriptions"
+    params = Params (Just $ Body (encode subscriptionBody)) []
+
+-- | Delete subscription
+-- https://developers.circle.com/reference/deletesubscribtion
+deleteSubscription :: UUID -> CircleAPIRequest SubscriptionsRequest TupleBS8 BSL.ByteString
+deleteSubscription resourceId = do
+  mkCircleAPIRequest NHTM.methodDelete url params
+  where
+    url = "notifications/subscriptions" <> unUUID resourceId
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Payout endpoints
+---------------------------------------------------------------
 -- https://developers.circle.com/reference/listbusinessbalances
 listAllPayouts :: CircleAPIRequest PayoutsRequest TupleBS8 BSL.ByteString
 listAllPayouts = do
@@ -109,7 +182,9 @@ createPayout payoutDetails = do
     url = "businessAccount/payouts"
     params = Params (Just $ Body (encode payoutDetails)) []
 
--- | General methods
+---------------------------------------------------------------
+-- Utility methods for calling Circle's API
+---------------------------------------------------------------
 circle' ::
   CircleConfig ->
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
@@ -131,12 +206,6 @@ circle' CircleConfig {..} CircleAPIRequest {..} = do
       circleToken = unApiToken token
       authorizedRequest = applyBearerAuth circleToken req
   httpLbs authorizedRequest manager
-
-data CircleError = CircleError
-  { parseError :: String,
-    circleResponse :: Response BSL.ByteString
-  }
-  deriving (Show)
 
 -- | Create a request to `circle`'s API
 circle ::
@@ -192,3 +261,12 @@ circleTest' CircleConfig {..} CircleAPIRequest {..} manager = do
       authorizedRequest = applyBearerAuth circleToken req
   -- liftIO $ print (requestHeaders authorizedRequest)
   httpLbs authorizedRequest manager
+
+-- | Conversion of a key value pair to a query parameterized string
+paramsToByteString ::
+  [Query] ->
+  BS8.ByteString
+paramsToByteString [] = mempty
+paramsToByteString [x] = fst (unQuery x) <> "=" <> snd (unQuery x)
+paramsToByteString (x : xs) =
+  mconcat [fst $ unQuery x, "=", snd $ unQuery x, "&"] <> paramsToByteString xs

@@ -11,6 +11,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Unknot.Types
   ( -- Types for connecting to and wrapping Circle's API
@@ -18,6 +19,7 @@ module Unknot.Types
     Reply,
     Method,
     CircleAPIRequest (..),
+    CircleError (..),
     CircleResponse (..),
     CircleRequest,
     Host,
@@ -43,6 +45,20 @@ module Unknot.Types
     -- Balance Endpoint
     BalanceRequest,
     BalanceData (..),
+    -- Management Endpoint
+    ConfigurationRequest,
+    ConfigurationData (..),
+    -- Encryption Endpoint
+    EncryptionRequest,
+    EncryptionData (..),
+    -- Channels Endpoint
+    ChannelsRequest,
+    -- Stablecoins Endpoint
+    StablecoinsRequest,
+    -- Subscriptions Endpoint
+    SubscriptionsRequest,
+    SubscriptionRequest,
+    SubscriptionBody (..),
     -- Payouts Endpoint
     PayoutsRequest,
     PayoutRequest,
@@ -164,10 +180,16 @@ mkCircleAPIRequest = CircleAPIRequest
 
 type family CircleRequest a :: *
 
+data CircleError = CircleError
+  { parseError :: !String,
+    circleResponse :: !(Response BSL.ByteString)
+  }
+  deriving (Show)
+
 data CircleResponse a = CircleResponse
-  { circleResponseCode :: Maybe ResponseStatus,
-    circleResponseMessage :: Maybe ResponseMessage,
-    circleResponseData :: Maybe a
+  { circleResponseCode :: !(Maybe ResponseStatus),
+    circleResponseMessage :: !(Maybe ResponseMessage),
+    circleResponseData :: !(Maybe a)
   }
   deriving (Eq, Show)
 
@@ -423,6 +445,214 @@ instance ToJSON PayoutDetails where
       ]
 
 ---------------------------------------------------------------
+-- Management endpoint
+---------------------------------------------------------------
+
+data ConfigurationRequest
+
+type instance CircleRequest ConfigurationRequest = CircleResponse ConfigurationData
+
+newtype ConfigurationData = ConfigurationData {configurationDataPayments :: WalletConfig}
+  deriving (Eq, Show)
+
+instance FromJSON ConfigurationData where
+  parseJSON = withObject "ConfigurationData" parse
+    where
+      parse o =
+        ConfigurationData
+          <$> o .: "payments"
+newtype WalletConfig = WalletConfig {masterWalletId :: Text}
+  deriving (Eq, Show)
+
+instance FromJSON WalletConfig where
+  parseJSON = withObject "WalletConfig" parse
+    where
+      parse o =
+        WalletConfig
+          <$> o .: "masterWalletId"
+
+---------------------------------------------------------------
+-- Encryption endpoint
+---------------------------------------------------------------
+
+data EncryptionRequest
+
+type instance CircleRequest EncryptionRequest = CircleResponse EncryptionData
+
+data EncryptionData = EncryptionData 
+  { encryptionDataKeyId :: !Text, -- TODO this should actually be a UUID, but for the tests to work it needs to be relaxed a bit
+    encryptionDataPublicKey :: !Text -- TODO is there a PGP key type in Haskell?
+  }
+  deriving (Eq, Show)
+
+instance FromJSON EncryptionData where
+  parseJSON = withObject "EncryptionData" parse
+    where
+      parse o =
+        EncryptionData
+          <$> o .: "keyId"
+          <*> o .: "publicKey"
+
+---------------------------------------------------------------
+-- Channels endpoint
+---------------------------------------------------------------
+
+data ChannelsRequest
+
+type instance CircleRequest ChannelsRequest = CircleResponse ChannelData
+
+newtype ChannelData = ChannelData {channels :: [Channel]}
+  deriving (Eq, Show)
+
+instance FromJSON ChannelData where
+  parseJSON = withObject "ChannelData" parse
+    where
+      parse o =
+        ChannelData
+          <$> o .: "channels"
+data Channel = Channel
+  { channelId :: !Text,
+    channelDefault :: !Bool,
+    channelCardDescriptor :: !Text,
+    channelAchDescriptor :: !Text
+  }
+  deriving (Eq, Show)
+
+instance FromJSON Channel where
+  parseJSON = withObject "Channel" parse
+    where
+      parse o =
+        Channel
+          <$> o .: "id"
+          <*> o .: "default"
+          <*> o .: "cardDescriptor"
+          <*> o .: "achDescriptor"
+
+---------------------------------------------------------------
+-- Stablecoins endpoint
+---------------------------------------------------------------
+
+data StablecoinsRequest
+
+type instance CircleRequest StablecoinsRequest = CircleResponse [StablecoinData]
+
+data StablecoinData = StablecoinData
+  { stablecoinDataName :: !Text,
+    stablecoinDataSymbol :: !Text, -- TODO enum of stablecoin symbols
+    stablecoinDataTotalAmount :: !Text, -- TODO should this be Amount?  probably
+    stablecoinDataChains :: ![ChainAmount]
+  }
+  deriving (Eq, Show)
+
+instance FromJSON StablecoinData where
+  parseJSON = withObject "StablecoinData" parse
+    where
+      parse o =
+        StablecoinData
+          <$> o .: "name"
+          <*> o .: "symbol"
+          <*> o .: "totalAmount"
+          <*> o .: "chains"
+
+data ChainAmount = ChainAmount
+  { chainAmountAmount :: !Text,
+    chainAmountChain :: !Chain,
+    chainAmountUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+
+instance FromJSON ChainAmount where
+  parseJSON = withObject "ChainAmount" parse
+    where
+      parse o =
+        ChainAmount
+          <$> o .: "amount"
+          <*> o .: "chain"
+          <*> o .: "updateDate"
+
+data Chain = ALGO | AVAX | BTC | ETH | FLOW | HBAR | MATIC | SOL | TRX | XLM deriving (Eq, Show)
+
+instance ToJSON Chain where
+  toJSON ALGO = String "ALGO"
+  toJSON AVAX = String "AVAX"
+  toJSON BTC = String "BTC"
+  toJSON ETH = String "ETH"
+  toJSON FLOW = String "FLOW"
+  toJSON HBAR = String "HBAR"
+  toJSON MATIC = String "MATIC"
+  toJSON SOL = String "SOL"
+  toJSON TRX = String "TRX"
+  toJSON XLM = String "XLM"
+
+instance FromJSON Chain where
+  parseJSON (String s) = case T.unpack s of
+    "ALGO" -> return ALGO
+    "AVAX" -> return AVAX
+    "BTC" -> return BTC
+    "ETH" -> return ETH
+    "FLOW" -> return FLOW
+    "HBAR" -> return HBAR
+    "MATIC" -> return MATIC
+    "SOL" -> return SOL
+    "TRX" -> return TRX
+    "XLM" -> return XLM
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
+---------------------------------------------------------------
+-- Subscription endpoints
+---------------------------------------------------------------
+
+data SubscriptionsRequest
+
+type instance CircleRequest SubscriptionsRequest = CircleResponse [SubscriptionData]
+
+data SubscriptionRequest
+
+type instance CircleRequest SubscriptionRequest = CircleResponse SubscriptionData
+
+data SubscriptionData = SubscriptionData
+  { subscriptionDataId :: !Text,
+    subscriptionDataEndpoint :: !Text,
+    subscriptionDataSubscriptionDetails :: ![SubscriptionDetails]
+  }
+  deriving (Eq, Show)
+
+instance FromJSON SubscriptionData where
+  parseJSON = withObject "SubscriptionData" parse
+    where
+      parse o =
+        SubscriptionData
+          <$> o .: "id"
+          <*> o .: "endpoint"
+          <*> o .: "subscriptionDetails"
+
+data SubscriptionDetails = SubscriptionDetails
+  { subscriptionDetailsUrl :: !Text,
+    subscriptionDetailsStatus :: !Status
+  }
+  deriving (Eq, Show)
+
+instance FromJSON SubscriptionDetails where
+  parseJSON = withObject "SubscriptionDetails" parse
+    where
+      parse o =
+        SubscriptionDetails
+          <$> o .: "url"
+          <*> o .: "status"
+
+data SubscriptionBody = SubscriptionBody
+  { subscriptionBodyEndpoint :: !Text
+  }
+  deriving (Eq, Show)
+
+instance ToJSON SubscriptionBody where
+  toJSON SubscriptionBody {..} =
+    object
+      [ "endpoint" .= subscriptionBodyEndpoint
+      ]
+
+---------------------------------------------------------------
 -- Wire endpoints
 ---------------------------------------------------------------
 
@@ -598,20 +828,20 @@ instance ToJSON DestinationBankAccount where
 
 -- TODO do we need type narrowing to have other types that represent subsets of this one without have to write
 -- custom constructors?
-data AllowedCurrencies = USD | EUR | BTC | ETH deriving (Eq, Show)
+data AllowedCurrencies = USD | EUR | BTC' | ETH' deriving (Eq, Show)
 
 instance ToJSON AllowedCurrencies where
   toJSON USD = String "USD"
   toJSON EUR = String "EUR"
-  toJSON BTC = String "BTC"
-  toJSON ETH = String "ETH"
+  toJSON BTC' = String "BTC"
+  toJSON ETH' = String "ETH"
 
 instance FromJSON AllowedCurrencies where
   parseJSON (String s) = case T.unpack s of
     "USD" -> return USD
     "EUR" -> return EUR
-    "BTC" -> return BTC
-    "ETH" -> return ETH
+    "BTC" -> return BTC'
+    "ETH" -> return ETH'
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
