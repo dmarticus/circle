@@ -13,10 +13,47 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Unknot.Types
-  ( ApiToken (..),
+  ( -- Types for connecting to and wrapping Circle's API
+    ApiToken (..),
+    Reply,
+    Method,
+    CircleAPIRequest (..),
+    CircleResponse (..),
+    CircleRequest,
+    Host,
+    CircleHost (..),
+    CircleConfig (..),
+    Params (..),
+    Body (..),
+    Query (..),
+    TupleBS8,
+    (-&-),
+    mkCircleAPIRequest,
+    hostUri,
+    prodEnvConfig,
+    sandboxEnvConfig,
+    joinQueryParams,
+    -- Wires Endpoint
+    WireAccountDetails (..),
+    WireAccountData (..),
+    WireInstructionsData (..),
+    WireAccountRequest,
+    WireAccountsRequest,
+    WireInstructionsRequest,
+    -- Balance Endpoint
+    BalanceRequest,
+    -- Payouts Endpoint
+    PayoutsRequest,
+    PayoutRequest,
+    PayoutData (..),
+    PayoutDetails (..),
+    -- Shared types across different endpoints
+    DestinationBankAccount (..),
+    USDOrEURAmount (..),
+    PayoutQueryParameters (..),
+    BankAccountType (..),
+    AllowedCurrencies (..),
     Amount (..),
-    SKU (..),
-    mkSku,
     AddressLine (..),
     AccountNumber (..),
     accountNumberLastFour,
@@ -57,43 +94,9 @@ module Unknot.Types
     ResponseMessage (..),
     ErrorCode (..),
     UUID (..),
-    Reply,
-    Method,
-    CircleAPIRequest (..),
-    CircleResponse (..),
-    mkCircleAPIRequest,
-    WireAccountDetails (..),
-    WireAccountData (..),
-    WireInstructionsData (..),
-    WireAccountRequest,
-    WireAccountsRequest,
-    WireInstructionsRequest,
-    BalanceRequest,
-    PayoutsRequest,
-    PayoutRequest,
-    PayoutData (..),
-    PayoutDetails (..),
-    DestinationBankAccount (..),
-    USDOrEURAmount (..),
-    PayoutQueryParameters (..),
-    BankAccountType (..),
-    AllowedCurrencies (..),
-    CircleRequest,
-    Host,
-    CircleHost (..),
-    CircleConfig (..),
-    hostUri,
-    prodEnvConfig,
-    sandboxEnvConfig,
-    Params (..),
-    Body (..),
-    Query (..),
-    TupleBS8,
-    (-&-),
   )
 where
 
--- import Control.Applicative ((<|>))
 import Control.Monad (guard)
 import Country
   ( Country,
@@ -131,6 +134,9 @@ import Refined.Unsafe (reallyUnsafeRefine)
 import System.Environment (getEnv)
 import Text.Regex.PCRE.Heavy
 
+---------------------------------------------------------------
+-- Circle API wrapper
+---------------------------------------------------------------
 -- | Token type used for HTTP Bearer authentication.
 newtype ApiToken = ApiToken
   { unApiToken :: BS8.ByteString
@@ -156,6 +162,110 @@ mkCircleAPIRequest ::
 mkCircleAPIRequest = CircleAPIRequest
 
 type family CircleRequest a :: *
+
+data CircleResponse a = CircleResponse
+  { circleResponseCode :: Maybe ResponseStatus,
+    circleResponseMessage :: Maybe ResponseMessage,
+    circleResponseData :: Maybe a
+  }
+  deriving (Eq, Show)
+
+instance FromJSON a => FromJSON (CircleResponse a) where
+  parseJSON = withObject "CircleResponse" parse
+    where
+      parse o =
+        CircleResponse
+          <$> o .:? "status"
+          <*> o .:? "message"
+          <*> o .:? "data"
+
+-- these types have to do with Circle's actual API
+newtype ResponseStatus = ResponseStatus
+  { unResponseStatus :: Integer
+  }
+  deriving (Eq, Show, FromJSON)
+
+newtype ResponseMessage = ResponseMessage
+  { unResponseMessage :: Text
+  }
+  deriving (Eq, Show, FromJSON)
+
+type Reply = Network.HTTP.Client.Response BSL.ByteString
+
+type Method = NHTM.Method
+
+-- | Either production or sandbox API host
+type Host = Text
+
+data CircleHost
+  = CircleProduction
+  | CircleSandbox
+  deriving (Eq, Show)
+
+hostUri :: CircleHost -> Text
+hostUri CircleProduction = "https://api.circle.com/v1/"
+hostUri CircleSandbox = "https://api-sandbox.circle.com/v1/"
+
+data CircleConfig = CircleConfig
+  { host :: !CircleHost,
+    token :: !ApiToken
+  }
+  deriving (Eq, Show)
+
+-- Possibly a bad idea. I don't know
+-- why they auth like this.
+credentialsEnv :: IO ApiToken
+credentialsEnv = do
+  token <- getEnv "CIRCLE_API_KEY"
+  return (ApiToken $ BS8.pack token)
+
+prodEnvConfig :: IO CircleConfig
+prodEnvConfig = do
+  CircleConfig CircleProduction <$> credentialsEnv
+
+sandboxEnvConfig :: IO CircleConfig
+sandboxEnvConfig = do
+  CircleConfig CircleSandbox <$> credentialsEnv
+
+newtype Query = Query
+  { unQuery :: TupleBS8
+  }
+  deriving (Eq, Show)
+
+newtype Body = Body
+  { unBody :: BSL.ByteString
+  }
+  deriving (Eq, Show)
+
+-- | Parameters for each request which include both the query and the body of a request
+data Params b c = Params
+  { paramsBody :: Maybe Body,
+    paramsQuery :: ![Query]
+  }
+  deriving (Show)
+
+joinQueryParams :: Params b c -> Params b c -> Params b c
+joinQueryParams (Params _ xs) (Params b ys) = Params b (xs ++ ys)
+
+-- | Type alias for query parameters
+type TupleBS8 = (BS8.ByteString, BS8.ByteString)
+
+-- | Convert a parameter to a key/value
+class ToCircleParam param where
+  toCircleParam :: param -> Params TupleBS8 c -> Params TupleBS8 c
+
+class (ToCircleParam param) => CircleHasParam request param
+
+-- | Add an optional query parameter
+(-&-) ::
+  CircleHasParam r param =>
+  CircleAPIRequest r b c ->
+  param ->
+  CircleAPIRequest r b c
+circleAPIRequest -&- param =
+  circleAPIRequest
+    { params = toCircleParam param (params circleAPIRequest)
+    }
 
 ---------------------------------------------------------------
 -- Balance endpoints
@@ -204,6 +314,68 @@ data PayoutsRequest
 
 type instance CircleRequest PayoutsRequest = CircleResponse [PayoutData]
 
+data PayoutReturn = PayoutReturn
+  { payoutReturnId :: !UUID,
+    payoutReturnOriginalPayoutId :: !UUID,
+    payoutReturnAmount :: !USDAmount,
+    payoutReturnFees :: !USDAmount,
+    payoutReturnReason :: !Text,
+    payoutReturnStatus :: !Status,
+    payoutReturnCreateDate :: !UTCTime,
+    payoutReturnUpdateDate :: !UTCTime
+  }
+  deriving (Show)
+
+instance FromJSON PayoutReturn where
+  parseJSON = withObject "PayoutReturn" parse
+    where
+      parse o =
+        PayoutReturn
+          <$> o .: "id"
+          <*> o .: "payoutId"
+          <*> o .: "amount"
+          <*> o .: "fees"
+          <*> o .: "reason"
+          <*> o .: "status"
+          <*> o .: "createDate"
+          <*> o .: "updateDate"
+
+data PayoutData = PayoutData
+  { payoutDataId :: !UUID,
+    payoutDataSourceWalletId :: !UUID,
+    payoutDataDestinationBankAccount :: !DestinationBankAccount,
+    payoutDataAmount :: !USDOrEURAmount,
+    payoutDataFees :: !USDAmount,
+    payoutDataStatus :: !Status,
+    payoutDataTrackingRef :: !TrackingReference, -- TODO maybe this needs a custom type, although text is probably fine
+    payoutDataErrorCode :: !ErrorCode,
+    payoutDataRiskEvaluation :: !RiskEvaluation,
+    payoutDataAdjustments :: !Adjustments,
+    payoutDataPayoutReturn :: !PayoutReturn,
+    payoutDataCreateDate :: !UTCTime,
+    payoutDataUpdateDate :: !UTCTime
+  }
+  deriving (Show)
+
+instance FromJSON PayoutData where
+  parseJSON = withObject "PayoutData" parse
+    where
+      parse o =
+        PayoutData
+          <$> o .: "id"
+          <*> o .: "sourceWalletId"
+          <*> o .: "destination"
+          <*> o .: "amount"
+          <*> o .: "fees"
+          <*> o .: "status"
+          <*> o .: "trackingRef"
+          <*> o .: "payoutErrorCode"
+          <*> o .: "riskEvaluation"
+          <*> o .: "adjustments"
+          <*> o .: "payoutReturn"
+          <*> o .: "createDate"
+          <*> o .: "updateDate"
+
 -- Circle has some BS pagination where they let users supply some canonical
 -- collection ID, and then this pagination rule will return `n` entries before OR after that page,
 -- where `n` is controlled by the pageSize param.  This type exists to prevent callers from providing both params, which would error out
@@ -249,6 +421,88 @@ instance ToJSON PayoutDetails where
         "amount" .= payoutDetailsAmount
       ]
 
+---------------------------------------------------------------
+-- Wire endpoints
+---------------------------------------------------------------
+
+data WireAccountRequest
+
+type instance CircleRequest WireAccountRequest = CircleResponse WireAccountData
+
+data WireAccountsRequest
+
+type instance CircleRequest WireAccountsRequest = CircleResponse [WireAccountData]
+
+data WireInstructionsRequest
+
+type instance CircleRequest WireInstructionsRequest = CircleResponse WireInstructionsData
+
+data WireAccountDetails = WireAccountDetails
+  { idempotencyKey :: !UUID,
+    accountNumber :: !AccountNumber,
+    routingNumber :: !RoutingNumber,
+    billingDetails :: !BillingDetails,
+    bankAddress :: !BankAddress
+  }
+  deriving (Eq, Show)
+
+instance ToJSON WireAccountDetails where
+  toJSON WireAccountDetails {..} =
+    object
+      [ "idempotencyKey" .= idempotencyKey,
+        "accountNumber" .= accountNumber,
+        "routingNumber" .= routingNumber,
+        "billingDetails" .= billingDetails,
+        "bankAddress" .= bankAddress
+      ]
+
+data WireInstructionsData = WireInstructionsData
+  { wireInstructionsDataTrackingRef :: !TrackingReference,
+    wireInstructionsDataBeneficiaryDetails :: !BeneficiaryDetails,
+    wireInstructionsDataBeneficiaryBankDetails :: !BeneficiaryBankDetails
+  }
+  deriving (Eq, Show)
+
+instance FromJSON WireInstructionsData where
+  parseJSON = withObject "WireInstructionsData" parse
+    where
+      parse o =
+        WireInstructionsData
+          <$> o .: "trackingRef"
+          <*> o .: "beneficiary"
+          <*> o .: "beneficiaryBank"
+
+data WireAccountData = WireAccountData
+  { wireAccountDataId :: !UUID,
+    wireAccountDataStatus :: !Status,
+    wireAccountDataDescription :: !Text, -- TODO better type: Bank name plus last four digits of the bank account number or IBAN.  Make a custom type for this
+    wireAccountDataTrackingRef :: !TrackingReference,
+    wireAccountDataFingerprint :: !UUID,
+    wireAccountDataBillingDetails :: !BillingDetails,
+    wireAccountDataBankAddress :: !BankAddress,
+    wireAccountDataCreateDate :: !UTCTime,
+    wireAccountDataUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+
+instance FromJSON WireAccountData where
+  parseJSON = withObject "WireAccountData" parse
+    where
+      parse o =
+        WireAccountData
+          <$> o .: "id"
+          <*> o .: "status"
+          <*> o .: "description"
+          <*> o .: "trackingRef"
+          <*> o .: "fingerprint"
+          <*> o .: "billingDetails"
+          <*> o .: "bankAddress"
+          <*> o .: "createDate"
+          <*> o .: "updateDate"
+
+---------------------------------------------------------------
+-- Shared types
+---------------------------------------------------------------
 data Status = Pending | Complete | Failed deriving (Show, Eq)
 
 instance ToJSON Status where
@@ -303,44 +557,6 @@ instance FromJSON ErrorCode where
     "vendor_inactive" -> return VendorInactive
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
-
-data PayoutData = PayoutData
-  { payoutDataId :: !UUID,
-    payoutDataSourceWalletId :: !UUID,
-    payoutDataDestinationBankAccount :: !DestinationBankAccount,
-    payoutDataAmount :: !USDOrEURAmount,
-    payoutDataFees :: !USDAmount,
-    payoutDataStatus :: !Status,
-    payoutDataTrackingRef :: !TrackingReference, -- TODO maybe this needs a custom type, although text is probably fine
-    payoutDataErrorCode :: !ErrorCode,
-    payoutDataRiskEvaluation :: !RiskEvaluation,
-    payoutDataAdjustments :: !Adjustments,
-    payoutDataPayoutReturn :: !PayoutReturn,
-    payoutDataCreateDate :: !UTCTime,
-    payoutDataUpdateDate :: !UTCTime
-  }
-  deriving (Show)
-
-instance FromJSON PayoutData where
-  parseJSON = withObject "PayoutData" parse
-    where
-      parse o =
-        PayoutData
-          <$> o .: "id"
-          <*> o .: "sourceWalletId"
-          <*> o .: "destination"
-          <*> o .: "amount"
-          <*> o .: "fees"
-          <*> o .: "status"
-          <*> o .: "trackingRef"
-          <*> o .: "payoutErrorCode"
-          <*> o .: "riskEvaluation"
-          <*> o .: "adjustments"
-          <*> o .: "payoutReturn"
-          <*> o .: "createDate"
-          <*> o .: "updateDate"
-
--- General Utility types (to-do reorganize them)
 
 data BankAccountType = Wire | Sen deriving (Eq, Show)
 
@@ -483,67 +699,6 @@ instance FromJSON Adjustments where
           <$> o .: "fxCredit"
           <*> o .: "fxDebit"
 
-data PayoutReturn = PayoutReturn
-  { payoutReturnId :: !UUID,
-    payoutReturnOriginalPayoutId :: !UUID,
-    payoutReturnAmount :: !USDAmount,
-    payoutReturnFees :: !USDAmount,
-    payoutReturnReason :: !Text,
-    payoutReturnStatus :: !Status,
-    payoutReturnCreateDate :: !UTCTime,
-    payoutReturnUpdateDate :: !UTCTime
-  }
-  deriving (Show)
-
-instance FromJSON PayoutReturn where
-  parseJSON = withObject "PayoutReturn" parse
-    where
-      parse o =
-        PayoutReturn
-          <$> o .: "id"
-          <*> o .: "payoutId"
-          <*> o .: "amount"
-          <*> o .: "fees"
-          <*> o .: "reason"
-          <*> o .: "status"
-          <*> o .: "createDate"
-          <*> o .: "updateDate"
-
----------------------------------------------------------------
--- Wire endpoints
----------------------------------------------------------------
-
-data WireAccountRequest
-
-type instance CircleRequest WireAccountRequest = CircleResponse WireAccountData
-
-data WireAccountsRequest
-
-type instance CircleRequest WireAccountsRequest = CircleResponse [WireAccountData]
-
-data WireInstructionsRequest
-
-type instance CircleRequest WireInstructionsRequest = CircleResponse WireInstructionsData
-
-data WireAccountDetails = WireAccountDetails
-  { idempotencyKey :: !UUID,
-    accountNumber :: !AccountNumber, -- Account number
-    routingNumber :: !RoutingNumber, -- routing number
-    billingDetails :: !BillingDetails,
-    bankAddress :: !BankAddress
-  }
-  deriving (Eq, Show)
-
-instance ToJSON WireAccountDetails where
-  toJSON WireAccountDetails {..} =
-    object
-      [ "idempotencyKey" .= idempotencyKey,
-        "accountNumber" .= accountNumber,
-        "routingNumber" .= routingNumber,
-        "billingDetails" .= billingDetails,
-        "bankAddress" .= bankAddress
-      ]
-
 data BillingDetails = BillingDetails
   { billingDetailsName :: !Text,
     billingDetailsCity :: !City,
@@ -656,61 +811,6 @@ instance FromJSON BeneficiaryBankDetails where
           <*> o .: "city"
           <*> o .: "postalCode"
           <*> o .: "country"
-
-data WireInstructionsData = WireInstructionsData
-  { wireInstructionsDataTrackingRef :: !TrackingReference,
-    wireInstructionsDataBeneficiaryDetails :: !BeneficiaryDetails,
-    wireInstructionsDataBeneficiaryBankDetails :: !BeneficiaryBankDetails
-  }
-  deriving (Eq, Show)
-
-instance FromJSON WireInstructionsData where
-  parseJSON = withObject "WireInstructionsData" parse
-    where
-      parse o =
-        WireInstructionsData
-          <$> o .: "trackingRef"
-          <*> o .: "beneficiary"
-          <*> o .: "beneficiaryBank"
-
-data WireAccountData = WireAccountData
-  { wireAccountDataId :: !UUID,
-    wireAccountDataStatus :: !Status,
-    wireAccountDataDescription :: !Text, -- TODO better type: Bank name plus last four digits of the bank account number or IBAN.  Make a custom type for this
-    wireAccountDataTrackingRef :: !TrackingReference,
-    wireAccountDataFingerprint :: !UUID,
-    wireAccountDataBillingDetails :: !BillingDetails,
-    wireAccountDataBankAddress :: !BankAddress,
-    wireAccountDataCreateDate :: !UTCTime,
-    wireAccountDataUpdateDate :: !UTCTime
-  }
-  deriving (Eq, Show)
-
-instance FromJSON WireAccountData where
-  parseJSON = withObject "WireAccountData" parse
-    where
-      parse o =
-        WireAccountData
-          <$> o .: "id"
-          <*> o .: "status"
-          <*> o .: "description"
-          <*> o .: "trackingRef"
-          <*> o .: "fingerprint"
-          <*> o .: "billingDetails"
-          <*> o .: "bankAddress"
-          <*> o .: "createDate"
-          <*> o .: "updateDate"
-
-newtype SKU = SKU
-  { unSku :: Text
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
-
-mkSku :: Text -> Maybe SKU
-mkSku sku
-  | T.length sku > 16 = Nothing
-  | T.length sku < 1 = Nothing
-  | otherwise = Just (SKU sku)
 
 newtype AddressLine = AddressLine
   { unAddressLine :: Text
@@ -906,41 +1006,7 @@ newtype TrackingReference = TrackingReference
   }
   deriving (Eq, Show, ToJSON, FromJSON)
 
-omitNulls :: [(Text, Value)] -> Value
-omitNulls = object . filter notNull
-  where
-    notNull (_, Null) = False
-    notNull (_, Array a) = (not . V.null) a
-    notNull _ = True
-
-data CircleResponse a = CircleResponse
-  { circleResponseCode :: Maybe ResponseStatus,
-    circleResponseMessage :: Maybe ResponseMessage,
-    circleResponseData :: Maybe a
-  }
-  deriving (Eq, Show)
-
-instance FromJSON a => FromJSON (CircleResponse a) where
-  parseJSON = withObject "CircleResponse" parse
-    where
-      parse o =
-        CircleResponse
-          <$> o .:? "status"
-          <*> o .:? "message"
-          <*> o .:? "data"
-
--- these types have to do with Circle's actual API
-newtype ResponseStatus = ResponseStatus
-  { unResponseStatus :: Integer
-  }
-  deriving (Eq, Show, FromJSON)
-
-newtype ResponseMessage = ResponseMessage
-  { unResponseMessage :: Text
-  }
-  deriving (Eq, Show, FromJSON)
-
--- TODO, consider replacing this hand-rolled validation with the Data.UUID library if you really care about accurate UUIDs.  
+-- TODO, consider replacing this hand-rolled validation with the Data.UUID library if you really care about accurate UUIDs.
 -- This is fine for now, though.
 newtype UUID = UUID
   { unUUID :: Text
@@ -958,88 +1024,18 @@ mkUUID t =
     else Nothing
 
 instance FromJSON UUID where
-  parseJSON = withText "UUID"  $ \t ->
+  parseJSON = withText "UUID" $ \t ->
     case mkUUID t of
       Nothing -> fail $ "Invalid UUID: " ++ T.unpack t
       Just uuid -> pure uuid
 
-type Reply = Network.HTTP.Client.Response BSL.ByteString
+---------------------------------------------------------------
+-- Utils
+---------------------------------------------------------------
 
-type Method = NHTM.Method
-
--- | Either production or sandbox API host
-type Host = Text
-
-data CircleHost
-  = CircleProduction
-  | CircleSandbox
-  deriving (Eq, Show)
-
-hostUri :: CircleHost -> Text
-hostUri CircleProduction = "https://api.circle.com/v1/"
-hostUri CircleSandbox = "https://api-sandbox.circle.com/v1/"
-
-data CircleConfig = CircleConfig
-  { host :: !CircleHost,
-    token :: !ApiToken
-  }
-  deriving (Eq, Show)
-
--- Possibly a bad idea. I don't know
--- why they auth like this.
-credentialsEnv :: IO ApiToken
-credentialsEnv = do
-  token <- getEnv "CIRCLE_API_KEY"
-  return (ApiToken $ BS8.pack token)
-
-prodEnvConfig :: IO CircleConfig
-prodEnvConfig = do
-  CircleConfig CircleProduction <$> credentialsEnv
-
-sandboxEnvConfig :: IO CircleConfig
-sandboxEnvConfig = do
-  CircleConfig CircleSandbox <$> credentialsEnv
-
-newtype Query = Query
-  { unQuery :: TupleBS8
-  }
-  deriving (Eq, Show)
-
-newtype Body = Body
-  { unBody :: BSL.ByteString
-  }
-  deriving (Eq, Show)
-
--- | Parameters for each request which include both the query and the body of a request
-data Params b c = Params
-  { paramsBody :: Maybe Body,
-    paramsQuery :: ![Query]
-  }
-  deriving (Show)
-
-joinQueryParams :: Params b c -> Params b c -> Params b c
-joinQueryParams (Params _ xs) (Params b ys) = Params b (xs ++ ys)
-
--- | Type alias for query parameters
-type TupleBS8 = (BS8.ByteString, BS8.ByteString)
-
--- | Convert a parameter to a key/value
-class ToCircleParam param where
-  toCircleParam :: param -> Params TupleBS8 c -> Params TupleBS8 c
-
-instance ToCircleParam SKU where
-  toCircleParam (SKU i) =
-    joinQueryParams $ Params Nothing [Query ("sku", TE.encodeUtf8 i)]
-
-class (ToCircleParam param) => CircleHasParam request param
-
--- | Add an optional query parameter
-(-&-) ::
-  CircleHasParam r param =>
-  CircleAPIRequest r b c ->
-  param ->
-  CircleAPIRequest r b c
-circleAPIRequest -&- param =
-  circleAPIRequest
-    { params = toCircleParam param (params circleAPIRequest)
-    }
+omitNulls :: [(Text, Value)] -> Value
+omitNulls = object . filter notNull
+  where
+    notNull (_, Null) = False
+    notNull (_, Array a) = (not . V.null) a
+    notNull _ = True
