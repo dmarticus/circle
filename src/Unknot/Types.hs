@@ -1,36 +1,61 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Unknot.Types
   ( ApiToken (..),
     Amount (..),
     SKU (..),
     mkSku,
-    Quantity (..),
     AddressLine (..),
     AccountNumber (..),
+    accountNumberLastFour,
+    accountNumberRegex,
+    accountNumberToByteString,
+    accountNumberToText,
+    compileAccountNumber,
+    mkAccountNumber,
     RoutingNumber (..),
+    mkRoutingNumber,
+    compileRoutingNumber,
+    routingNumberToText,
+    routingNumberToByteString,
     City (..),
     PostalCode (..),
     District (..),
+    ISO3166Alpha2 (..),
+    americanSamoa,
+    guam,
+    northernMarianaIslands,
+    puertoRico,
+    unitedStatesMinorOutlyingIslands,
+    unitedStatesOfAmerica,
+    virginIslandsUs,
     BankAddress (..),
     BillingDetails (..),
     BeneficiaryBankDetails (..),
     BeneficiaryDetails,
     SwiftCode (..),
-    Region (..),
-    Country (..),
+    mkSwiftCode,
+    swiftCodeRegex,
+    compileSwiftCode,
+    swiftCodeToText,
+    getCountryFromSwiftCode,
+    get8DigitSwiftCode,
+    getBranchCodeFromSwiftCode,
     ResponseStatus (..),
     ResponseMessage (..),
-    Error (..),
     ErrorCode (..),
-    ErrorMessage (..),
-    ErrorType (..),
-    Id (..),
     UUID (..),
     Reply,
     Method,
@@ -68,7 +93,13 @@ module Unknot.Types
   )
 where
 
-import Control.Applicative ((<|>))
+-- import Control.Applicative ((<|>))
+import Control.Monad (guard)
+import Country
+  ( Country,
+    alphaTwoUpper,
+  )
+import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRico, unitedStatesMinorOutlyingIslands, unitedStatesOfAmerica, virginIslandsUs)
 import Data.Aeson
   ( FromJSON (parseJSON),
     KeyValue ((.=)),
@@ -82,15 +113,23 @@ import Data.Aeson
   )
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
-import Data.Fixed
+import Data.Coerce (coerce)
+import Data.Fixed (Centi, Fixed (MkFixed))
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock (UTCTime)
 import qualified Data.Vector as V
+import Language.Haskell.TH (Exp, Q)
+import Language.Haskell.TH.Quote (QuasiQuoter (..))
+import Language.Haskell.TH.Syntax (Lift)
 import Network.HTTP.Client (Response)
 import qualified Network.HTTP.Types.Method as NHTM
+import Refined
+import Refined.Unsafe (reallyUnsafeRefine)
 import System.Environment (getEnv)
+import Text.Regex.PCRE.Heavy
 
 -- | Token type used for HTTP Bearer authentication.
 newtype ApiToken = ApiToken
@@ -104,7 +143,8 @@ data CircleAPIRequest a b c = CircleAPIRequest
     -- | Endpoint of CircleAPIRequest
     endpoint :: !Text,
     -- | Request params of CircleAPIRequest
-    params :: Params TupleBS8 BSL.ByteString
+    -- TODO feels like I need some sort of way to differentiate between body and query params, hmm
+    params :: !(Params TupleBS8 BSL.ByteString)
   }
   deriving (Show)
 
@@ -126,8 +166,8 @@ data BalanceRequest
 type instance CircleRequest BalanceRequest = CircleResponse BalanceData
 
 data BalanceData = BalanceData
-  { available :: ![CurrencyBalance],
-    unsettled :: ![CurrencyBalance]
+  { balanceDataAvailable :: ![CurrencyBalance],
+    balanceDataUnsettled :: ![CurrencyBalance]
   }
   deriving (Show)
 
@@ -140,8 +180,8 @@ instance FromJSON BalanceData where
           <*> o .: "unsettled"
 
 data CurrencyBalance = CurrencyBalance
-  { magnitude :: !Text, -- TODO this should be a numeric type
-    currency :: !Text -- TODO this should be a sum type of allowed currencies: USD, EUR, BTC, ETH
+  { currencyBalanceAmount :: !Amount,
+    currencyBalanceCurrency :: !AllowedCurrencies
   }
   deriving (Show)
 
@@ -174,29 +214,29 @@ instance ToJSON Pagination where
   toJSON (PageBefore a) = String (unUUID a)
 
 data PayoutQueryParameters = PayoutQueryParameters
-  { destination :: !(Maybe UUID),
+  { payoutQueryParametersDestination :: !(Maybe UUID),
     -- intentionally omitting the following parameter Circle's API only supports one type and includes it by default
-    -- type :: !Text, -- TODO string literal "Wire".  Also, this could probably benefit from a different name, fucking "type" is invalid haskell syntax.
-    payoutStatus :: !(Maybe [PayoutStatus]), -- TODO should be an array of Status types
-    from :: !(Maybe Text), -- TODO date time string of type 2020-04-10T02:13:30.000Z
-    to :: !(Maybe Text), -- TODO date time string
-    pagination :: !(Maybe Pagination),
-    pageSize :: !(Maybe Int)
+    payoutQueryParameterType :: !Text, -- TODO this type is the string literal "Wire".
+    payoutQueryParametersPayoutStatus :: !(Maybe [Status]),
+    payoutQueryParametersFrom :: !(Maybe UTCTime), -- TODO test that UTCTime works, needs actual payouts first bc currently returns empty data
+    payoutQueryParametersTo :: !(Maybe UTCTime),
+    payoutQueryParameters :: !(Maybe Pagination),
+    payoutQueryParametersPageSize :: !(Maybe Int)
   }
 
 instance ToJSON PayoutQueryParameters where
   toJSON PayoutQueryParameters {..} =
     omitNulls
-      [ "destination" .= destination,
-        "status" .= payoutStatus,
-        "from" .= from,
-        "to" .= to,
-        "pageSize" .= pageSize
+      [ "destination" .= payoutQueryParametersDestination,
+        "status" .= payoutQueryParametersPayoutStatus,
+        "from" .= payoutQueryParametersFrom,
+        "to" .= payoutQueryParametersTo,
+        "pageSize" .= payoutQueryParametersPageSize
       ]
 
 data PayoutDetails = PayoutDetails
   { payoutDetailsIdempotencyKey :: !UUID,
-    payoutDetailsDestination :: !DestinationBankAccount, -- Account number
+    payoutDetailsDestination :: !DestinationBankAccount,
     payoutDetailsAmount :: !USDOrEURAmount
   }
   deriving (Eq, Show)
@@ -209,14 +249,14 @@ instance ToJSON PayoutDetails where
         "amount" .= payoutDetailsAmount
       ]
 
-data PayoutStatus = Pending | Complete | Failed deriving (Show, Eq)
+data Status = Pending | Complete | Failed deriving (Show, Eq)
 
-instance ToJSON PayoutStatus where
+instance ToJSON Status where
   toJSON Pending = String "pending"
   toJSON Complete = String "complete"
   toJSON Failed = String "failed"
 
-instance FromJSON PayoutStatus where
+instance FromJSON Status where
   parseJSON (String s) = case T.unpack s of
     "pending" -> return Pending
     "complete" -> return Complete
@@ -224,23 +264,62 @@ instance FromJSON PayoutStatus where
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
--- Response data
+data ErrorCode
+  = InsufficientFunds
+  | TransactionDenied
+  | TransactionFailed
+  | TransactionReturned
+  | BankTransactionError
+  | FiatAccountLimitExceeded
+  | InvalidBankAccountNumber
+  | InvalidACHRoutingTransitNumber
+  | InvalidWireRoutingTransitNumber
+  | VendorInactive
+  deriving (Eq, Show)
+
+instance ToJSON ErrorCode where
+  toJSON InsufficientFunds = String "insufficient_funds"
+  toJSON TransactionDenied = String "transaction_denied"
+  toJSON TransactionFailed = String "transaction_failed"
+  toJSON TransactionReturned = String "transaction_returned"
+  toJSON BankTransactionError = String "bank_transaction_error"
+  toJSON FiatAccountLimitExceeded = String "fiat_account_limit_exceeded"
+  toJSON InvalidBankAccountNumber = String "invalid_bank_account_number"
+  toJSON InvalidACHRoutingTransitNumber = String "invalid_ach_rtn"
+  toJSON InvalidWireRoutingTransitNumber = String "invalid_wire_rtn"
+  toJSON VendorInactive = String "vendor_inactive"
+
+instance FromJSON ErrorCode where
+  parseJSON (String s) = case T.unpack s of
+    "insufficient_funds" -> return InsufficientFunds
+    "transaction_denied" -> return TransactionDenied
+    "transaction_failed" -> return TransactionFailed
+    "transaction_returned" -> return TransactionReturned
+    "bank_transaction_error" -> return BankTransactionError
+    "fiat_account_limit_exceeded" -> return FiatAccountLimitExceeded
+    "invalid_bank_account_number" -> return InvalidBankAccountNumber
+    "invalid_ach_rtn" -> return InvalidACHRoutingTransitNumber
+    "invalid_wire_rtn" -> return InvalidWireRoutingTransitNumber
+    "vendor_inactive" -> return VendorInactive
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
 data PayoutData = PayoutData
-  { id :: !UUID,
-    sourceWalletId :: !UUID,
-    destinationBankAccount :: !DestinationBankAccount, -- TODO needs type
-    amount :: !USDOrEURAmount,
-    fees :: !USDAmount,
-    status :: !PayoutStatus,
-    trackingRef :: !Text, -- TODO custom type
-    payoutErrorCode :: !Text, -- TODO sum type with following options:
-    -- insufficient_funds, transaction_denied, transaction_failed, transaction_returned, bank_transaction_error, fiat_account_limit_exceeded, invalid_bank_account_number, invalid_ach_rtn, invalid_wire_rtn, vendor_inactive
-    riskEvaluation :: !RiskEvaluation,
-    adjustments :: !Adjustments,
-    payoutReturn :: !PayoutReturn,
-    createDate :: !Text, -- TODO date string
-    updateDate :: !Text -- TODO date string
-  } deriving (Show)
+  { payoutDataId :: !UUID,
+    payoutDataSourceWalletId :: !UUID,
+    payoutDataDestinationBankAccount :: !DestinationBankAccount,
+    payoutDataAmount :: !USDOrEURAmount,
+    payoutDataFees :: !USDAmount,
+    payoutDataStatus :: !Status,
+    payoutDataTrackingRef :: !TrackingReference, -- TODO maybe this needs a custom type, although text is probably fine
+    payoutDataErrorCode :: !ErrorCode,
+    payoutDataRiskEvaluation :: !RiskEvaluation,
+    payoutDataAdjustments :: !Adjustments,
+    payoutDataPayoutReturn :: !PayoutReturn,
+    payoutDataCreateDate :: !UTCTime,
+    payoutDataUpdateDate :: !UTCTime
+  }
+  deriving (Show)
 
 instance FromJSON PayoutData where
   parseJSON = withObject "PayoutData" parse
@@ -261,6 +340,8 @@ instance FromJSON PayoutData where
           <*> o .: "createDate"
           <*> o .: "updateDate"
 
+-- General Utility types (to-do reorganize them)
+
 data BankAccountType = Wire | Sen deriving (Eq, Show)
 
 instance ToJSON BankAccountType where
@@ -275,10 +356,11 @@ instance FromJSON BankAccountType where
   parseJSON _ = error "JSON format not expected"
 
 data DestinationBankAccount = DestinationBankAccount
-  { destinationBankAccountType :: !BankAccountType, -- TODO sum type with wire sen
+  { destinationBankAccountType :: !BankAccountType,
     destinationBankAccountId :: !UUID,
     destinationBankAccountName :: !(Maybe Text)
-  } deriving (Eq, Show)
+  }
+  deriving (Eq, Show)
 
 instance FromJSON DestinationBankAccount where
   parseJSON = withObject "DestinationBankAccount" parse
@@ -297,16 +379,22 @@ instance ToJSON DestinationBankAccount where
         "name" .= destinationBankAccountName
       ]
 
-data AllowedCurrencies = USD | EUR deriving (Eq, Show)
+-- TODO do we need type narrowing to have other types that represent subsets of this one without have to write
+-- custom constructors?
+data AllowedCurrencies = USD | EUR | BTC | ETH deriving (Eq, Show)
 
 instance ToJSON AllowedCurrencies where
   toJSON USD = String "USD"
   toJSON EUR = String "EUR"
+  toJSON BTC = String "BTC"
+  toJSON ETH = String "ETH"
 
 instance FromJSON AllowedCurrencies where
   parseJSON (String s) = case T.unpack s of
     "USD" -> return USD
     "EUR" -> return EUR
+    "BTC" -> return BTC
+    "ETH" -> return ETH
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
@@ -315,10 +403,13 @@ newtype Amount = Amount
   }
   deriving (Eq, Show, ToJSON, FromJSON)
 
+-- TODO should I make more smart types like this to differentiate between different allowed amounts?  Seems like it's worth doing something like that,
+-- given that this type actually lets you use any currency.
 data USDOrEURAmount = USDOrEURAmount
   { usdOrEurAmount :: !Amount,
     usdOrEurCurrency :: !AllowedCurrencies
-  } deriving (Eq, Show)
+  }
+  deriving (Eq, Show)
 
 instance FromJSON USDOrEURAmount where
   parseJSON = withObject "USDOrEURAmount" parse
@@ -336,8 +427,8 @@ instance ToJSON USDOrEURAmount where
       ]
 
 data USDAmount = USDAmount
-  { usdAmount :: !Amount, -- TODO this should be a numeric type
-    feeCurrency :: !AllowedCurrencies -- TODO this should be a sum type of allowed currencies: USD
+  { usdAmountAmount :: !Amount,
+    usdAmountFeeCurrency :: !AllowedCurrencies
   }
   deriving (Show)
 
@@ -349,11 +440,26 @@ instance FromJSON USDAmount where
           <$> o .: "amount"
           <*> o .: "currency"
 
+data Decision = Approved | Denied | Review deriving (Eq, Show)
+
+instance ToJSON Decision where
+  toJSON Approved = String "approved"
+  toJSON Denied = String "denied"
+  toJSON Review = String "review"
+
+instance FromJSON Decision where
+  parseJSON (String s) = case T.unpack s of
+    "approved" -> return Approved
+    "denied" -> return Denied
+    "review" -> return Review
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
 data RiskEvaluation = RiskEvaluation
-  { decision :: !Text, -- TODO this should be a sum type with: approved, denied, review
-    reason :: !Text -- TODO probably fine, but maybe just give it a custom type to avoid too many strings
+  { riskEvaluationDecision :: !Decision,
+    riskEvaluationReason :: !Text -- TODO probably fine, but maybe just give it a custom type to avoid too much text?
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 instance FromJSON RiskEvaluation where
   parseJSON = withObject "RiskEvaluation" parse
@@ -364,8 +470,8 @@ instance FromJSON RiskEvaluation where
           <*> o .: "currency"
 
 data Adjustments = Adjustments
-  { fxCredit :: !USDAmount,
-    fxDebit :: !USDAmount
+  { adjustmentsFXCredit :: !USDAmount,
+    adjustmentsFXDebit :: !USDAmount
   }
   deriving (Show)
 
@@ -378,14 +484,14 @@ instance FromJSON Adjustments where
           <*> o .: "fxDebit"
 
 data PayoutReturn = PayoutReturn
-  { returnId :: !UUID,
-    payoutId :: !UUID,
-    returnAmount :: !USDAmount,
-    returnFees :: !USDAmount,
-    returnReason :: !Text,
-    returnStatus :: !Text, -- TODO sum type with following options: pending, complete, failed
-    returnCreateDate :: !Text, -- TODO date string
-    returnUpdateDate :: !Text -- TODO date string
+  { payoutReturnId :: !UUID,
+    payoutReturnOriginalPayoutId :: !UUID,
+    payoutReturnAmount :: !USDAmount,
+    payoutReturnFees :: !USDAmount,
+    payoutReturnReason :: !Text,
+    payoutReturnStatus :: !Status,
+    payoutReturnCreateDate :: !UTCTime,
+    payoutReturnUpdateDate :: !UTCTime
   }
   deriving (Show)
 
@@ -439,26 +545,26 @@ instance ToJSON WireAccountDetails where
       ]
 
 data BillingDetails = BillingDetails
-  { billingName :: !Text,
-    billingCity :: !City,
-    billingCountry :: !Country, -- TODO country code somehow
-    billingLine1 :: !AddressLine, -- address type
-    billingLine2 :: Maybe AddressLine, -- secondary address type
-    billingDistrict :: Maybe District, -- could be a state type
-    billingPostalCode :: !PostalCode -- postal code type
+  { billingDetailsName :: !Text,
+    billingDetailsCity :: !City,
+    billingDetailsCountry :: !ISO3166Alpha2,
+    billingDetailsLine1 :: !AddressLine, -- address type
+    billingDetailsLine2 :: !(Maybe AddressLine), -- secondary address type
+    billingDetailsDistrict :: !(Maybe District), -- could be a state type
+    billingDetailsPostalCode :: !PostalCode -- postal code type
   }
   deriving (Eq, Show)
 
 instance ToJSON BillingDetails where
   toJSON BillingDetails {..} =
     omitNulls
-      [ "name" .= billingName,
-        "city" .= billingCity,
-        "country" .= billingCountry,
-        "line1" .= billingLine1,
-        "line2" .= billingLine2,
-        "district" .= billingDistrict,
-        "postalCode" .= billingPostalCode
+      [ "name" .= billingDetailsName,
+        "city" .= billingDetailsCity,
+        "country" .= billingDetailsCountry,
+        "line1" .= billingDetailsLine1,
+        "line2" .= billingDetailsLine2,
+        "district" .= billingDetailsDistrict,
+        "postalCode" .= billingDetailsPostalCode
       ]
 
 instance FromJSON BillingDetails where
@@ -475,24 +581,24 @@ instance FromJSON BillingDetails where
           <*> o .: "postalCode"
 
 data BankAddress = BankAddress
-  { bankName :: Maybe Text,
-    bankCity :: Maybe City,
-    bankCountry :: Maybe Country, -- TODO country code somehow
-    bankLine1 :: Maybe AddressLine, -- address type
-    bankLine2 :: Maybe AddressLine, -- secondary address type
-    bankDistrict :: Maybe District -- could be a state type
+  { bankAddressBankName :: !(Maybe Text),
+    bankAddressBankCity :: !(Maybe City),
+    bankAddressBankCountry :: !(Maybe ISO3166Alpha2),
+    bankAddressBankLine1 :: !(Maybe AddressLine),
+    bankAddressBankLine2 :: !(Maybe AddressLine),
+    bankAddressBankDistrict :: !(Maybe District)
   }
   deriving (Eq, Show)
 
 instance ToJSON BankAddress where
   toJSON BankAddress {..} =
     omitNulls
-      [ "name" .= bankName,
-        "city" .= bankCity,
-        "country" .= bankCountry,
-        "line1" .= bankLine1,
-        "line2" .= bankLine2,
-        "district" .= bankDistrict
+      [ "name" .= bankAddressBankName,
+        "city" .= bankAddressBankCity,
+        "country" .= bankAddressBankCountry,
+        "line1" .= bankAddressBankLine1,
+        "line2" .= bankAddressBankLine2,
+        "district" .= bankAddressBankDistrict
       ]
 
 instance FromJSON BankAddress where
@@ -509,8 +615,8 @@ instance FromJSON BankAddress where
 
 data BeneficiaryDetails = BeneficiaryDetails
   { beneficiaryDetailsName :: !Text,
-    beneficiaryDetailsAddress1 :: Maybe AddressLine, -- address type
-    beneficiaryDetailsAddress2 :: Maybe AddressLine -- secondary address type
+    beneficiaryDetailsAddress1 :: !(Maybe AddressLine),
+    beneficiaryDetailsAddress2 :: !(Maybe AddressLine)
   }
   deriving (Eq, Show)
 
@@ -520,12 +626,12 @@ instance FromJSON BeneficiaryDetails where
       parse o =
         BeneficiaryDetails
           <$> o .: "name"
-          <*> o .: "address1" -- todo check these
-          <*> o .: "address2" -- todo check these
+          <*> o .: "address1"
+          <*> o .: "address2"
 
 data BeneficiaryBankDetails = BeneficiaryBankDetails
   { beneficiaryBankDetailsName :: !Text,
-    beneficiaryBankDetailsSwiftCode :: !SwiftCode, -- todo this screams custom type
+    beneficiaryBankDetailsSwiftCode :: !SwiftCode,
     beneficiaryBankDetailsRoutingNumber :: !RoutingNumber,
     beneficiaryBankDetailsAccountNumber :: !AccountNumber,
     beneficiaryBankDetailsCurrency :: !AllowedCurrencies,
@@ -542,17 +648,17 @@ instance FromJSON BeneficiaryBankDetails where
       parse o =
         BeneficiaryBankDetails
           <$> o .: "name"
-          <*> o .: "swiftCode" -- todo check these
-          <*> o .: "routingNumber" -- todo check these
-          <*> o .: "accountNumber" -- todo check these
+          <*> o .: "swiftCode"
+          <*> o .: "routingNumber"
+          <*> o .: "accountNumber"
           <*> o .: "currency"
-          <*> o .: "address" -- todo check these
-          <*> o .: "city" -- todo check these
-          <*> o .: "postalCode" -- todo check these
-          <*> o .: "country" -- todo check these
+          <*> o .: "address"
+          <*> o .: "city"
+          <*> o .: "postalCode"
+          <*> o .: "country"
 
 data WireInstructionsData = WireInstructionsData
-  { wireInstructionsDataTrackingRef :: !Text, -- this might be typical or at least have a length req
+  { wireInstructionsDataTrackingRef :: !TrackingReference,
     wireInstructionsDataBeneficiaryDetails :: !BeneficiaryDetails,
     wireInstructionsDataBeneficiaryBankDetails :: !BeneficiaryBankDetails
   }
@@ -568,11 +674,11 @@ instance FromJSON WireInstructionsData where
           <*> o .: "beneficiaryBank"
 
 data WireAccountData = WireAccountData
-  { wireAccountDataId :: !Text, -- TODO newtype this
-    wireAccountDataStatus :: !Text, -- TODO enum this
-    wireAccountDataDescription :: !Text, -- TODO better type
-    wireAccountDataTrackingRef :: !Text, -- this might be typical or at least have a length req
-    wireAccountDataFingerprint :: !Text, -- same newtype as id, should be a UUI
+  { wireAccountDataId :: !UUID,
+    wireAccountDataStatus :: !Status,
+    wireAccountDataDescription :: !Text, -- TODO better type: Bank name plus last four digits of the bank account number or IBAN.  Make a custom type for this
+    wireAccountDataTrackingRef :: !TrackingReference,
+    wireAccountDataFingerprint :: !UUID,
     wireAccountDataBillingDetails :: !BillingDetails,
     wireAccountDataBankAddress :: !BankAddress,
     wireAccountDataCreateDate :: !UTCTime,
@@ -606,68 +712,199 @@ mkSku sku
   | T.length sku < 1 = Nothing
   | otherwise = Just (SKU sku)
 
-newtype Quantity = Quantity
-  { unQuantity :: Integer
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
-
 newtype AddressLine = AddressLine
   { unAddressLine :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
 
-newtype AccountNumber = AccountNumber
-  { unAccountNumber :: Text
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
+-- See 'accountNumberRegex' for where these numeric constraints come from
+--
+-- We're using greater than, less than without equality assertions in order
+-- to better support 'Refined.weaken'
+type AccountNumberConstraints =
+  SizeGreaterThan 3
+    && SizeLessThan 18
 
-newtype RoutingNumber = RoutingNumber
-  { unRoutingNumber :: Text
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
+newtype AccountNumber = AccountNumber {unAccountNumber :: Refined AccountNumberConstraints Text}
+  deriving stock (Eq, Show, Lift)
+  deriving newtype (ToJSON)
+
+-- Account numbers can have capital letters or digits
+accountNumberRegex :: Regex
+accountNumberRegex = [re|^[A-Z0-9]{4,17}$|]
+
+mkAccountNumber :: Text -> Maybe AccountNumber
+mkAccountNumber t =
+  if t =~ accountNumberRegex
+    then AccountNumber <$> refineFail t
+    else Nothing
+
+accountNumberToText :: AccountNumber -> Text
+accountNumberToText (AccountNumber t) = unrefine t
+
+type AccountNumberMask = Refined (SizeEqualTo 4) Text
+
+accountNumberLastFour :: AccountNumber -> AccountNumberMask
+accountNumberLastFour (AccountNumber n) =
+  reallyUnsafeRefine
+    . T.takeEnd 4
+    $ unrefine n
+
+accountNumberToByteString :: AccountNumber -> BS8.ByteString
+accountNumberToByteString accountNumber = TE.encodeUtf8 $ accountNumberToText accountNumber
+
+instance FromJSON AccountNumber where
+  parseJSON = withText "AccountNumber" $ \t ->
+    case mkAccountNumber t of
+      Nothing -> fail $ "Invalid AccountNumber: " ++ T.unpack t
+      Just accountNumber -> pure accountNumber
+
+compileAccountNumber :: QuasiQuoter
+compileAccountNumber =
+  QuasiQuoter
+    { quoteExp = compileAccountNumber',
+      quotePat = error "AccountNumber is not a pattern; use accountNumberToText instead",
+      quoteDec = error "accountNumber is not supported at top-level",
+      quoteType = error "accountNumber is not supported as a type"
+    }
+  where
+    compileAccountNumber' :: String -> Q Exp
+    compileAccountNumber' s = case mkAccountNumber (T.pack s) of
+      Nothing -> fail ("Invalid AccountNumber: " ++ s ++ ". Must be 4-17 digits, with no other characters.")
+      Just accountNumber -> [|accountNumber|]
+
+newtype RoutingNumber = RoutingNumber {unRoutingNumber :: Text}
+  deriving stock (Show, Lift)
+  deriving newtype (Eq, ToJSON)
+
+routingNumberRegex :: Regex
+routingNumberRegex = [re|^[0-9]{9}$|]
+
+mkRoutingNumber :: Text -> Maybe RoutingNumber
+mkRoutingNumber t =
+  if t =~ routingNumberRegex
+    then Just (RoutingNumber t)
+    else Nothing
+
+routingNumberToText :: RoutingNumber -> Text
+routingNumberToText (RoutingNumber t) = t
+
+routingNumberToByteString :: RoutingNumber -> BS8.ByteString
+routingNumberToByteString routingNumber = TE.encodeUtf8 $ routingNumberToText routingNumber
+
+instance FromJSON RoutingNumber where
+  parseJSON = withText "RoutingNumber" $ \t ->
+    case mkRoutingNumber t of
+      Nothing -> fail $ "Invalid RoutingNumber: " ++ T.unpack t
+      Just routingNumber -> pure routingNumber
+
+compileRoutingNumber :: QuasiQuoter
+compileRoutingNumber =
+  QuasiQuoter
+    { quoteExp = compileRoutingNumber',
+      quotePat = error "RoutingNumber is not a patttern; use routingNumberToText instead",
+      quoteDec = error "routingNumber is not supported at top-level",
+      quoteType = error "routingNumber is not supported as a type"
+    }
+  where
+    compileRoutingNumber' :: String -> Q Exp
+    compileRoutingNumber' s = case mkRoutingNumber (T.pack s) of
+      Nothing -> fail ("Invalid RoutingNumber: " ++ s ++ ". Must be nine digits, with no other characters.")
+      Just routingNumber -> [|routingNumber|]
 
 newtype City = City
   { unCity :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
 
+-- TODO add constraints maybe?  Risk here is that I block valid codes.
 newtype PostalCode = PostalCode
   { unPostalCode :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
 
-newtype SwiftCode = SwiftCode
-  { unSwiftCode :: Text
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
+newtype SwiftCode = SwiftCode Text
+  deriving stock (Show, Lift)
+  deriving newtype (Eq, Ord, ToJSON)
 
-newtype Region = Region
-  { unRegion :: Text
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
+swiftCountryCodes :: Set.Set Text
+swiftCountryCodes = Set.fromList $ "XK" : (alphaTwoUpper <$> ([minBound .. maxBound] :: [Country]))
 
+swiftCodeRegex :: Regex
+swiftCodeRegex = [re|^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$|]
+
+mkSwiftCode :: Text -> Maybe SwiftCode
+mkSwiftCode txt = do
+  let t = T.toUpper $ T.strip txt
+  guard $ t =~ swiftCodeRegex
+  guard $ Set.member (getCountryFromSwiftCodeText t) swiftCountryCodes
+  pure $ SwiftCode t
+
+instance FromJSON SwiftCode where
+  parseJSON = withText "SwiftCode" $ \t -> case mkSwiftCode t of
+    Nothing -> fail $ "Invalid SwiftCode: " ++ T.unpack t
+    Just swift -> pure swift
+
+compileSwiftCode :: QuasiQuoter
+compileSwiftCode =
+  QuasiQuoter
+    { quoteExp = compileSwiftCode',
+      quotePat = error "SwiftCode is not a pattern; use swiftCodeToText instead",
+      quoteDec = error "SwiftCode is not supported at top-level",
+      quoteType = error "SwiftCode is not supported as a type"
+    }
+  where
+    compileSwiftCode' :: String -> Q Exp
+    compileSwiftCode' s = case mkSwiftCode (T.pack s) of
+      Nothing -> fail $ "Invalid SwiftCode: " ++ s
+      Just txt -> [|txt|]
+
+swiftCodeToText :: SwiftCode -> Text
+swiftCodeToText (SwiftCode t) = t
+
+-- | Extracts an ISO 3166-1 alpha-2 country code (or XK for Kosovo) from a SWIFT code, e.g. BOFAUS3N -> US
+getCountryFromSwiftCodeText :: Text -> Text
+getCountryFromSwiftCodeText = T.take 2 . T.drop 4
+
+getCountryFromSwiftCode :: SwiftCode -> Text
+getCountryFromSwiftCode = getCountryFromSwiftCodeText . swiftCodeToText
+
+-- | SwiftCodes can be either 11 or 8 digits, this ensures you're always working with the 8 digit variety.
+get8DigitSwiftCode :: SwiftCode -> SwiftCode
+get8DigitSwiftCode = coerce . T.take 8 . coerce
+
+-- | Gets the branch code from an 11-digit SwiftCode (this is the last 3 digits of an 11-digit SwiftCode), otherwise returns Nothing.
+getBranchCodeFromSwiftCode :: SwiftCode -> Maybe Text
+getBranchCodeFromSwiftCode swiftCode = do
+  let swiftCodeText = swiftCodeToText swiftCode
+  guard (T.length swiftCodeText == 11)
+  pure (T.drop 8 swiftCodeText)
+
+-- TODO add constraints (should district be state?  Can I just use an enum?)
+-- District will be a state only if it's US or Canada... will need to be clever here I think.
+-- Maybe can have those two fields be modeled with a sum type?
 newtype District = District
   { unDistrict :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
 
-newtype Country = Country
-  { unCountry :: Text
+newtype ISO3166Alpha2 = ISO3166Alpha2 Country
+  deriving newtype (Eq, Enum, Ord)
+
+instance ToJSON ISO3166Alpha2 where
+  toJSON (ISO3166Alpha2 c) = String (alphaTwoUpper c)
+
+instance FromJSON ISO3166Alpha2 where
+  parseJSON = fmap ISO3166Alpha2 . parseJSON
+
+instance Show ISO3166Alpha2 where
+  show (ISO3166Alpha2 c) = T.unpack (alphaTwoUpper c)
+
+-- TODO maybe constrain this?  Not sure what it looks like yet so that can happen later
+newtype TrackingReference = TrackingReference
+  { unTrackingReference :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
-
--- data Currency
---   = USD
---   deriving (Eq, Show)
-
--- instance ToJSON Currency where
---   toJSON USD = String "USD"
-
--- instance FromJSON Currency where
---   parseJSON = withText "Currency" parse
---     where
---       parse "USD" = pure USD
---       parse o = fail $ "Unexpected Currency: " <> show o
 
 omitNulls :: [(Text, Value)] -> Value
 omitNulls = object . filter notNull
@@ -692,6 +929,7 @@ instance FromJSON a => FromJSON (CircleResponse a) where
           <*> o .:? "message"
           <*> o .:? "data"
 
+-- these types have to do with Circle's actual API
 newtype ResponseStatus = ResponseStatus
   { unResponseStatus :: Integer
   }
@@ -702,58 +940,28 @@ newtype ResponseMessage = ResponseMessage
   }
   deriving (Eq, Show, FromJSON)
 
-data Error = Error
-  { errorCode :: ErrorCode,
-    errorMessage :: ErrorMessage,
-    errorType :: ErrorType
-  }
-  deriving (Eq, Show)
-
-instance FromJSON Error where
-  parseJSON = withObject "Error" parse
-    where
-      parse o =
-        Unknot.Types.Error
-          <$> o .: "code"
-          <*> o .: "message"
-          <*> o .: "type"
-
-data ErrorCode
-  = ErrorCodeText Text
-  | ErrorCodeInteger Integer
-  deriving (Eq, Show)
-
-instance FromJSON ErrorCode where
-  parseJSON o = (ErrorCodeText <$> parseJSON o) <|> (ErrorCodeInteger <$> parseJSON o)
-
-newtype ErrorMessage = ErrorMessage
-  { unErrorMessage :: Text
-  }
-  deriving (Eq, Show, FromJSON)
-
-data ErrorType
-  = ErrorWarning
-  | ErrorError
-  deriving (Eq, Show)
-
-instance FromJSON ErrorType where
-  parseJSON = withText "ErrorType" parse
-    where
-      parse "warning" = pure ErrorWarning
-      parse "error" = pure ErrorError
-      parse o = fail $ "Unexpected ErrorType: " <> show o
-
-newtype Id = Id
-  { unId :: Integer
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
-
--- BIG TODO, replace this with an actual UUID type that enforces shape + correctness.  Either bring in
--- a library or enforce it yourself, shouldn't be too bad.
+-- TODO, consider replacing this hand-rolled validation with the Data.UUID library if you really care about accurate UUIDs.  
+-- This is fine for now, though.
 newtype UUID = UUID
   { unUUID :: Text
   }
-  deriving (Eq, Show, ToJSON, FromJSON)
+  deriving (Eq, Show)
+  deriving newtype (ToJSON)
+
+uuidRegex :: Regex
+uuidRegex = [re|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|]
+
+mkUUID :: Text -> Maybe UUID
+mkUUID t =
+  if t =~ uuidRegex
+    then Just (UUID t)
+    else Nothing
+
+instance FromJSON UUID where
+  parseJSON = withText "UUID"  $ \t ->
+    case mkUUID t of
+      Nothing -> fail $ "Invalid UUID: " ++ T.unpack t
+      Just uuid -> pure uuid
 
 type Reply = Network.HTTP.Client.Response BSL.ByteString
 

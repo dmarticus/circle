@@ -23,9 +23,9 @@ import Network.HTTP.Client
     requestHeaders,
   )
 import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Network.HTTP.Types.Header (hContentType)
 import qualified Network.HTTP.Types.Method as NHTM
 import Unknot.Types
-import Network.HTTP.Types.Header ( hContentType ) 
 
 -- | Conversion of a key value pair to a query parameterized string
 paramsToByteString ::
@@ -58,20 +58,21 @@ getWireAccounts = do
 
 -- | Get a single wire account, accepts the wire account Id as a parameter
 -- https://developers.circle.com/reference/getbusinesswireaccount
-getWireAccount :: T.Text -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+getWireAccount :: UUID -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
 getWireAccount wireAccountId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
-    url = T.append "businessAccount/banks/wires/" wireAccountId
+    url = T.append "businessAccount/banks/wires/" (unUUID wireAccountId)
     params = Params Nothing []
 
 -- | Get the wire transfer instructions into the Circle bank account given your bank account id.
 -- https://developers.circle.com/reference/getbusinesswireaccountinstructions
-getWireAccountInstructions :: T.Text -> CircleAPIRequest WireInstructionsRequest TupleBS8 BSL.ByteString
+-- TODO this needs to support a currency query param
+getWireAccountInstructions :: UUID -> CircleAPIRequest WireInstructionsRequest TupleBS8 BSL.ByteString
 getWireAccountInstructions wireAccountId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
-    url = T.append "businessAccount/banks/wires/" wireAccountId <> "/instructions"
+    url = T.append "businessAccount/banks/wires/" (unUUID wireAccountId) <> "/instructions"
     params = Params Nothing []
 
 -- | Balance endpoints
@@ -124,6 +125,7 @@ circle' CircleConfig {..} CircleAPIRequest {..} = do
         initReq
           { method = rMethod,
             requestBody = RequestBodyLBS reqBody,
+            requestHeaders = [(hContentType, "application/json")],
             queryString = paramsToByteString $ paramsQuery params
           }
       circleToken = unApiToken token
@@ -183,7 +185,7 @@ circleTest' CircleConfig {..} CircleAPIRequest {..} manager = do
         initReq
           { method = rMethod,
             requestBody = RequestBodyLBS reqBody,
-            requestHeaders = [(hContentType, "application/json")], -- TODO maybe cleaner way to do this
+            requestHeaders = [(hContentType, "application/json")],
             queryString = paramsToByteString $ paramsQuery params
           }
       circleToken = unApiToken token
