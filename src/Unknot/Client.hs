@@ -152,7 +152,7 @@ createSubscription subscriptionBody = do
 -- https://developers.circle.com/reference/deletesubscribtion
 deleteSubscription :: UUID -> CircleAPIRequest SubscriptionsRequest TupleBS8 BSL.ByteString
 deleteSubscription resourceId = do
-  mkCircleAPIRequest NHTM.methodPost url params
+  mkCircleAPIRequest NHTM.methodDelete url params
   where
     url = "notifications/subscriptions" <> unUUID resourceId
     params = Params Nothing []
