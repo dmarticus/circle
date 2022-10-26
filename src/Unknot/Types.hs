@@ -42,6 +42,7 @@ module Unknot.Types
     WireInstructionsRequest,
     -- Balance Endpoint
     BalanceRequest,
+    BalanceData (..),
     -- Payouts Endpoint
     PayoutsRequest,
     PayoutRequest,
