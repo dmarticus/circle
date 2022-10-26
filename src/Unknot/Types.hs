@@ -828,20 +828,20 @@ instance ToJSON DestinationBankAccount where
 
 -- TODO do we need type narrowing to have other types that represent subsets of this one without have to write
 -- custom constructors?
-data AllowedCurrencies = USD | EUR | CBTC | CETH deriving (Eq, Show)
+data AllowedCurrencies = USD | EUR | BTC' | ETH' deriving (Eq, Show)
 
 instance ToJSON AllowedCurrencies where
   toJSON USD = String "USD"
   toJSON EUR = String "EUR"
-  toJSON CBTC = String "BTC"
-  toJSON CETH = String "ETH"
+  toJSON BTC' = String "BTC"
+  toJSON ETH' = String "ETH"
 
 instance FromJSON AllowedCurrencies where
   parseJSON (String s) = case T.unpack s of
     "USD" -> return USD
     "EUR" -> return EUR
-    "BTC" -> return CBTC
-    "ETH" -> return CETH
+    "BTC" -> return BTC'
+    "ETH" -> return ETH'
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
