@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -11,7 +12,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Unknot.Types
   ( -- Types for connecting to and wrapping Circle's API
@@ -35,8 +36,11 @@ module Unknot.Types
     prodEnvConfig,
     sandboxEnvConfig,
     joinQueryParams,
+    -- Query Params
+    PaginationQueryParams (..),
+    PaginationQueryParam (..),
     -- Wires Endpoint
-    WireAccountDetails (..),
+    WireAccountBodyParams (..),
     WireAccountData (..),
     WireInstructionsData (..),
     WireAccountRequest,
@@ -58,16 +62,16 @@ module Unknot.Types
     -- Subscriptions Endpoint
     SubscriptionsRequest,
     SubscriptionRequest,
-    SubscriptionBody (..),
+    SubscriptionBodyParams (..),
     -- Payouts Endpoint
     PayoutsRequest,
     PayoutRequest,
     PayoutData (..),
-    PayoutDetails (..),
+    PayoutBodyParams (..),
     -- Shared types across different endpoints
     DestinationBankAccount (..),
     USDOrEURAmount (..),
-    PayoutQueryParameters (..),
+    -- PayoutQueryParams (..),
     BankAccountType (..),
     AllowedCurrencies (..),
     Amount (..),
@@ -109,7 +113,7 @@ module Unknot.Types
     getBranchCodeFromSwiftCode,
     ResponseStatus (..),
     ResponseMessage (..),
-    ErrorCode (..),
+    PayoutErrorCode (..),
     UUID (..),
   )
 where
@@ -123,13 +127,13 @@ import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRi
 import Data.Aeson
   ( FromJSON (parseJSON),
     KeyValue ((.=)),
-    ToJSON (toJSON),
+    ToJSON (toJSON, toEncoding),
     Value (Array, Null, String),
     object,
     withObject,
     withText,
     (.:),
-    (.:?),
+    (.:?), Result (Success, Error)
   )
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
@@ -137,9 +141,9 @@ import Data.Coerce (coerce)
 import Data.Fixed (Centi, Fixed (MkFixed))
 import qualified Data.Set as Set
 import Data.Text (Text)
+import Data.Time
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Data.Time.Clock (UTCTime)
 import qualified Data.Vector as V
 import Language.Haskell.TH (Exp, Q)
 import Language.Haskell.TH.Quote (QuasiQuoter (..))
@@ -150,10 +154,14 @@ import Refined
 import Refined.Unsafe (reallyUnsafeRefine)
 import System.Environment (getEnv)
 import Text.Regex.PCRE.Heavy
+import Data.Bifunctor
+import Data.Aeson.Types (fromJSON)
+import Data.Foldable
 
 ---------------------------------------------------------------
 -- Circle API wrapper
 ---------------------------------------------------------------
+
 -- | Token type used for HTTP Bearer authentication.
 newtype ApiToken = ApiToken
   { unApiToken :: BS8.ByteString
@@ -291,6 +299,91 @@ circleAPIRequest -&- param =
     }
 
 ---------------------------------------------------------------
+-- Query parameters
+---------------------------------------------------------------
+
+newtype PaginationQueryParams = PaginationQueryParams
+  { paginationQueryParams :: PaginationQueryParam
+  }
+  deriving (Eq, Show)
+
+data PaginationQueryParam = PageBefore !Text | PageAfter !Text deriving (Show, Eq) -- TODO these will be IDs, but not UUIDs.  No type until we figure out what they are.
+
+instance ToCircleParam PaginationQueryParams where
+  toCircleParam (PaginationQueryParams p) =
+    -- Circle has some BS pagination where they let users supply some canonical
+    -- collection ID, and then this pagination rule will return `n` entries before OR after that page,
+    -- where `n` is controlled by the pageSize param.  This type exists to prevent callers from providing both params, which would error out
+    case p of
+      PageBefore a ->
+        joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 a)]
+      PageAfter a ->
+        joinQueryParams $ Params Nothing [Query ("pageAfter", TE.encodeUtf8 a)]
+
+newtype FromQueryParam = FromQueryParam
+  { fromQueryParam :: UTCTime
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam FromQueryParam where
+  toCircleParam (FromQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("from", TE.encodeUtf8 $ utcToCircle i)]
+
+newtype ToQueryParam = ToQueryParam
+  { toQueryParam :: UTCTime
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam ToQueryParam where
+  toCircleParam (ToQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("to", TE.encodeUtf8 $ utcToCircle i)]
+
+newtype PageSizeQueryParam = PageSizeQueryParam
+  { pageSizeQueryParam :: Integer
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam PageSizeQueryParam where
+  toCircleParam (PageSizeQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("pageSize", TE.encodeUtf8 $ (T.pack . show) i)] -- TODO showing seems like a hack.  Better to derive a Display instance.
+
+newtype StatusQueryParams = StatusQueryParams
+  { statusQueryParams :: [Status]
+  }
+  deriving (Eq, Show)
+
+statusToBS8 :: Status -> BS8.ByteString
+statusToBS8 Pending = "pending"
+statusToBS8 Complete = "complete"
+statusToBS8 Failed = "failed"
+
+instance ToCircleParam StatusQueryParams where
+  toCircleParam (StatusQueryParams xs) =
+    joinQueryParams $ Params Nothing [Query ("status", BS8.intercalate "," (map statusToBS8 xs))]
+
+newtype DestinationQueryParam = DestinationQueryParam
+  { destinationQueryParam :: UUID
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam DestinationQueryParam where
+  toCircleParam (DestinationQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("destination", TE.encodeUtf8 (unUUID i))]
+
+newtype TypeQueryParam = TypeQueryParam
+  { typeQueryParam :: BankAccountType -- TODO not sure if all of the types should be included.  Should definitely be Wire, but maybe not Sen
+  }
+  deriving (Eq, Show)
+
+bankAccountTypeToBS8 :: BankAccountType -> BS8.ByteString
+bankAccountTypeToBS8 Wire = "wire"
+bankAccountTypeToBS8 Sen = "sen"
+
+instance ToCircleParam TypeQueryParam where
+  toCircleParam (TypeQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("type", bankAccountTypeToBS8 i)]
+
+---------------------------------------------------------------
 -- Balance endpoints
 ---------------------------------------------------------------
 
@@ -299,8 +392,8 @@ data BalanceRequest
 type instance CircleRequest BalanceRequest = CircleResponse BalanceData
 
 data BalanceData = BalanceData
-  { balanceDataAvailable :: ![CurrencyBalance],
-    balanceDataUnsettled :: ![CurrencyBalance]
+  { balanceDataAvailable :: ![CurrencyAmount],
+    balanceDataUnsettled :: ![CurrencyAmount]
   }
   deriving (Show)
 
@@ -312,17 +405,17 @@ instance FromJSON BalanceData where
           <$> o .: "available"
           <*> o .: "unsettled"
 
-data CurrencyBalance = CurrencyBalance
-  { currencyBalanceAmount :: !Amount,
-    currencyBalanceCurrency :: !AllowedCurrencies
+data CurrencyAmount = CurrencyAmount
+  { currencyAmountAmount :: !Amount,
+    currencyAmountCurrency :: !AllowedCurrencies
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
-instance FromJSON CurrencyBalance where
-  parseJSON = withObject "CurrencyBalance" parse
+instance FromJSON CurrencyAmount where
+  parseJSON = withObject "CurrencyAmount" parse
     where
       parse o =
-        CurrencyBalance
+        CurrencyAmount
           <$> o .: "amount"
           <*> o .: "currency"
 
@@ -336,6 +429,14 @@ type instance CircleRequest PayoutRequest = CircleResponse PayoutData
 data PayoutsRequest
 
 type instance CircleRequest PayoutsRequest = CircleResponse [PayoutData]
+
+instance CircleHasParam PayoutsRequest PaginationQueryParams
+instance CircleHasParam PayoutsRequest FromQueryParam
+instance CircleHasParam PayoutsRequest ToQueryParam
+instance CircleHasParam PayoutsRequest PageSizeQueryParam
+instance CircleHasParam PayoutsRequest StatusQueryParams
+instance CircleHasParam PayoutsRequest TypeQueryParam
+instance CircleHasParam PayoutsRequest DestinationQueryParam
 
 data PayoutReturn = PayoutReturn
   { payoutReturnId :: !UUID,
@@ -371,7 +472,7 @@ data PayoutData = PayoutData
     payoutDataFees :: !USDAmount,
     payoutDataStatus :: !Status,
     payoutDataTrackingRef :: !TrackingReference, -- TODO maybe this needs a custom type, although text is probably fine
-    payoutDataErrorCode :: !ErrorCode,
+    payoutDataPayoutErrorCode :: !PayoutErrorCode,
     payoutDataRiskEvaluation :: !RiskEvaluation,
     payoutDataAdjustments :: !Adjustments,
     payoutDataPayoutReturn :: !PayoutReturn,
@@ -392,57 +493,67 @@ instance FromJSON PayoutData where
           <*> o .: "fees"
           <*> o .: "status"
           <*> o .: "trackingRef"
-          <*> o .: "payoutErrorCode"
+          <*> o .: "payoutPayoutErrorCode"
           <*> o .: "riskEvaluation"
           <*> o .: "adjustments"
           <*> o .: "payoutReturn"
           <*> o .: "createDate"
           <*> o .: "updateDate"
 
--- Circle has some BS pagination where they let users supply some canonical
--- collection ID, and then this pagination rule will return `n` entries before OR after that page,
--- where `n` is controlled by the pageSize param.  This type exists to prevent callers from providing both params, which would error out
-data Pagination = PageBefore !UUID | PageAfter !UUID deriving (Show, Eq)
-
-instance ToJSON Pagination where
-  toJSON (PageAfter a) = String (unUUID a)
-  toJSON (PageBefore a) = String (unUUID a)
-
-data PayoutQueryParameters = PayoutQueryParameters
-  { payoutQueryParametersDestination :: !(Maybe UUID),
-    -- intentionally omitting the following parameter Circle's API only supports one type and includes it by default
-    payoutQueryParameterType :: !Text, -- TODO this type is the string literal "Wire".
-    payoutQueryParametersPayoutStatus :: !(Maybe [Status]),
-    payoutQueryParametersFrom :: !(Maybe UTCTime), -- TODO test that UTCTime works, needs actual payouts first bc currently returns empty data
-    payoutQueryParametersTo :: !(Maybe UTCTime),
-    payoutQueryParameters :: !(Maybe Pagination),
-    payoutQueryParametersPageSize :: !(Maybe Int)
-  }
-
-instance ToJSON PayoutQueryParameters where
-  toJSON PayoutQueryParameters {..} =
-    omitNulls
-      [ "destination" .= payoutQueryParametersDestination,
-        "status" .= payoutQueryParametersPayoutStatus,
-        "from" .= payoutQueryParametersFrom,
-        "to" .= payoutQueryParametersTo,
-        "pageSize" .= payoutQueryParametersPageSize
-      ]
-
-data PayoutDetails = PayoutDetails
-  { payoutDetailsIdempotencyKey :: !UUID,
-    payoutDetailsDestination :: !DestinationBankAccount,
-    payoutDetailsAmount :: !USDOrEURAmount
-  }
+data PayoutBodyParams = PayoutBodyParams
+     { payoutBodyParamsIdempotencyKey :: !UUID,
+       payoutBodyParamsDestination :: !DestinationBankAccount,
+       payoutBodyParamsAmount :: !USDOrEURAmount
+     }
   deriving (Eq, Show)
 
-instance ToJSON PayoutDetails where
-  toJSON PayoutDetails {..} =
+instance ToJSON PayoutBodyParams where
+  toJSON PayoutBodyParams {..} =
     object
-      [ "idempotencyKey" .= payoutDetailsIdempotencyKey,
-        "destination" .= payoutDetailsDestination,
-        "amount" .= payoutDetailsAmount
+      [ "idempotencyKey" .= payoutBodyParamsIdempotencyKey,
+        "destination" .= payoutBodyParamsDestination,
+        "amount" .= payoutBodyParamsAmount
       ]
+
+data PayoutErrorCode
+  = InsufficientFunds
+  | TransactionDenied
+  | TransactionFailed
+  | TransactionReturned
+  | BankTransactionError
+  | FiatAccountLimitExceeded
+  | InvalidBankAccountNumber
+  | InvalidACHRoutingTransitNumber
+  | InvalidWireRoutingTransitNumber
+  | VendorInactive
+  deriving (Eq, Show)
+
+instance ToJSON PayoutErrorCode where
+  toJSON InsufficientFunds = String "insufficient_funds"
+  toJSON TransactionDenied = String "transaction_denied"
+  toJSON TransactionFailed = String "transaction_failed"
+  toJSON TransactionReturned = String "transaction_returned"
+  toJSON BankTransactionError = String "bank_transaction_error"
+  toJSON FiatAccountLimitExceeded = String "fiat_account_limit_exceeded"
+  toJSON InvalidBankAccountNumber = String "invalid_bank_account_number"
+  toJSON InvalidACHRoutingTransitNumber = String "invalid_ach_rtn"
+  toJSON InvalidWireRoutingTransitNumber = String "invalid_wire_rtn"
+  toJSON VendorInactive = String "vendor_inactive"
+
+instance FromJSON PayoutErrorCode where
+  parseJSON (String s) = case T.unpack s of
+    "insufficient_funds" -> return InsufficientFunds
+    "transaction_denied" -> return TransactionDenied
+    "transaction_failed" -> return TransactionFailed
+    "transaction_returned" -> return TransactionReturned
+    "bank_transaction_error" -> return BankTransactionError
+    "fiat_account_limit_exceeded" -> return FiatAccountLimitExceeded
+    "invalid_bank_account_number" -> return InvalidBankAccountNumber
+    "invalid_ach_rtn" -> return InvalidACHRoutingTransitNumber
+    "invalid_wire_rtn" -> return InvalidWireRoutingTransitNumber
+    "vendor_inactive" -> return VendorInactive
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
 
 ---------------------------------------------------------------
 -- Management endpoint
@@ -461,6 +572,7 @@ instance FromJSON ConfigurationData where
       parse o =
         ConfigurationData
           <$> o .: "payments"
+
 newtype WalletConfig = WalletConfig {masterWalletId :: Text}
   deriving (Eq, Show)
 
@@ -479,7 +591,7 @@ data EncryptionRequest
 
 type instance CircleRequest EncryptionRequest = CircleResponse EncryptionData
 
-data EncryptionData = EncryptionData 
+data EncryptionData = EncryptionData
   { encryptionDataKeyId :: !Text, -- TODO this should actually be a UUID, but for the tests to work it needs to be relaxed a bit
     encryptionDataPublicKey :: !Text -- TODO is there a PGP key type in Haskell?
   }
@@ -510,6 +622,7 @@ instance FromJSON ChannelData where
       parse o =
         ChannelData
           <$> o .: "channels"
+
 data Channel = Channel
   { channelId :: !Text,
     channelDefault :: !Bool,
@@ -641,16 +754,101 @@ instance FromJSON SubscriptionDetails where
           <$> o .: "url"
           <*> o .: "status"
 
-data SubscriptionBody = SubscriptionBody
-  { subscriptionBodyEndpoint :: !Text
+newtype SubscriptionBodyParams = SubscriptionBodyParams
+  { subscriptionBodyParamsEndpoint :: Text
   }
   deriving (Eq, Show)
 
-instance ToJSON SubscriptionBody where
-  toJSON SubscriptionBody {..} =
+instance ToJSON SubscriptionBodyParams where
+  toJSON SubscriptionBodyParams {..} =
     object
-      [ "endpoint" .= subscriptionBodyEndpoint
+      [ "endpoint" .= subscriptionBodyParamsEndpoint
       ]
+
+---------------------------------------------------------------
+-- Transfer endpoints
+---------------------------------------------------------------
+
+data TransfersRequest
+
+type instance CircleRequest TransfersRequest = CircleResponse [TransferData]
+
+instance CircleHasParam TransfersRequest PaginationQueryParams
+instance CircleHasParam TransfersRequest FromQueryParam
+instance CircleHasParam TransfersRequest ToQueryParam
+instance CircleHasParam TransfersRequest PageSizeQueryParam
+
+data TransferData = TransferData 
+  { transferDataId :: !Text, -- TODO some sort of internal ID that's not a UUID
+    transferDataSource :: !(ThisOrThat SourceWallet SourceBlockchain),
+    transferDataDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
+    transferDataAmount :: !CurrencyAmount,
+    transferDataFees :: !(Maybe USDAmount),
+    transferDataTransactionHash :: !(Maybe Text), -- TODO there's probably a type here
+    transferDataStatus :: !Status,
+    transferDataTransferErrorCode :: !(Maybe TransferErrorCode),
+    transferDataCreateDate :: !(Maybe UTCTime)
+  }
+  deriving (Eq, Show)
+
+data SourceWallet = SourceWallet
+  { sourceWalletType :: !Text, -- it's just gonna be "wallet"
+    sourceWalletId :: !Text, -- TODO better type
+    sourceWalletIdentities :: ![Identity]
+  }
+  deriving (Eq, Show)
+
+data SourceBlockchain = SourceBlockchain
+  { sourceBlockchainType :: !Text, -- just "blockchain"
+    sourceBlockchainChain :: !Chain,
+    sourceBlockChainIdentities :: ![Identity]
+  } deriving (Eq, Show)
+
+data DestinationWallet = DestinationWallet
+  { destinationWalletType :: !Text, -- just "wallet"
+    destinationWalletId :: !Text,
+    destinationWalletAddress :: !(Maybe Text),  -- TODO alphanum ID
+    destinationWalletAddressTag :: !(Maybe Text)
+  }
+  deriving (Eq, Show)
+
+data DestinationBlockchain = DestinationBlockchain
+  { destinationBlockchainType :: !Text, -- just "blockchain"
+    destinationBlockchainAddress :: !Text,
+    destinationBlockchainAddressTag :: !(Maybe Text), -- TODO alphanum ID
+    destinationBlockchainAddressChain :: !Chain
+  }
+  deriving (Eq, Show)
+
+data Identity = Identity
+  { identityType :: !IdentityType,
+    identityName :: !Text,
+    identityAddresses :: ![Address]
+  }
+  deriving (Eq, Show)
+
+data IdentityType = Individual | Business deriving (Eq, Show)
+data TransferErrorCode
+  = InsufficientFunds'
+  | BlockchainError
+  | TransferDenied
+  | TransferFailed
+  deriving (Eq, Show)
+
+instance ToJSON TransferErrorCode where
+  toJSON InsufficientFunds' = String "insufficient_funds"
+  toJSON BlockchainError = String "blockchain_error"
+  toJSON TransferDenied = String "transfer_denied"
+  toJSON TransferFailed = String "transfer_failed"
+
+instance FromJSON TransferErrorCode where
+  parseJSON (String s) = case T.unpack s of
+    "insufficient_funds" -> return InsufficientFunds'
+    "blockchain_error" -> return BlockchainError
+    "transfer_denied" -> return TransferDenied
+    "transfer_failed" -> return TransferFailed
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
 
 ---------------------------------------------------------------
 -- Wire endpoints
@@ -668,23 +866,23 @@ data WireInstructionsRequest
 
 type instance CircleRequest WireInstructionsRequest = CircleResponse WireInstructionsData
 
-data WireAccountDetails = WireAccountDetails
-  { idempotencyKey :: !UUID,
-    accountNumber :: !AccountNumber,
-    routingNumber :: !RoutingNumber,
-    billingDetails :: !BillingDetails,
-    bankAddress :: !BankAddress
+data WireAccountBodyParams = WireAccountBodyParams
+  { wireAccountBodyParamsIdempotencyKey :: !UUID,
+    wireAccountBodyParamsAccountNumber :: !AccountNumber,
+    wireAccountBodyParamsRoutingNumber :: !RoutingNumber,
+    wireAccountBodyParamsBillingDetails :: !BillingDetails,
+    wireAccountBodyParamsBankAddress :: !BankAddress
   }
   deriving (Eq, Show)
 
-instance ToJSON WireAccountDetails where
-  toJSON WireAccountDetails {..} =
+instance ToJSON WireAccountBodyParams where
+  toJSON WireAccountBodyParams {..} =
     object
-      [ "idempotencyKey" .= idempotencyKey,
-        "accountNumber" .= accountNumber,
-        "routingNumber" .= routingNumber,
-        "billingDetails" .= billingDetails,
-        "bankAddress" .= bankAddress
+      [ "idempotencyKey" .= wireAccountBodyParamsIdempotencyKey,
+        "accountNumber" .= wireAccountBodyParamsAccountNumber,
+        "routingNumber" .= wireAccountBodyParamsRoutingNumber,
+        "billingDetails" .= wireAccountBodyParamsBillingDetails,
+        "bankAddress" .= wireAccountBodyParamsBankAddress
       ]
 
 data WireInstructionsData = WireInstructionsData
@@ -749,45 +947,35 @@ instance FromJSON Status where
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
-data ErrorCode
-  = InsufficientFunds
-  | TransactionDenied
-  | TransactionFailed
-  | TransactionReturned
-  | BankTransactionError
-  | FiatAccountLimitExceeded
-  | InvalidBankAccountNumber
-  | InvalidACHRoutingTransitNumber
-  | InvalidWireRoutingTransitNumber
-  | VendorInactive
+data Address = Address
+  { addressCity :: !(Maybe City),
+    addressCountry :: !(Maybe ISO3166Alpha2),
+    addressLine1 :: !(Maybe AddressLine),
+    addressLine2 :: !(Maybe AddressLine),
+    addressDistrict :: !(Maybe District)
+  }
   deriving (Eq, Show)
 
-instance ToJSON ErrorCode where
-  toJSON InsufficientFunds = String "insufficient_funds"
-  toJSON TransactionDenied = String "transaction_denied"
-  toJSON TransactionFailed = String "transaction_failed"
-  toJSON TransactionReturned = String "transaction_returned"
-  toJSON BankTransactionError = String "bank_transaction_error"
-  toJSON FiatAccountLimitExceeded = String "fiat_account_limit_exceeded"
-  toJSON InvalidBankAccountNumber = String "invalid_bank_account_number"
-  toJSON InvalidACHRoutingTransitNumber = String "invalid_ach_rtn"
-  toJSON InvalidWireRoutingTransitNumber = String "invalid_wire_rtn"
-  toJSON VendorInactive = String "vendor_inactive"
+instance ToJSON Address where
+  toJSON Address {..} =
+    omitNulls
+      [ "city" .= addressCity,
+        "country" .= addressCountry,
+        "line1" .= addressLine1,
+        "line2" .= addressLine2,
+        "district" .= addressDistrict
+      ]
 
-instance FromJSON ErrorCode where
-  parseJSON (String s) = case T.unpack s of
-    "insufficient_funds" -> return InsufficientFunds
-    "transaction_denied" -> return TransactionDenied
-    "transaction_failed" -> return TransactionFailed
-    "transaction_returned" -> return TransactionReturned
-    "bank_transaction_error" -> return BankTransactionError
-    "fiat_account_limit_exceeded" -> return FiatAccountLimitExceeded
-    "invalid_bank_account_number" -> return InvalidBankAccountNumber
-    "invalid_ach_rtn" -> return InvalidACHRoutingTransitNumber
-    "invalid_wire_rtn" -> return InvalidWireRoutingTransitNumber
-    "vendor_inactive" -> return VendorInactive
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+instance FromJSON Address where
+  parseJSON = withObject "Address" parse
+    where
+      parse o =
+        Address
+          <$> o .: "city"
+          <*> o .: "country"
+          <*> o .: "line1"
+          <*> o .: "line2"
+          <*> o .: "district"
 
 data BankAccountType = Wire | Sen deriving (Eq, Show)
 
@@ -877,7 +1065,7 @@ data USDAmount = USDAmount
   { usdAmountAmount :: !Amount,
     usdAmountFeeCurrency :: !AllowedCurrencies
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 instance FromJSON USDAmount where
   parseJSON = withObject "USDAmount" parse
@@ -966,25 +1154,26 @@ instance FromJSON BillingDetails where
           <*> o .: "district"
           <*> o .: "postalCode"
 
+-- TODO refactor this type to use address WithName.  Look into the same stuff that we used at Mercury for WithName
 data BankAddress = BankAddress
-  { bankAddressBankName :: !(Maybe Text),
-    bankAddressBankCity :: !(Maybe City),
-    bankAddressBankCountry :: !(Maybe ISO3166Alpha2),
-    bankAddressBankLine1 :: !(Maybe AddressLine),
-    bankAddressBankLine2 :: !(Maybe AddressLine),
-    bankAddressBankDistrict :: !(Maybe District)
+  { bankAddressName :: !(Maybe Text),
+    bankAddressCity :: !(Maybe City),
+    bankAddressCountry :: !(Maybe ISO3166Alpha2),
+    bankAddressLine1 :: !(Maybe AddressLine),
+    bankAddressLine2 :: !(Maybe AddressLine),
+    bankAddressDistrict :: !(Maybe District)
   }
   deriving (Eq, Show)
 
 instance ToJSON BankAddress where
   toJSON BankAddress {..} =
     omitNulls
-      [ "name" .= bankAddressBankName,
-        "city" .= bankAddressBankCity,
-        "country" .= bankAddressBankCountry,
-        "line1" .= bankAddressBankLine1,
-        "line2" .= bankAddressBankLine2,
-        "district" .= bankAddressBankDistrict
+      [ "name" .= bankAddressName,
+        "city" .= bankAddressCity,
+        "country" .= bankAddressCountry,
+        "line1" .= bankAddressLine1,
+        "line2" .= bankAddressLine2,
+        "district" .= bankAddressDistrict
       ]
 
 instance FromJSON BankAddress where
@@ -1270,3 +1459,96 @@ omitNulls = object . filter notNull
     notNull (_, Null) = False
     notNull (_, Array a) = (not . V.null) a
     notNull _ = True
+
+utcToCircle :: UTCTime -> Text
+utcToCircle ut =
+  tshow day <> "T" <> clockTime <> "-00:00"
+  where
+    tshow :: Show a => a -> Text
+    tshow = T.pack . show
+    day = utctDay ut
+    time = utctDayTime ut
+    tod = snd $ utcToLocalTimeOfDay utc (timeToTimeOfDay time)
+    atLeastTwo :: Text -> Int -> Text
+    atLeastTwo t i
+      | i < 10 = t <> tshow i
+      | otherwise = tshow i
+    clockTime =
+      atLeastTwo "0" (todHour tod)
+        <> ":"
+        <> atLeastTwo "0" (todMin tod)
+        <> ":"
+        <> atLeastTwo "0" (floor $ todSec tod)
+
+-- | Similar to 'Either' but with different 'ToJSON' and 'FromJSON' instances.
+-- 'ToJSON' will serialize the payload without adding any kind of tag.
+-- 'FromJSON' will first attempt to parse JSON as the first type parameter,
+-- and if that fails will then attempt to parse as the second type parameter.
+--
+-- __Engineer Note:__ The order of type parameters make a huge difference!
+-- In @'ThisOrThat' A B@, if @A@ is structurally a subtype of @B@, then the
+-- parser can never produce a 'That' result! For example, with types
+--
+-- @
+--   data A = A {foo :: String, bar :: Scientific}
+--   data B = B {foo :: String, bar :: Scientific, baz :: Bool}
+-- @
+--
+-- @'FromJSON' ('ThisOrThat' A B)@ can never parse a @B@. Any JSON object
+-- that includes properties @foo: <string>@ and @bar: <number>@ will parse
+-- as an @A@, whether or not the property @baz: <boolean>@ is present. You
+-- can fix this by instead using @'ThisOrThat' B A@.
+data ThisOrThat a b = This a | That b
+  deriving stock (Eq)
+
+catThises :: [ThisOrThat a b] -> [a]
+catThises lst = lst >>= toThis
+  where
+    toThis = \case
+      This a -> [a]
+      _ -> []
+
+catThats :: [ThisOrThat a b] -> [b]
+catThats lst = lst >>= toThat
+  where
+    toThat = \case
+      That b -> [b]
+      _ -> []
+
+instance (Show a, Show b) => Show (ThisOrThat a b) where
+  show = \case
+    This a -> show a
+    That b -> show b
+
+instance (ToJSON a, ToJSON b) => ToJSON (ThisOrThat a b) where
+  toJSON (This a) = toJSON a
+  toJSON (That b) = toJSON b
+  toEncoding (This a) = toEncoding a
+  toEncoding (That b) = toEncoding b
+
+instance (FromJSON a, FromJSON b) => FromJSON (ThisOrThat a b) where
+  parseJSON val = do
+    let parsedA = fromJSON val
+        parsedB = fromJSON val
+    case (parsedA, parsedB) of
+      (Success a, _) -> pure $ This a
+      (_, Success b) -> pure $ That b
+      (Error thisError, Error thatError) ->
+        fail $
+          fold
+            [ "Failed when parsing a ThisOrThat from JSON.\n"
+            , "Error on the This: " <> thisError <> "\n"
+            , "Error on the That: " <> thatError
+            ]
+
+instance Bifunctor ThisOrThat where
+  bimap f _ (This a) = This (f a)
+  bimap _ g (That b) = That (g b)
+
+thisOrThatToEither :: ThisOrThat a b -> Either a b
+thisOrThatToEither = \case
+  This a -> Left a
+  That b -> Right b
+
+thisOrThat :: (a -> c) -> (b -> c) -> ThisOrThat a b -> c
+thisOrThat f g tot = either f g $ thisOrThatToEither tot

@@ -50,6 +50,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [] Wrap crypto payments API (small/medium)
 - [] Wrap on-chain transfer API (medium)
 - [] Wrap wallets endpoint (large)
+- [] Differentiate between business account and bank account endpoints.  There's the same calls for different endpoints.  Will be able to reuse all the types and just switch the path, though, so this can be done last.
 - [] BETA Wrap SEPA endpoint (medium)
 - [] BETA Wrap SEN endpoints (medium)
 - [] Figure out a way to create balances for accounts via API to test payouts.  Right now all tests for payments/payouts/balances only test that the sad paths work when there's no money.

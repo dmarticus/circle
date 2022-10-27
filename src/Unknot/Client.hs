@@ -4,7 +4,7 @@
 
 module Unknot.Client where
 
--- import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode, encode)
 import Data.Aeson.Types (FromJSON)
 import qualified Data.ByteString.Char8 as BS8
@@ -32,12 +32,12 @@ import Unknot.Types
 ---------------------------------------------------------------
 -- | Create a bank account for a wire
 -- https://developers.circle.com/reference/createbusinesswireaccount
-createWireAccount :: WireAccountDetails -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
-createWireAccount wireAccountDetails = do
+createWireAccount :: WireAccountBodyParams -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+createWireAccount wireAccountBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
     url = "businessAccount/banks/wires"
-    params = Params (Just $ Body (encode wireAccountDetails)) []
+    params = Params (Just $ Body (encode wireAccountBody)) []
 
 -- | Get a list of wire accounts
 -- https://developers.circle.com/reference/listbusinesswireaccounts
@@ -141,7 +141,7 @@ listAllNotificationSubscriptions = do
 
 -- | Create new subscription
 -- https://developers.circle.com/reference/createsubscribtion
-createSubscription :: SubscriptionBody -> CircleAPIRequest SubscriptionsRequest TupleBS8 BSL.ByteString
+createSubscription :: SubscriptionBodyParams -> CircleAPIRequest SubscriptionsRequest TupleBS8 BSL.ByteString
 createSubscription subscriptionBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -175,12 +175,12 @@ getPayout payoutId = do
     url = "businessAccount/payouts" <> payoutId
     params = Params Nothing []
 
-createPayout :: PayoutDetails -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
-createPayout payoutDetails = do
+createPayout :: PayoutBodyParams -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+createPayout payoutBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
     url = "businessAccount/payouts"
-    params = Params (Just $ Body (encode payoutDetails)) []
+    params = Params (Just $ Body (encode payoutBody)) []
 
 ---------------------------------------------------------------
 -- Utility methods for calling Circle's API
@@ -231,9 +231,9 @@ circleTest ::
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
   IO (Either CircleError (CircleRequest a))
 circleTest config tlsManager request = do
-  -- liftIO $ print request
+  liftIO $ print request
   response <- circleTest' config request tlsManager
-  -- liftIO $ print response
+  liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
     Left s -> return (Left (CircleError s response))
