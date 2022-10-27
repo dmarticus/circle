@@ -34,7 +34,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 
 - [x] differentiate between query params and the request body.  Right now I don't think I do that.
 - [x] Wrap API Overview endpoints (small)
-- [] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
+- [x] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
 - [] Wrap Addresses endpoint (medium)
 - [] Wrap Deposits endpoint (small/medium)
 - [] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)

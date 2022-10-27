@@ -165,7 +165,7 @@ main = do
                       (Amount 100.00)
                       USD
                     )
-            -- this request will always fail if no
+            -- this request will always fail if there's no money in the account
             idkWhatThisWillBe <- circleTest config manager $ createTransfer transferBody
             idkWhatThisWillBe `shouldSatisfy` isRight
             let Right CircleResponse {circleResponseCode, circleResponseMessage} = idkWhatThisWillBe
@@ -209,7 +209,7 @@ main = do
                         (Amount 100.00)
                         USD
                     )
-            -- this request will always fail if no
+            -- this request will always fail if there's no money in the account
             failedPayoutResultsNoAccount <- circleTest config manager $ createPayout payoutWithFakeWireAccount
             failedPayoutResultsNoAccount `shouldSatisfy` isRight
             let Right CircleResponse {circleResponseCode, circleResponseMessage} = failedPayoutResultsNoAccount
