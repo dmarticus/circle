@@ -34,7 +34,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 
 - [x] differentiate between query params and the request body.  Right now I don't think I do that.
 - [x] Wrap API Overview endpoints (small)
-- [] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
+- [x] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
 - [] Wrap Addresses endpoint (medium)
 - [] Wrap Deposits endpoint (small/medium)
 - [] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
@@ -50,6 +50,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [] Wrap crypto payments API (small/medium)
 - [] Wrap on-chain transfer API (medium)
 - [] Wrap wallets endpoint (large)
+- [] Differentiate between business account and bank account endpoints.  There's the same calls for different endpoints.  Will be able to reuse all the types and just switch the path, though, so this can be done last.
 - [] BETA Wrap SEPA endpoint (medium)
 - [] BETA Wrap SEN endpoints (medium)
 - [] Figure out a way to create balances for accounts via API to test payouts.  Right now all tests for payments/payouts/balances only test that the sad paths work when there's no money.
