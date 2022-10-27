@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -12,7 +13,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Unknot.Types
   ( -- Types for connecting to and wrapping Circle's API
@@ -68,12 +68,19 @@ module Unknot.Types
     PayoutRequest,
     PayoutData (..),
     PayoutBodyParams (..),
+    -- Transfers Endpoint
+    TransfersRequest,
+    TransferRequest,
+    TransferBodyParams (..),
+    TransferBodyDestination (..),
+    TransferType (..),
+    TransferData (..),
     -- Shared types across different endpoints
     DestinationBankAccount (..),
     USDOrEURAmount (..),
-    -- PayoutQueryParams (..),
     BankAccountType (..),
     AllowedCurrencies (..),
+    CurrencyAmount (..),
     Amount (..),
     AddressLine (..),
     AccountNumber (..),
@@ -115,6 +122,10 @@ module Unknot.Types
     ResponseMessage (..),
     PayoutErrorCode (..),
     UUID (..),
+    catThats,
+    catThises,
+    thisOrThat,
+    thisOrThatToEither,
   )
 where
 
@@ -127,23 +138,27 @@ import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRi
 import Data.Aeson
   ( FromJSON (parseJSON),
     KeyValue ((.=)),
-    ToJSON (toJSON, toEncoding),
+    Result (Error, Success),
+    ToJSON (toEncoding, toJSON),
     Value (Array, Null, String),
     object,
     withObject,
     withText,
     (.:),
-    (.:?), Result (Success, Error)
+    (.:?),
   )
+import Data.Aeson.Types (fromJSON)
+import Data.Bifunctor
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import Data.Coerce (coerce)
 import Data.Fixed (Centi, Fixed (MkFixed))
+import Data.Foldable
 import qualified Data.Set as Set
 import Data.Text (Text)
-import Data.Time
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import Data.Time
 import qualified Data.Vector as V
 import Language.Haskell.TH (Exp, Q)
 import Language.Haskell.TH.Quote (QuasiQuoter (..))
@@ -154,9 +169,6 @@ import Refined
 import Refined.Unsafe (reallyUnsafeRefine)
 import System.Environment (getEnv)
 import Text.Regex.PCRE.Heavy
-import Data.Bifunctor
-import Data.Aeson.Types (fromJSON)
-import Data.Foldable
 
 ---------------------------------------------------------------
 -- Circle API wrapper
@@ -319,7 +331,6 @@ instance ToCircleParam PaginationQueryParams where
         joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 a)]
       PageAfter a ->
         joinQueryParams $ Params Nothing [Query ("pageAfter", TE.encodeUtf8 a)]
-
 newtype FromQueryParam = FromQueryParam
   { fromQueryParam :: UTCTime
   }
@@ -383,6 +394,21 @@ instance ToCircleParam TypeQueryParam where
   toCircleParam (TypeQueryParam i) =
     joinQueryParams $ Params Nothing [Query ("type", bankAccountTypeToBS8 i)]
 
+newtype CurrencyQueryParam = CurrencyQueryParam
+  { currencyQueryParam :: AllowedCurrencies 
+  }
+  deriving (Eq, Show)
+
+currencyToBS8 :: AllowedCurrencies -> BS8.ByteString
+currencyToBS8 USD = "USD"
+currencyToBS8 EUR = "EUR"
+currencyToBS8 BTC' = "BTC"
+currencyToBS8 ETH' = "ETH'"
+
+instance ToCircleParam CurrencyQueryParam where
+  toCircleParam (CurrencyQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("currency", currencyToBS8 i)]
+
 ---------------------------------------------------------------
 -- Balance endpoints
 ---------------------------------------------------------------
@@ -419,6 +445,13 @@ instance FromJSON CurrencyAmount where
           <$> o .: "amount"
           <*> o .: "currency"
 
+instance ToJSON CurrencyAmount where
+  toJSON CurrencyAmount {..} =
+    object
+      [ "amount" .= currencyAmountAmount,
+        "currency" .= currencyAmountCurrency
+      ]
+
 ---------------------------------------------------------------
 -- Payout endpoints
 ---------------------------------------------------------------
@@ -431,11 +464,17 @@ data PayoutsRequest
 type instance CircleRequest PayoutsRequest = CircleResponse [PayoutData]
 
 instance CircleHasParam PayoutsRequest PaginationQueryParams
+
 instance CircleHasParam PayoutsRequest FromQueryParam
+
 instance CircleHasParam PayoutsRequest ToQueryParam
+
 instance CircleHasParam PayoutsRequest PageSizeQueryParam
+
 instance CircleHasParam PayoutsRequest StatusQueryParams
+
 instance CircleHasParam PayoutsRequest TypeQueryParam
+
 instance CircleHasParam PayoutsRequest DestinationQueryParam
 
 data PayoutReturn = PayoutReturn
@@ -501,10 +540,10 @@ instance FromJSON PayoutData where
           <*> o .: "updateDate"
 
 data PayoutBodyParams = PayoutBodyParams
-     { payoutBodyParamsIdempotencyKey :: !UUID,
-       payoutBodyParamsDestination :: !DestinationBankAccount,
-       payoutBodyParamsAmount :: !USDOrEURAmount
-     }
+  { payoutBodyParamsIdempotencyKey :: !UUID,
+    payoutBodyParamsDestination :: !DestinationBankAccount,
+    payoutBodyParamsAmount :: !USDOrEURAmount
+  }
   deriving (Eq, Show)
 
 instance ToJSON PayoutBodyParams where
@@ -774,11 +813,50 @@ data TransfersRequest
 type instance CircleRequest TransfersRequest = CircleResponse [TransferData]
 
 instance CircleHasParam TransfersRequest PaginationQueryParams
+
 instance CircleHasParam TransfersRequest FromQueryParam
+
 instance CircleHasParam TransfersRequest ToQueryParam
+
 instance CircleHasParam TransfersRequest PageSizeQueryParam
 
-data TransferData = TransferData 
+data TransferRequest
+
+type instance CircleRequest TransferRequest = CircleResponse TransferData
+
+data TransferBodyParams = TransferBodyParams
+  { transferBodyParamsId :: !UUID,
+    transferBodyParamsDestination :: !TransferBodyDestination,
+    transferBodyParamsAmount :: !CurrencyAmount
+  }
+
+instance ToJSON TransferBodyParams where
+  toJSON TransferBodyParams {..} =
+    object
+      [ "idempotencyKey" .= transferBodyParamsId,
+        "destination" .= transferBodyParamsDestination,
+        "amount" .= transferBodyParamsAmount
+      ]
+
+data TransferBodyDestination = TransferBodyDestination
+  { transferBodyDestinationType :: !TransferType,
+    transferBodyDestinationAddressId :: !UUID
+  }
+  deriving (Eq, Show)
+
+instance ToJSON TransferBodyDestination where
+  toJSON TransferBodyDestination {..} =
+    object
+      [ "type" .= transferBodyDestinationType,
+        "addressId" .= transferBodyDestinationAddressId
+      ]
+
+data TransferType = VerifiedBlockchain deriving (Eq, Show)
+
+instance ToJSON TransferType where
+  toJSON VerifiedBlockchain = String "verified_blockchain"
+
+data TransferData = TransferData
   { transferDataId :: !Text, -- TODO some sort of internal ID that's not a UUID
     transferDataSource :: !(ThisOrThat SourceWallet SourceBlockchain),
     transferDataDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
@@ -791,6 +869,21 @@ data TransferData = TransferData
   }
   deriving (Eq, Show)
 
+instance FromJSON TransferData where
+  parseJSON = withObject "TransferData" parse
+    where
+      parse o =
+        TransferData
+          <$> o .: "id"
+          <*> o .: "source"
+          <*> o .: "destination"
+          <*> o .: "amount"
+          <*> o .: "fees"
+          <*> o .: "transactionHash"
+          <*> o .: "status"
+          <*> o .: "errorCode"
+          <*> o .: "createDate"
+
 data SourceWallet = SourceWallet
   { sourceWalletType :: !Text, -- it's just gonna be "wallet"
     sourceWalletId :: !Text, -- TODO better type
@@ -798,19 +891,48 @@ data SourceWallet = SourceWallet
   }
   deriving (Eq, Show)
 
+instance FromJSON SourceWallet where
+  parseJSON = withObject "SourceWallet" parse
+    where
+      parse o =
+        SourceWallet
+          <$> o .: "type"
+          <*> o .: "id"
+          <*> o .: "identities"
+
 data SourceBlockchain = SourceBlockchain
   { sourceBlockchainType :: !Text, -- just "blockchain"
     sourceBlockchainChain :: !Chain,
     sourceBlockChainIdentities :: ![Identity]
-  } deriving (Eq, Show)
+  }
+  deriving (Eq, Show)
+
+instance FromJSON SourceBlockchain where
+  parseJSON = withObject "SourceBlockchain" parse
+    where
+      parse o =
+        SourceBlockchain
+          <$> o .: "type"
+          <*> o .: "chain"
+          <*> o .: "identities"
 
 data DestinationWallet = DestinationWallet
   { destinationWalletType :: !Text, -- just "wallet"
     destinationWalletId :: !Text,
-    destinationWalletAddress :: !(Maybe Text),  -- TODO alphanum ID
+    destinationWalletAddress :: !(Maybe Text), -- TODO alphanum ID
     destinationWalletAddressTag :: !(Maybe Text)
   }
   deriving (Eq, Show)
+
+instance FromJSON DestinationWallet where
+  parseJSON = withObject "DestinationWallet" parse
+    where
+      parse o =
+        DestinationWallet
+          <$> o .: "type"
+          <*> o .: "id"
+          <*> o .: "address"
+          <*> o .: "addressTag"
 
 data DestinationBlockchain = DestinationBlockchain
   { destinationBlockchainType :: !Text, -- just "blockchain"
@@ -820,6 +942,16 @@ data DestinationBlockchain = DestinationBlockchain
   }
   deriving (Eq, Show)
 
+instance FromJSON DestinationBlockchain where
+  parseJSON = withObject "DestinationBlockchain" parse
+    where
+      parse o =
+        DestinationBlockchain
+          <$> o .: "type"
+          <*> o .: "address"
+          <*> o .: "addressTag"
+          <*> o .: "chain"
+
 data Identity = Identity
   { identityType :: !IdentityType,
     identityName :: !Text,
@@ -827,7 +959,24 @@ data Identity = Identity
   }
   deriving (Eq, Show)
 
+instance FromJSON Identity where
+  parseJSON = withObject "Identity" parse
+    where
+      parse o =
+        Identity
+          <$> o .: "type"
+          <*> o .: "name"
+          <*> o .: "addresses"
+
 data IdentityType = Individual | Business deriving (Eq, Show)
+
+instance FromJSON IdentityType where
+  parseJSON (String s) = case T.unpack s of
+    "individual" -> return Individual
+    "business" -> return Business
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
 data TransferErrorCode
   = InsufficientFunds'
   | BlockchainError
@@ -865,6 +1014,8 @@ type instance CircleRequest WireAccountsRequest = CircleResponse [WireAccountDat
 data WireInstructionsRequest
 
 type instance CircleRequest WireInstructionsRequest = CircleResponse WireInstructionsData
+
+instance CircleHasParam WireInstructionsRequest PaginationQueryParams
 
 data WireAccountBodyParams = WireAccountBodyParams
   { wireAccountBodyParamsIdempotencyKey :: !UUID,
@@ -1536,9 +1687,9 @@ instance (FromJSON a, FromJSON b) => FromJSON (ThisOrThat a b) where
       (Error thisError, Error thatError) ->
         fail $
           fold
-            [ "Failed when parsing a ThisOrThat from JSON.\n"
-            , "Error on the This: " <> thisError <> "\n"
-            , "Error on the That: " <> thatError
+            [ "Failed when parsing a ThisOrThat from JSON.\n",
+              "Error on the This: " <> thisError <> "\n",
+              "Error on the That: " <> thatError
             ]
 
 instance Bifunctor ThisOrThat where

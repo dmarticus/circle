@@ -79,16 +79,16 @@ main = do
             subscription <- circleTest config manager $ createSubscription testSubscriptionBody
             let Right CircleResponse {..} = subscription
             circleResponseCode `shouldBe` Nothing
-            circleResponseMessage `shouldBe` (Just (ResponseMessage "Unable to complete request. One or more request parameters are invalid."))
+            circleResponseMessage `shouldBe` Just (ResponseMessage "Unable to complete request. One or more request parameters are invalid.")
           it "deletes a subscription" $ do
             deletionResponse <- circleTest config manager $ deleteSubscription (UUID "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
             let Right CircleResponse {..} = deletionResponse
             circleResponseCode `shouldBe` Nothing
             -- TODO we don't have a resource so it'll fail
-            circleResponseMessage `shouldBe` (Just (ResponseMessage "Resource not found"))
+            circleResponseMessage `shouldBe` Just (ResponseMessage "Resource not found")
           it "lists all subscription" $ do
-            subcriptions <- circleTest config manager listAllNotificationSubscriptions
-            let Right CircleResponse {..} = subcriptions
+            subscriptions <- circleTest config manager listAllNotificationSubscriptions
+            let Right CircleResponse {..} = subscriptions
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
       describe "wire endpoints" $ do
@@ -124,6 +124,7 @@ main = do
             for_ circleResponseData $ \WireAccountData {..} -> do
               wireAccountInstructions <- circleTest config manager $ getWireAccountInstructions wireAccountDataId
               wireAccountInstructions `shouldSatisfy` isRight
+              -- liftIO $ print wireAccountInstructions
               let Right CircleResponse {circleResponseCode, circleResponseMessage} = wireAccountInstructions
               circleResponseCode `shouldBe` Nothing
               circleResponseMessage `shouldBe` Nothing
@@ -136,6 +137,41 @@ main = do
             let Right CircleResponse {circleResponseCode, circleResponseMessage} = balances
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
+      describe "transfer endpoints" $ do
+        describe "list transfers" $ do
+          it "should list all transfers for a given business account" $ do
+            transfers <- circleTest config manager listAllTransfers
+            transfers `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = transfers
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "get transfer" $ do
+          it "will attempt to return transfer data for a single transfer" $ do
+            transfer <- circleTest config manager (getTransfer "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
+            transfer `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = transfer
+            circleResponseCode `shouldBe` Nothing
+            -- will fail if there's no such payout Id
+            circleResponseMessage `shouldBe` Just (ResponseMessage "Resource not found")
+        describe "create transfer" $ do
+          it "will attempt to create a new transfer" $ do
+            let transferBody =
+                  TransferBodyParams
+                    (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
+                    (TransferBodyDestination
+                      VerifiedBlockchain
+                      (UUID "2206775d-e4f7-4681-9494-34dc650fbfd8"))
+                    (CurrencyAmount
+                      (Amount 100.00)
+                      USD
+                    )
+            -- this request will always fail if no
+            idkWhatThisWillBe <- circleTest config manager $ createTransfer transferBody
+            idkWhatThisWillBe `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = idkWhatThisWillBe
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Just (ResponseMessage "Address not found")
+        
       describe "payout endpoints" $ do
         -- TODO need to actually seed balances, I'll do that when I wrap that API endpoint
         describe "list payouts" $ do
