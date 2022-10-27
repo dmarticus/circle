@@ -24,6 +24,12 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [] Look into sharing some request/response types if there's enough in common
 - [] Add PR template and contribution guide
 
+### README and Documentation
+
+- [] everything exported has a doc.  Include types!  I've been good about the functions.
+- [] figure out how haddock works, see if I can make something nice.
+- [] add some usage examples to the README.
+
 ### Core Functionality
 
 - [x] differentiate between query params and the request body.  Right now I don't think I do that.
