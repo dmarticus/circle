@@ -19,7 +19,7 @@ testWireAccountDetails =
   WireAccountBodyParams
     (UUID "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
     [compileAccountNumber|446043103366|]
-    (RoutingNumber "021000021")
+    [compileRoutingNumber|021000021|]
     ( BillingDetails
         "Test Recipient"
         (City "Snoqualmie")

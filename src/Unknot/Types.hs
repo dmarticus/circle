@@ -532,7 +532,7 @@ instance FromJSON PayoutData where
           <*> o .: "fees"
           <*> o .: "status"
           <*> o .: "trackingRef"
-          <*> o .: "payoutPayoutErrorCode"
+          <*> o .: "errorCode"
           <*> o .: "riskEvaluation"
           <*> o .: "adjustments"
           <*> o .: "payoutReturn"
@@ -1473,7 +1473,7 @@ compileRoutingNumber :: QuasiQuoter
 compileRoutingNumber =
   QuasiQuoter
     { quoteExp = compileRoutingNumber',
-      quotePat = error "RoutingNumber is not a patttern; use routingNumberToText instead",
+      quotePat = error "RoutingNumber is not a pattern; use routingNumberToText instead",
       quoteDec = error "routingNumber is not supported at top-level",
       quoteType = error "routingNumber is not supported as a type"
     }
