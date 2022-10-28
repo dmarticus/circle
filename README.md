@@ -4,7 +4,7 @@
 
 [source](https://en.wikipedia.org/wiki/Unknot)
 
-I'm not knot theorist, but it seemed like as good a name as any for this library, which is an API Client for [Circle](https://developers.circle.com/)
+I'm no knot theorist, but it seemed like as good a name as any for this library, which is an API Client for [Circle](https://developers.circle.com/)
 
 Inspiration:
 
