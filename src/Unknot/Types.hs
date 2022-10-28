@@ -84,6 +84,20 @@ module Unknot.Types
     RecipientAddressRequest,
     RecipientAddressData (..),
     RecipientAddressBodyParams (..),
+    -- Deposits Endpoints
+    DepositsRequest,
+    DepositData (..),
+    MockSilvergatePaymentRequest,
+    MockSilvergatePaymentBodyParams (..),
+    MockBeneficiaryBankDetails (..),
+    MockSilvergatePaymentData (..),
+    -- Silvergate SEN Endpoints
+    SENAccountBodyParams (..),
+    SENAccountData (..),
+    SENInstructionsData (..),
+    SENAccountRequest,
+    SENAccountsRequest,
+    SENInstructionsRequest,
     -- Shared types across different endpoints
     DestinationBankAccount (..),
     USDOrEURAmount (..),
@@ -132,6 +146,7 @@ module Unknot.Types
     ResponseMessage (..),
     PayoutErrorCode (..),
     UUID (..),
+    TrackingReference (..),
     catThats,
     catThises,
     thisOrThat,
@@ -341,6 +356,7 @@ instance ToCircleParam PaginationQueryParams where
         joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 a)]
       PageAfter a ->
         joinQueryParams $ Params Nothing [Query ("pageAfter", TE.encodeUtf8 a)]
+
 newtype FromQueryParam = FromQueryParam
   { fromQueryParam :: UTCTime
   }
@@ -405,7 +421,7 @@ instance ToCircleParam TypeQueryParam where
     joinQueryParams $ Params Nothing [Query ("type", bankAccountTypeToBS8 i)]
 
 newtype CurrencyQueryParam = CurrencyQueryParam
-  { currencyQueryParam :: AllowedCurrencies 
+  { currencyQueryParam :: AllowedCurrencies
   }
   deriving (Eq, Show)
 
@@ -1114,6 +1130,179 @@ instance ToJSON RecipientAddressBodyParams where
       ]
 
 ---------------------------------------------------------------
+-- Deposits endpoints
+---------------------------------------------------------------
+
+data DepositsRequest
+
+type instance CircleRequest DepositsRequest = CircleResponse [DepositData]
+
+instance CircleHasParam DepositsRequest TypeQueryParam
+
+instance CircleHasParam DepositsRequest PaginationQueryParams
+
+instance CircleHasParam DepositsRequest FromQueryParam
+
+instance CircleHasParam DepositsRequest ToQueryParam
+
+instance CircleHasParam DepositsRequest PageSizeQueryParam
+
+data DepositData = DepositData
+  { depositId :: !Text, -- TODO type maybe
+    depositSourceWalletId :: !(Maybe Text), -- TODO this should have a type
+    depositDestination :: !DestinationWallet,
+    depositAmount :: !CurrencyAmount,
+    depositFee :: !(Maybe USDAmount),
+    depositStatus :: !Status,
+    depositRiskEvaluation :: !(Maybe RiskEvaluation),
+    depositCreateDate :: !UTCTime,
+    depositUpdateDate :: !(Maybe UTCTime)
+  }
+  deriving (Eq, Show)
+
+instance FromJSON DepositData where
+  parseJSON = withObject "DepositData" parse
+    where
+      parse o =
+        DepositData
+          <$> o .: "id"
+            <*> o .:? "sourceWalletId"
+            <*> o .: "destination"
+            <*> o .: "amount"
+            <*> o .:? "fee"
+            <*> o .: "status"
+            <*> o .:? "riskEvaluation"
+            <*> o .: "createDate"
+            <*> o .:? "updateDate"
+
+-- TODO is this real?  Like should I make some real code that does what this mock does and expose that in the module?
+data MockSilvergatePaymentRequest
+
+type instance CircleRequest MockSilvergatePaymentRequest = CircleResponse MockSilvergatePaymentData
+
+data MockSilvergatePaymentData = MockSilvergatePaymentData
+  { mockSilvergatePaymentDataTrackingRef :: !TrackingReference,
+    mockSilvergatePaymentDataAmount :: !CurrencyAmount,
+    mockSilvergatePaymentDataBeneficiaryBank :: !BeneficiaryBankDetails,
+    mockSilvergatePaymentDataStatus :: !Status
+  }
+  deriving (Eq, Show)
+
+instance FromJSON MockSilvergatePaymentData where
+  parseJSON = withObject "MockSilvergatePaymentData" parse
+    where
+      parse o =
+        MockSilvergatePaymentData
+          <$> o .: "trackingRef"
+          <*> o .: "amount"
+          <*> o .: "beneficiaryBank"
+          <*> o .: "status"
+
+newtype MockBeneficiaryBankDetails = MockBeneficiaryBankDetails {mockBeneficiaryBankDetailsAccountNumber :: AccountNumber}
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+-- instance FromJSON MockBeneficiaryBankDetails where
+--   parseJSON = withObject "MockBeneficiaryBankDetails" parse
+--     where
+--       parse o =
+--         mockBeneficiaryBankDetails
+--           <$> o .: "accountNumber"
+
+-- instance ToJSON MockBeneficiaryBankDetails where
+--   toJSON MockBeneficiaryBankDetails {..} =
+--     object
+--       [ "accountNumber" .= mockBeneficiaryBankDetailsAccountNumber
+--       ]
+
+-- TODO this is really close to the return type.  Try to combine at some point?
+data MockSilvergatePaymentBodyParams = MockSilvergatePaymentBodyParams
+  { mockSilvergatePaymentBodyParamsTrackingRef :: !TrackingReference,
+    mockSilvergatePaymentBodyParamsAmount :: !CurrencyAmount,
+    -- TODO should this be the real beneficiary bank details object?  The API docs don't say so but the API docs also fail
+    mockSilvergatePaymentBodyParamsBeneficiaryBank :: !MockBeneficiaryBankDetails
+  }
+  deriving (Eq, Show)
+
+instance ToJSON MockSilvergatePaymentBodyParams where
+  toJSON MockSilvergatePaymentBodyParams {..} =
+    object
+      [ "trackingRef" .= mockSilvergatePaymentBodyParamsTrackingRef,
+        "amount" .= mockSilvergatePaymentBodyParamsAmount,
+        "beneficiaryBank" .= mockSilvergatePaymentBodyParamsBeneficiaryBank
+      ]
+
+---------------------------------------------------------------
+-- Silvergate SEN endpoints
+---------------------------------------------------------------
+
+data SENAccountRequest
+
+type instance CircleRequest SENAccountRequest = CircleResponse SENAccountData
+
+data SENAccountsRequest
+
+type instance CircleRequest SENAccountsRequest = CircleResponse [SENAccountData]
+
+data SENInstructionsRequest
+
+type instance CircleRequest SENInstructionsRequest = CircleResponse SENInstructionsData
+
+data SENAccountBodyParams = SENAccountBodyParams
+  { senAccountBodyParamsIdempotencyKey :: !UUID,
+    senAccountBodyParamsAccountNumber :: !AccountNumber,
+    senAccountBodyParamsCurrency :: !(Maybe AllowedCurrencies)
+  }
+  deriving (Eq, Show)
+
+instance ToJSON SENAccountBodyParams where
+  toJSON SENAccountBodyParams {..} =
+    omitNulls
+      [ "idempotencyKey" .= senAccountBodyParamsIdempotencyKey,
+        "accountNumber" .= senAccountBodyParamsAccountNumber,
+        "currency" .= senAccountBodyParamsCurrency
+      ]
+
+data SENAccountData = SENAccountData
+  { senAccountDataId :: !UUID,
+    senAccountDataStatus :: !Status,
+    senAccountDataDescription :: !Text, -- TODO better type: Bank name plus last four digits of the bank account number or IBAN.  Make a custom type for this
+    senAccountDataTrackingRef :: !TrackingReference,
+    senAccountDataCreateDate :: !UTCTime,
+    senAccountDataUpdateDate :: !UTCTime,
+    senAccountDataCurrency :: !(Maybe AllowedCurrencies)
+  }
+  deriving (Eq, Show)
+
+instance FromJSON SENAccountData where
+  parseJSON = withObject "SENAccountData" parse
+    where
+      parse o =
+        SENAccountData
+          <$> o .: "id"
+          <*> o .: "status"
+          <*> o .: "description"
+          <*> o .: "trackingRef"
+          <*> o .: "createDate"
+          <*> o .: "updateDate"
+          <*> o .:? "currency"
+
+data SENInstructionsData = SENInstructionsData
+  { senInstructionsDataTrackingRef :: !TrackingReference,
+    senInstructionsDataAccountNumber :: !AccountNumber,
+    senInstructionsDataCurrency :: !AllowedCurrencies
+  }
+  deriving (Eq, Show)
+
+instance FromJSON SENInstructionsData where
+  parseJSON = withObject "SENInstructionsData" parse
+    where
+      parse o =
+        SENInstructionsData
+          <$> o .: "trackingRef"
+          <*> o .: "accountNumber"
+          <*> o .: "currency"
+
+---------------------------------------------------------------
 -- Wire endpoints
 ---------------------------------------------------------------
 
@@ -1328,7 +1517,7 @@ instance ToJSON USDOrEURAmount where
 
 data USDAmount = USDAmount
   { usdAmountAmount :: !Amount,
-    usdAmountFeeCurrency :: !AllowedCurrencies
+    usdAmountCurrency :: !AllowedCurrencies
   }
   deriving (Eq, Show)
 
@@ -1339,6 +1528,13 @@ instance FromJSON USDAmount where
         USDAmount
           <$> o .: "amount"
           <*> o .: "currency"
+
+instance ToJSON USDAmount where
+  toJSON USDAmount {..} =
+    object
+      [ "amount" .= usdAmountAmount,
+        "currency" .= usdAmountCurrency
+      ]
 
 data Decision = Approved | Denied | Review deriving (Eq, Show)
 
@@ -1496,6 +1692,20 @@ instance FromJSON BeneficiaryBankDetails where
           <*> o .: "city"
           <*> o .: "postalCode"
           <*> o .: "country"
+
+instance ToJSON BeneficiaryBankDetails where
+  toJSON BeneficiaryBankDetails {..} =
+    object
+      [ "name" .= beneficiaryBankDetailsName,
+        "swiftCode" .= beneficiaryBankDetailsSwiftCode,
+        "routingNumber" .= beneficiaryBankDetailsRoutingNumber,
+        "accountNumber" .= beneficiaryBankDetailsAccountNumber,
+        "currency" .= beneficiaryBankDetailsCurrency,
+        "address" .= beneficiaryBankDetailsAddress,
+        "city" .= beneficiaryBankDetailsCity,
+        "postalCode" .= beneficiaryBankDetailsPostalCode,
+        "country" .= beneficiaryBankDetailsCountry
+      ]
 
 newtype AddressLine = AddressLine
   { unAddressLine :: Text

@@ -41,8 +41,8 @@ createWireAccount wireAccountBody = do
 
 -- | Get a list of wire accounts
 -- https://developers.circle.com/reference/listbusinesswireaccounts
-getWireAccounts :: CircleAPIRequest WireAccountsRequest TupleBS8 BSL.ByteString
-getWireAccounts = do
+listWireAccounts :: CircleAPIRequest WireAccountsRequest TupleBS8 BSL.ByteString
+listWireAccounts = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/banks/wires"
@@ -267,6 +267,72 @@ createRecipientAddress recipientAddressBody = do
   where
     url = "businessAccount/wallets/addresses/recipient"
     params = Params (Just $ Body (encode recipientAddressBody)) []
+
+---------------------------------------------------------------
+-- Deposits Endpoint
+---------------------------------------------------------------
+
+-- | List all deposits
+-- Searches for deposits sent to your business account. If the date parameters are omitted, returns the most recent deposits. 
+-- This endpoint returns up to 50 deposits in descending chronological order or pageSize, if provided.
+-- https://developers.circle.com/developer/reference/listbusinessdeposits
+listAllDeposits :: CircleAPIRequest DepositsRequest TupleBS8 BSL.ByteString
+listAllDeposits = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/deposits"
+    params = Params Nothing []
+
+-- | Create mock Silvergate payment SANDBOX ONLY
+-- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
+-- In the sandbox environment, initiate a mock SEN transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
+-- https://developers.circle.com/developer/reference/createmocksenpayment
+createMockSilvergatePayment :: MockSilvergatePaymentBodyParams -> CircleAPIRequest MockSilvergatePaymentRequest TupleBS8 BSL.ByteString
+createMockSilvergatePayment silvergateBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "mocks/payments/sen"
+    params = Params (Just $ Body (encode silvergateBody)) []
+
+---------------------------------------------------------------
+-- Silvergate SEN Endpoints
+---------------------------------------------------------------
+
+-- | Create a bank account for a SEN
+-- https://developers.circle.com/developer/reference/createbusinesssenaccount
+createSENAccount :: SENAccountBodyParams -> CircleAPIRequest SENAccountRequest TupleBS8 BSL.ByteString
+createSENAccount senAccountBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "businessAccount/banks/sen"
+    params = Params (Just $ Body (encode senAccountBody)) []
+
+-- | Get a list of SEN accounts
+-- https://developers.circle.com/developer/reference/listbusinesssenaccounts
+listSENAccounts :: CircleAPIRequest SENAccountsRequest TupleBS8 BSL.ByteString
+listSENAccounts = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/banks/sen"
+    params = Params Nothing []
+
+-- | Get a single SEN account, accepts the SEN account Id as a parameter
+-- https://developers.circle.com/developer/reference/getbusinesssenaccount
+getSENAccount :: UUID -> CircleAPIRequest SENAccountRequest TupleBS8 BSL.ByteString
+getSENAccount senAccountId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/banks/sen/" <> unUUID senAccountId
+    params = Params Nothing []
+
+-- | Get the SEN transfer instructions into the Circle bank account given your bank account id.
+-- https://developers.circle.com/developer/reference/getbusinesssenaccountinstructions
+getSENAccountInstructions :: UUID -> CircleAPIRequest SENInstructionsRequest TupleBS8 BSL.ByteString
+getSENAccountInstructions senAccountId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/banks/sen/" <> unUUID senAccountId <> "/instructions"
+    params = Params Nothing []
 
 ---------------------------------------------------------------
 -- Utility methods for calling Circle's API

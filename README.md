@@ -36,14 +36,13 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [x] Wrap API Overview endpoints (small)
 - [x] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
 - [x] Wrap Addresses endpoint (medium)
-- [] Wrap Deposits endpoint (small/medium)
+- [x]] Wrap Deposits endpoint (small/medium)
 - [] Go back through and add the X-Request-Id header to the requests that need it.  Figure out a way to include it optionally.
 - [] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
 - [] Wrap On-chain payments endpoint (medium/large.  Probably can reuse some work from payments but might be hard to get working)
 - [] Wrap Cards endpoint (large)
 - [] Wrap Wires endpoint (may be medium or small depending on if it's the same as the other wire work but with a different route)
 - [] Wrap ACH endpoint (medium/large)
-- [] Wrap Signet endpoints (this will be challenging to test bc they only work in prod)
 - [] Wrap settlements endpoints (small/medium)
 - [] Wrap chargebacks endpoint (medium)
 - [] Wrap reversals endpoint (small)
@@ -53,5 +52,6 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [] Wrap wallets endpoint (large)
 - [] Differentiate between business account and bank account endpoints.  There's the same calls for different endpoints.  Will be able to reuse all the types and just switch the path, though, so this can be done last.
 - [] BETA Wrap SEPA endpoint (medium)
-- [] BETA Wrap SEN endpoints (medium)
+- [] Wrap Signet endpoints (this will be challenging to test bc they only work in prod)
+- [x] BETA Wrap SEN endpoints (medium)
 - [] Figure out a way to create balances for accounts via API to test payouts.  Right now all tests for payments/payouts/balances only test that the sad paths work when there's no money.

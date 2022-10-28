@@ -38,6 +38,13 @@ testWireAccountDetails =
         (Just (District "WA"))
     )
 
+testSENAccountDetails :: SENAccountBodyParams
+testSENAccountDetails = do
+  SENAccountBodyParams
+    (UUID "89022f90-4d36-4a3b-9961-2009a637a539")
+    [compileAccountNumber|446043103367|]
+    (Just USD)
+
 testSubscriptionBody :: SubscriptionBodyParams
 testSubscriptionBody =
   -- TODO this fucking URL doesn't work
@@ -99,9 +106,9 @@ main = do
             let Right CircleResponse {..} = newWireAccount
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-        describe "get wire accounts" $ do
+        describe "list wire accounts" $ do
           it "gets a list of wire accounts" $ do
-            wireAccounts <- circleTest config manager getWireAccounts
+            wireAccounts <- circleTest config manager listWireAccounts
             wireAccounts `shouldSatisfy` isRight
             let Right CircleResponse {..} = wireAccounts
             circleResponseCode `shouldBe` Nothing
@@ -126,6 +133,42 @@ main = do
               wireAccountInstructions `shouldSatisfy` isRight
               -- liftIO $ print wireAccountInstructions
               let Right CircleResponse {circleResponseCode, circleResponseMessage} = wireAccountInstructions
+              circleResponseCode `shouldBe` Nothing
+              circleResponseMessage `shouldBe` Nothing
+      describe "SEN endpoints" $ do
+        describe "create SEN account" $ do
+          it "creates a new SEN account" $ do
+            newSENAccount <- circleTest config manager $ createSENAccount testSENAccountDetails
+            newSENAccount `shouldSatisfy` isRight
+            let Right CircleResponse {..} = newSENAccount
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "list SEN accounts" $ do
+          it "gets a list of SEN accounts" $ do
+            senAccounts <- circleTest config manager listSENAccounts
+            senAccounts `shouldSatisfy` isRight
+            let Right CircleResponse {..} = senAccounts
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "get SEN account" $ do
+          it "gets a single SEN account" $ do
+            senAccount1 <- circleTest config manager $ createSENAccount testSENAccountDetails
+            senAccount1 `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseData} = senAccount1
+            for_ circleResponseData $ \SENAccountData {..} -> do
+              senAccount <- circleTest config manager $ getSENAccount senAccountDataId
+              senAccount `shouldSatisfy` isRight
+              let Right CircleResponse {circleResponseCode, circleResponseMessage} = senAccount
+              circleResponseCode `shouldBe` Nothing
+              circleResponseMessage `shouldBe` Nothing
+          fit "gets instructions for a SEN account" $ do
+            senAccount2 <- circleTest config manager $ createSENAccount testSENAccountDetails
+            senAccount2 `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseData} = senAccount2
+            for_ circleResponseData $ \SENAccountData {..} -> do
+              senAccountInstructions <- circleTest config manager $ getSENAccountInstructions senAccountDataId
+              senAccountInstructions `shouldSatisfy` isRight
+              let Right CircleResponse {circleResponseCode, circleResponseMessage} = senAccountInstructions
               circleResponseCode `shouldBe` Nothing
               circleResponseMessage `shouldBe` Nothing
       describe "balance endpoints" $ do
@@ -181,16 +224,15 @@ main = do
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "create recipient address" $ do
-          fit "will attempt to create a recipient address" $ do
+          it "will attempt to create a recipient address" $ do
             let recipientAddressBody =
-                  ( RecipientAddressBodyParams
+                  RecipientAddressBodyParams
                       (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
                       "0x8381470ED67C3802402dbbFa0058E8871F017A6F"
                       Nothing
                       ETH
                       USD
                       "test address"
-                  )
             recipientAddress <- circleTest config manager $ createRecipientAddress recipientAddressBody
             recipientAddress `shouldSatisfy` isRight
             let Right CircleResponse {circleResponseCode, circleResponseMessage} = recipientAddress
@@ -206,21 +248,45 @@ main = do
         describe "create deposit address" $ do
           it "will attempt to create a new deposit address" $ do
             let depositAddressBody =
-                  ( DepositAddressBodyParams
+                  DepositAddressBodyParams
                       (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
                       ETH'
                       ETH
-                  )
             depositAddress <- circleTest config manager $ createDepositAddress depositAddressBody
             depositAddress `shouldSatisfy` isRight
             let Right CircleResponse {circleResponseCode, circleResponseMessage} = depositAddress
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-
+      describe "deposits endpoint" $ do
+        describe "list deposits" $ do
+          it "should list all deposits" $ do
+            deposits <- circleTest config manager listAllDeposits
+            deposits `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = deposits
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        -- TODO, this test fails and my guess is because the beneficiary should have all the details.  I'll try to fix this later.
+        -- describe "mock payments" $ do
+        --   it "should create a mock silvergate payment" $ do
+        --     let mockSilvergatePaymentBody =
+        --           MockSilvergatePaymentBodyParams
+        --               ( TrackingReference "CIR13FB13A" )
+        --               ( CurrencyAmount
+        --                 (Amount 100.00)
+        --                 USD
+        --               )
+        --               ( MockBeneficiaryBankDetails
+        --                 [compileAccountNumber|446043103366|]
+        --               )
+        --     mockSilvergatePayment <- circleTest config manager $ createMockSilvergatePayment mockSilvergatePaymentBody
+        --     mockSilvergatePayment `shouldSatisfy` isRight
+        --     let Right CircleResponse {circleResponseCode, circleResponseMessage} = mockSilvergatePayment
+        --     circleResponseCode `shouldBe` Nothing
+        --     circleResponseMessage `shouldBe` Nothing
       describe "payout endpoints" $ do
-        -- TODO need to actually seed balances, I'll do that when I wrap that API endpoint
         describe "list payouts" $ do
-          -- fit " should list a subset of payouts for a given business account given the query params" $ do
+          -- TODO This test fails without money in the account.  I need to actually seed balances, I'll do that when I wrap that API endpoint
+          -- it " should list a subset of payouts for a given business account given the query params" $ do
           --   payoutsBeforeFoo <- circleTest config manager $ listAllPayouts -&- PaginationQueryParams (PageSize "foo")
           --   payoutsBeforeFoo `shouldSatisfy` isRight
           --   let Right CircleResponse {circleResponseCode, circleResponseMessage} = payoutsBeforeFoo
@@ -238,8 +304,8 @@ main = do
             payout `shouldSatisfy` isRight
             let Right CircleResponse {circleResponseCode, circleResponseMessage} = payout
             circleResponseCode `shouldBe` Nothing
-            -- will fail if there's no such payout Id
-            circleResponseMessage `shouldBe` (Just (ResponseMessage "Resource not found"))
+            -- NB: this test will fail if there's no payoutId
+            circleResponseMessage `shouldBe` Just (ResponseMessage "Resource not found")
         describe "create payout" $ do
           it "fails to create a new payout because no such account exists" $ do
             let payoutWithFakeWireAccount =
