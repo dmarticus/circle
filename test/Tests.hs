@@ -158,20 +158,65 @@ main = do
             let transferBody =
                   TransferBodyParams
                     (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
-                    (TransferBodyDestination
-                      VerifiedBlockchain
-                      (UUID "2206775d-e4f7-4681-9494-34dc650fbfd8"))
-                    (CurrencyAmount
-                      (Amount 100.00)
-                      USD
+                    ( TransferBodyDestination
+                        VerifiedBlockchain
+                        (UUID "2206775d-e4f7-4681-9494-34dc650fbfd8")
+                    )
+                    ( CurrencyAmount
+                        (Amount 100.00)
+                        USD
                     )
             -- this request will always fail if there's no money in the account
-            idkWhatThisWillBe <- circleTest config manager $ createTransfer transferBody
-            idkWhatThisWillBe `shouldSatisfy` isRight
-            let Right CircleResponse {circleResponseCode, circleResponseMessage} = idkWhatThisWillBe
+            transferAddressNotFound <- circleTest config manager $ createTransfer transferBody
+            transferAddressNotFound `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = transferAddressNotFound
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Just (ResponseMessage "Address not found")
-        
+      describe "address endpoints" $ do
+        describe "list recipient addresses" $ do
+          it "should list all recipient addresses for a given business account" $ do
+            recipientAddresses <- circleTest config manager listAllRecipientAddresses
+            recipientAddresses `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = recipientAddresses
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "create recipient address" $ do
+          fit "will attempt to create a recipient address" $ do
+            let recipientAddressBody =
+                  ( RecipientAddressBodyParams
+                      (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
+                      "0x8381470ED67C3802402dbbFa0058E8871F017A6F"
+                      Nothing
+                      ETH
+                      USD
+                      "test address"
+                  )
+            recipientAddress <- circleTest config manager $ createRecipientAddress recipientAddressBody
+            recipientAddress `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = recipientAddress
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "list deposit addresses" $ do
+          it "should list all deposit addresses for a given business account" $ do
+            depositAddresses <- circleTest config manager listAllDepositAddresses
+            depositAddresses `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = depositAddresses
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "create deposit address" $ do
+          it "will attempt to create a new deposit address" $ do
+            let depositAddressBody =
+                  ( DepositAddressBodyParams
+                      (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
+                      ETH'
+                      ETH
+                  )
+            depositAddress <- circleTest config manager $ createDepositAddress depositAddressBody
+            depositAddress `shouldSatisfy` isRight
+            let Right CircleResponse {circleResponseCode, circleResponseMessage} = depositAddress
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+
       describe "payout endpoints" $ do
         -- TODO need to actually seed balances, I'll do that when I wrap that API endpoint
         describe "list payouts" $ do

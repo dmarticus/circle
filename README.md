@@ -35,8 +35,9 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [x] differentiate between query params and the request body.  Right now I don't think I do that.
 - [x] Wrap API Overview endpoints (small)
 - [x] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
-- [] Wrap Addresses endpoint (medium)
+- [x] Wrap Addresses endpoint (medium)
 - [] Wrap Deposits endpoint (small/medium)
+- [] Go back through and add the X-Request-Id header to the requests that need it.  Figure out a way to include it optionally.
 - [] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
 - [] Wrap On-chain payments endpoint (medium/large.  Probably can reuse some work from payments but might be hard to get working)
 - [] Wrap Cards endpoint (large)

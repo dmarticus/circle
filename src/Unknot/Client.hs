@@ -4,7 +4,7 @@
 
 module Unknot.Client where
 
--- import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode, encode)
 import Data.Aeson.Types (FromJSON)
 import qualified Data.ByteString.Char8 as BS8
@@ -221,6 +221,54 @@ createTransfer transferBody = do
     params = Params (Just $ Body (encode transferBody)) []
 
 ---------------------------------------------------------------
+-- Address endpoints
+---------------------------------------------------------------
+
+-- | List all deposit addresses
+-- https://developers.circle.com/developer/reference/getbusinessdepositaddress
+listAllDepositAddresses :: CircleAPIRequest DepositAddressesRequest TupleBS8 BSL.ByteString
+listAllDepositAddresses = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/wallets/addresses/deposit"
+    params = Params Nothing []
+
+-- | Create new deposit address
+-- Generates a new blockchain address for a wallet for a given currency/chain pair. 
+-- Circle may reuse addresses on blockchains that support reuse. 
+-- For example, if you're requesting two addresses for depositing USD and ETH, both on Ethereum, 
+-- you may see the same Ethereum address returned. 
+-- Depositing cryptocurrency to a generated address will credit the associated wallet with the value of the deposit.
+-- https://developers.circle.com/developer/reference/createbusinessdepositaddress
+createDepositAddress :: DepositAddressBodyParams -> CircleAPIRequest DepositAddressRequest TupleBS8 BSL.ByteString
+createDepositAddress depositAddressBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "businessAccount/wallets/addresses/deposit"
+    params = Params (Just $ Body (encode depositAddressBody)) []
+
+-- | List all recipient addresses
+-- Returns a list of recipient addresses that have each been verified and are eligible for transfers. 
+-- Any recipient addresses pending verification are not included in the response.
+-- https://developers.circle.com/developer/reference/listbusinessrecipientaddresses
+listAllRecipientAddresses :: CircleAPIRequest RecipientAddressesRequest TupleBS8 BSL.ByteString
+listAllRecipientAddresses = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "businessAccount/wallets/addresses/recipient"
+    params = Params Nothing []
+
+-- | Create a new recipient address
+-- Stores an external blockchain address. Once added, the recipient address must be verified to ensure that you know and trust each new address.
+-- https://developers.circle.com/developer/reference/createbusinessrecipientaddress
+createRecipientAddress :: RecipientAddressBodyParams -> CircleAPIRequest RecipientAddressRequest TupleBS8 BSL.ByteString
+createRecipientAddress recipientAddressBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "businessAccount/wallets/addresses/recipient"
+    params = Params (Just $ Body (encode recipientAddressBody)) []
+
+---------------------------------------------------------------
 -- Utility methods for calling Circle's API
 ---------------------------------------------------------------
 circle' ::
@@ -269,9 +317,9 @@ circleTest ::
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
   IO (Either CircleError (CircleRequest a))
 circleTest config tlsManager request = do
-  -- liftIO $ print request
+  liftIO $ print request
   response <- circleTest' config request tlsManager
-  -- liftIO $ print response
+  liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
     Left s -> return (Left (CircleError s response))

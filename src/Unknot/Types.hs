@@ -75,11 +75,21 @@ module Unknot.Types
     TransferBodyDestination (..),
     TransferType (..),
     TransferData (..),
+    -- Addresses Endpoint
+    DepositAddressesRequest,
+    DepositAddressRequest,
+    DepositAddressData (..),
+    DepositAddressBodyParams (..),
+    RecipientAddressesRequest,
+    RecipientAddressRequest,
+    RecipientAddressData (..),
+    RecipientAddressBodyParams (..),
     -- Shared types across different endpoints
     DestinationBankAccount (..),
     USDOrEURAmount (..),
     BankAccountType (..),
     AllowedCurrencies (..),
+    Chain (..),
     CurrencyAmount (..),
     Amount (..),
     AddressLine (..),
@@ -998,6 +1008,110 @@ instance FromJSON TransferErrorCode where
     "transfer_failed" -> return TransferFailed
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
+
+---------------------------------------------------------------
+-- Address endpoints
+---------------------------------------------------------------
+
+data DepositAddressesRequest
+
+type instance CircleRequest DepositAddressesRequest = CircleResponse [DepositAddressData]
+
+data DepositAddressRequest
+
+type instance CircleRequest DepositAddressRequest = CircleResponse DepositAddressData
+
+data DepositAddressData = DepositAddressData
+  { depositAddressAddress :: !Text, -- TODO alphanum
+    depositAddressAddressTag :: !(Maybe Text), -- TODO this type could be shared too.  At the very least the Tag could be a Text newtype wrapper.  Also, the docs say it's there, but the API doesn't have it.  Maybe for now.
+    depositAddressCurrency :: !AllowedCurrencies,
+    depositAddressChain :: !Chain
+  }
+  deriving (Eq, Show)
+
+instance FromJSON DepositAddressData where
+  parseJSON = withObject "DepositAddressData" parse
+    where
+      parse o =
+        DepositAddressData
+          <$> o .: "address"
+          <*> o .:? "addressTag"
+          <*> o .: "currency"
+          <*> o .: "chain"
+
+data DepositAddressBodyParams = DepositAddressBodyParams
+  { depositAddressBodyIdempotencyKey :: !UUID,
+    depositAddressBodyCurrency :: !AllowedCurrencies,
+    depositAddressBodyChain :: !Chain
+  }
+  deriving (Eq, Show)
+
+instance ToJSON DepositAddressBodyParams where
+  toJSON DepositAddressBodyParams {..} =
+    object
+      [ "idempotencyKey" .= depositAddressBodyIdempotencyKey,
+        "currency" .= depositAddressBodyCurrency,
+        "chain" .= depositAddressBodyChain
+      ]
+
+data RecipientAddressesRequest
+
+type instance CircleRequest RecipientAddressesRequest = CircleResponse [RecipientAddressData]
+
+instance CircleHasParam RecipientAddressesRequest PaginationQueryParams
+
+instance CircleHasParam RecipientAddressesRequest FromQueryParam
+
+instance CircleHasParam RecipientAddressesRequest ToQueryParam
+
+instance CircleHasParam RecipientAddressesRequest PageSizeQueryParam
+
+data RecipientAddressRequest
+
+type instance CircleRequest RecipientAddressRequest = CircleResponse RecipientAddressData
+
+data RecipientAddressData = RecipientAddressData
+  { recipientAddressId :: !Text, -- TODO type
+    recipientAddressAddress :: !Text, -- TODO type
+    recipientAddressAddressTag :: !(Maybe Text), --  TODO type
+    recipientAddressChain :: !Chain,
+    recipientAddressCurrency :: !AllowedCurrencies,
+    recipientAddressDescription :: !Text
+  }
+  deriving (Eq, Show)
+
+instance FromJSON RecipientAddressData where
+  parseJSON = withObject "RecipientAddressData" parse
+    where
+      parse o =
+        RecipientAddressData
+          <$> o .: "id"
+          <*> o .: "address"
+          <*> o .:? "addressTag"
+          <*> o .: "chain"
+          <*> o .: "currency"
+          <*> o .: "description"
+
+data RecipientAddressBodyParams = RecipientAddressBodyParams
+  { recipientAddressBodyIdempotencyKey :: !UUID, -- TODO type
+    recipientAddressBodyAddress :: !Text, -- TODO type
+    recipientAddressBodyAddressTag :: !(Maybe Text), --  TODO type
+    recipientAddressBodyChain :: !Chain,
+    recipientAddressBodyCurrency :: !AllowedCurrencies,
+    recipientAddressBodyDescription :: !Text
+  }
+  deriving (Eq, Show)
+
+instance ToJSON RecipientAddressBodyParams where
+  toJSON RecipientAddressBodyParams {..} =
+    omitNulls
+      [ "idempotencyKey" .= recipientAddressBodyIdempotencyKey,
+        "address" .= recipientAddressBodyAddress,
+        "addressTag" .= recipientAddressBodyAddressTag,
+        "chain" .= recipientAddressBodyChain,
+        "currency" .= recipientAddressBodyCurrency,
+        "description" .= recipientAddressBodyDescription
+      ]
 
 ---------------------------------------------------------------
 -- Wire endpoints
