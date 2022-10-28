@@ -47,7 +47,7 @@ testSENAccountDetails = do
 
 testSubscriptionBody :: SubscriptionBodyParams
 testSubscriptionBody =
-  -- TODO this fucking URL doesn't work
+  -- TODO this fucking URL doesn't work for testing.  Find one that does.
   SubscriptionBodyParams "https://example.org/handler/for/notifications"
 
 main :: IO ()
