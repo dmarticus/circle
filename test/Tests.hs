@@ -161,7 +161,7 @@ main = do
               let Right CircleResponse {circleResponseCode, circleResponseMessage} = senAccount
               circleResponseCode `shouldBe` Nothing
               circleResponseMessage `shouldBe` Nothing
-          fit "gets instructions for a SEN account" $ do
+          it "gets instructions for a SEN account" $ do
             senAccount2 <- circleTest config manager $ createSENAccount testSENAccountDetails
             senAccount2 `shouldSatisfy` isRight
             let Right CircleResponse {circleResponseData} = senAccount2
