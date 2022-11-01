@@ -4,7 +4,7 @@
 
 module Unknot.Client where
 
-import Control.Monad.IO.Class (liftIO)
+-- import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode, encode)
 import Data.Aeson.Types (FromJSON)
 import qualified Data.ByteString.Char8 as BS8
@@ -340,7 +340,7 @@ getSENAccountInstructions senAccountId = do
 circle' ::
   CircleConfig ->
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
-  IO (Response BSL.ByteString)
+  IO Reply
 circle' CircleConfig {..} CircleAPIRequest {..} = do
   manager <- newManager tlsManagerSettings
   initReq <- parseRequest $ T.unpack $ T.append (hostUri host) endpoint
@@ -383,9 +383,9 @@ circleTest ::
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
   IO (Either CircleError (CircleRequest a))
 circleTest config tlsManager request = do
-  liftIO $ print request
+  -- liftIO $ print request
   response <- circleTest' config request tlsManager
-  liftIO $ print response
+  -- liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
     Left s -> return (Left (CircleError s response))
@@ -395,7 +395,7 @@ circleTest' ::
   CircleConfig ->
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
   Manager ->
-  IO (Response BSL.ByteString)
+  IO Reply
 circleTest' CircleConfig {..} CircleAPIRequest {..} manager = do
   initReq <- parseRequest $ T.unpack $ T.append (hostUri host) endpoint
   let reqBody

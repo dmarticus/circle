@@ -21,7 +21,7 @@ module Unknot.Types
     Method,
     CircleAPIRequest (..),
     CircleError (..),
-    CircleResponse (..),
+    CircleResponseBody (..),
     CircleRequest,
     Host,
     CircleHost (..),
@@ -106,6 +106,7 @@ module Unknot.Types
     SENInstructionsRequest,
     -- Shared types across different endpoints
     DestinationBankAccount (..),
+    HexString (..),
     USDOrEURAmount (..),
     BankAccountType (..),
     AllowedCurrencies (..),
@@ -231,23 +232,23 @@ mkCircleAPIRequest = CircleAPIRequest
 type family CircleRequest a :: *
 
 data CircleError = CircleError
-  { parseError :: !String,
-    circleResponse :: !(Response BSL.ByteString)
+  { parseError :: !String, -- TODO should this be Text?
+    errorResponseBody :: !Reply
   }
   deriving (Show)
 
-data CircleResponse a = CircleResponse
+data CircleResponseBody a = CircleResponseBody
   { circleResponseCode :: !(Maybe ResponseStatus),
     circleResponseMessage :: !(Maybe ResponseMessage),
     circleResponseData :: !(Maybe a)
   }
   deriving (Eq, Show)
 
-instance FromJSON a => FromJSON (CircleResponse a) where
-  parseJSON = withObject "CircleResponse" parse
+instance FromJSON a => FromJSON (CircleResponseBody a) where
+  parseJSON = withObject "CircleResponseBody" parse
     where
       parse o =
-        CircleResponse
+        CircleResponseBody
           <$> o .:? "status"
           <*> o .:? "message"
           <*> o .:? "data"
@@ -263,7 +264,7 @@ newtype ResponseMessage = ResponseMessage
   }
   deriving (Eq, Show, FromJSON)
 
-type Reply = Network.HTTP.Client.Response BSL.ByteString
+type Reply = Response BSL.ByteString
 
 type Method = NHTM.Method
 
@@ -446,7 +447,7 @@ instance ToCircleParam CurrencyQueryParam where
 
 data BalanceRequest
 
-type instance CircleRequest BalanceRequest = CircleResponse BalanceData
+type instance CircleRequest BalanceRequest = CircleResponseBody BalanceData
 
 data BalanceData = BalanceData
   { balanceDataAvailable :: ![CurrencyAmount],
@@ -488,11 +489,11 @@ instance ToJSON CurrencyAmount where
 ---------------------------------------------------------------
 data PayoutRequest
 
-type instance CircleRequest PayoutRequest = CircleResponse PayoutData
+type instance CircleRequest PayoutRequest = CircleResponseBody PayoutData
 
 data PayoutsRequest
 
-type instance CircleRequest PayoutsRequest = CircleResponse [PayoutData]
+type instance CircleRequest PayoutsRequest = CircleResponseBody [PayoutData]
 
 instance CircleHasParam PayoutsRequest PaginationQueryParams
 
@@ -631,7 +632,7 @@ instance FromJSON PayoutErrorCode where
 
 data ConfigurationRequest
 
-type instance CircleRequest ConfigurationRequest = CircleResponse ConfigurationData
+type instance CircleRequest ConfigurationRequest = CircleResponseBody ConfigurationData
 
 newtype ConfigurationData = ConfigurationData {configurationDataPayments :: WalletConfig}
   deriving (Eq, Show)
@@ -659,7 +660,7 @@ instance FromJSON WalletConfig where
 
 data EncryptionRequest
 
-type instance CircleRequest EncryptionRequest = CircleResponse EncryptionData
+type instance CircleRequest EncryptionRequest = CircleResponseBody EncryptionData
 
 data EncryptionData = EncryptionData
   { encryptionDataKeyId :: !Text, -- TODO this should actually be a UUID, but for the tests to work it needs to be relaxed a bit
@@ -681,7 +682,7 @@ instance FromJSON EncryptionData where
 
 data ChannelsRequest
 
-type instance CircleRequest ChannelsRequest = CircleResponse ChannelData
+type instance CircleRequest ChannelsRequest = CircleResponseBody ChannelData
 
 newtype ChannelData = ChannelData {channels :: [Channel]}
   deriving (Eq, Show)
@@ -717,12 +718,12 @@ instance FromJSON Channel where
 
 data StablecoinsRequest
 
-type instance CircleRequest StablecoinsRequest = CircleResponse [StablecoinData]
+type instance CircleRequest StablecoinsRequest = CircleResponseBody [StablecoinData]
 
 data StablecoinData = StablecoinData
   { stablecoinDataName :: !Text,
     stablecoinDataSymbol :: !Stablecoin,
-    stablecoinDataTotalAmount :: !Amount,
+    stablecoinDataTotalAmount :: !Text, --TODO need an amount field that supports crypto depth.  Many of these coins go past a fixed integer depth
     stablecoinDataChains :: ![ChainAmount]
   }
   deriving (Eq, Show)
@@ -797,18 +798,17 @@ instance FromJSON Stablecoin where
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
-
 ---------------------------------------------------------------
 -- Subscription endpoints
 ---------------------------------------------------------------
 
 data SubscriptionsRequest
 
-type instance CircleRequest SubscriptionsRequest = CircleResponse [SubscriptionData]
+type instance CircleRequest SubscriptionsRequest = CircleResponseBody [SubscriptionData]
 
 data SubscriptionRequest
 
-type instance CircleRequest SubscriptionRequest = CircleResponse SubscriptionData
+type instance CircleRequest SubscriptionRequest = CircleResponseBody SubscriptionData
 
 data SubscriptionData = SubscriptionData
   { subscriptionDataId :: !Text,
@@ -857,7 +857,7 @@ instance ToJSON SubscriptionBodyParams where
 
 data TransfersRequest
 
-type instance CircleRequest TransfersRequest = CircleResponse [TransferData]
+type instance CircleRequest TransfersRequest = CircleResponseBody [TransferData]
 
 instance CircleHasParam TransfersRequest PaginationQueryParams
 
@@ -869,7 +869,7 @@ instance CircleHasParam TransfersRequest PageSizeQueryParam
 
 data TransferRequest
 
-type instance CircleRequest TransferRequest = CircleResponse TransferData
+type instance CircleRequest TransferRequest = CircleResponseBody TransferData
 
 data TransferBodyParams = TransferBodyParams
   { transferBodyParamsId :: !UUID,
@@ -1052,11 +1052,11 @@ instance FromJSON TransferErrorCode where
 
 data DepositAddressesRequest
 
-type instance CircleRequest DepositAddressesRequest = CircleResponse [DepositAddressData]
+type instance CircleRequest DepositAddressesRequest = CircleResponseBody [DepositAddressData]
 
 data DepositAddressRequest
 
-type instance CircleRequest DepositAddressRequest = CircleResponse DepositAddressData
+type instance CircleRequest DepositAddressRequest = CircleResponseBody DepositAddressData
 
 data DepositAddressData = DepositAddressData
   { depositAddressAddress :: !HexString,
@@ -1093,7 +1093,7 @@ instance ToJSON DepositAddressBodyParams where
 
 data RecipientAddressesRequest
 
-type instance CircleRequest RecipientAddressesRequest = CircleResponse [RecipientAddressData]
+type instance CircleRequest RecipientAddressesRequest = CircleResponseBody [RecipientAddressData]
 
 instance CircleHasParam RecipientAddressesRequest PaginationQueryParams
 
@@ -1105,7 +1105,7 @@ instance CircleHasParam RecipientAddressesRequest PageSizeQueryParam
 
 data RecipientAddressRequest
 
-type instance CircleRequest RecipientAddressRequest = CircleResponse RecipientAddressData
+type instance CircleRequest RecipientAddressRequest = CircleResponseBody RecipientAddressData
 
 data RecipientAddressData = RecipientAddressData
   { recipientAddressId :: !CircleId,
@@ -1156,7 +1156,7 @@ instance ToJSON RecipientAddressBodyParams where
 
 data DepositsRequest
 
-type instance CircleRequest DepositsRequest = CircleResponse [DepositData]
+type instance CircleRequest DepositsRequest = CircleResponseBody [DepositData]
 
 instance CircleHasParam DepositsRequest TypeQueryParam
 
@@ -1199,7 +1199,7 @@ instance FromJSON DepositData where
 -- TODO is this real?  Like should I make some real code that does what this mock does and expose that in the module?
 data MockSilvergatePaymentRequest
 
-type instance CircleRequest MockSilvergatePaymentRequest = CircleResponse MockSilvergatePaymentData
+type instance CircleRequest MockSilvergatePaymentRequest = CircleResponseBody MockSilvergatePaymentData
 
 data MockSilvergatePaymentData = MockSilvergatePaymentData
   { mockSilvergatePaymentDataTrackingRef :: !TrackingReference,
@@ -1258,15 +1258,15 @@ instance ToJSON MockSilvergatePaymentBodyParams where
 
 data SENAccountRequest
 
-type instance CircleRequest SENAccountRequest = CircleResponse SENAccountData
+type instance CircleRequest SENAccountRequest = CircleResponseBody SENAccountData
 
 data SENAccountsRequest
 
-type instance CircleRequest SENAccountsRequest = CircleResponse [SENAccountData]
+type instance CircleRequest SENAccountsRequest = CircleResponseBody [SENAccountData]
 
 data SENInstructionsRequest
 
-type instance CircleRequest SENInstructionsRequest = CircleResponse SENInstructionsData
+type instance CircleRequest SENInstructionsRequest = CircleResponseBody SENInstructionsData
 
 data SENAccountBodyParams = SENAccountBodyParams
   { senAccountBodyParamsIdempotencyKey :: !UUID,
@@ -1329,15 +1329,15 @@ instance FromJSON SENInstructionsData where
 
 data SignetBankAccountRequest
 
-type instance CircleRequest SignetBankAccountRequest = CircleResponse SignetBankAccountData
+type instance CircleRequest SignetBankAccountRequest = CircleResponseBody SignetBankAccountData
 
 data SignetBankAccountsRequest
 
-type instance CircleRequest SignetBankAccountsRequest = CircleResponse [SignetBankAccountData]
+type instance CircleRequest SignetBankAccountsRequest = CircleResponseBody [SignetBankAccountData]
 
 data SignetBankInstructionsRequest
 
-type instance CircleRequest SignetBankInstructionsRequest = CircleResponse SignetBankInstructionsData
+type instance CircleRequest SignetBankInstructionsRequest = CircleResponseBody SignetBankInstructionsData
 
 data SignetBankAccountBodyParams = SignetBankAccountBodyParams
   { signetBankAccountBodyParamsIdempotencyKey :: !UUID,
@@ -1394,15 +1394,15 @@ instance FromJSON SignetBankInstructionsData where
 
 data WireAccountRequest
 
-type instance CircleRequest WireAccountRequest = CircleResponse WireAccountData
+type instance CircleRequest WireAccountRequest = CircleResponseBody WireAccountData
 
 data WireAccountsRequest
 
-type instance CircleRequest WireAccountsRequest = CircleResponse [WireAccountData]
+type instance CircleRequest WireAccountsRequest = CircleResponseBody [WireAccountData]
 
 data WireInstructionsRequest
 
-type instance CircleRequest WireInstructionsRequest = CircleResponse WireInstructionsData
+type instance CircleRequest WireInstructionsRequest = CircleResponseBody WireInstructionsData
 
 instance CircleHasParam WireInstructionsRequest PaginationQueryParams
 
