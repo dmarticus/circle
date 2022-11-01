@@ -46,6 +46,12 @@ module Unknot.Types
     WireAccountRequest,
     WireAccountsRequest,
     WireInstructionsRequest,
+    -- Signet Bank Endpoints,
+    SignetBankAccountRequest,
+    SignetBankAccountsRequest,
+    SignetBankAccountBodyParams (..),
+    SignetBankAccountData (..),
+    SignetBankInstructionsData (..),
     -- Balance Endpoint
     BalanceRequest,
     BalanceData (..),
@@ -1301,6 +1307,71 @@ instance FromJSON SENInstructionsData where
           <$> o .: "trackingRef"
           <*> o .: "accountNumber"
           <*> o .: "currency"
+
+---------------------------------------------------------------
+-- Signet endpoints
+---------------------------------------------------------------
+
+data SignetBankAccountRequest
+
+type instance CircleRequest SignetBankAccountRequest = CircleResponse SignetBankAccountData
+
+data SignetBankAccountsRequest
+
+type instance CircleRequest SignetBankAccountsRequest = CircleResponse [SignetBankAccountData]
+
+data SignetBankInstructionsRequest
+
+type instance CircleRequest SignetBankInstructionsRequest = CircleResponse SignetBankInstructionsData
+
+data SignetBankAccountBodyParams = SignetBankAccountBodyParams
+  { signetBankAccountBodyParamsIdempotencyKey :: !UUID, -- TODO may have a type
+    signetBankAccountBodyParamsWalletAddress :: !Text -- TODO this should have a type
+  }
+  deriving (Eq, Show)
+
+instance ToJSON SignetBankAccountBodyParams where
+  toJSON SignetBankAccountBodyParams {..} =
+    object
+      [ "idempotencyKey" .= signetBankAccountBodyParamsIdempotencyKey,
+        "walletAddress" .= signetBankAccountBodyParamsWalletAddress
+      ]
+
+data SignetBankAccountData = SignetBankAccountData
+  { signetBankAccountId :: !Text, -- TODO may have a type
+    signetBankAccountStatus :: !Status,
+    signetBankAccountTrackingRef :: !TrackingReference,
+    signetBankAccountWalletAddress :: !Text, -- TODO this should have a type
+    signetBankAccountCreateDate :: !UTCTime,
+    signetBankAccountUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+
+instance FromJSON SignetBankAccountData where
+  parseJSON = withObject "SignetBankAccountData" parse
+    where
+      parse o =
+        SignetBankAccountData
+          <$> o .: "id"
+          <*> o .: "status"
+          <*> o .: "trackingRef"
+          <*> o .: "walletAddress"
+          <*> o .: "createDate"
+          <*> o .: "updateDate"
+
+data SignetBankInstructionsData = SignetBankInstructionsData
+  { signetBankInstructionsTrackingRef :: !(Maybe TrackingReference),
+    signetBankInstructionsWalletAddress :: !(Maybe Text) -- TODO this should have a type, looks like this 0xcac04f0069e4ac9314ac4e608e99278a3bebabcd
+  }
+  deriving (Eq, Show)
+
+instance FromJSON SignetBankInstructionsData where
+  parseJSON = withObject "SignetBankInstructionsData" parse
+    where
+      parse o =
+        SignetBankInstructionsData
+          <$> o .:? "trackingRef"
+          <*> o .:? "walletAddress"
 
 ---------------------------------------------------------------
 -- Wire endpoints
