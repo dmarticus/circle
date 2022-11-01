@@ -217,7 +217,6 @@ data CircleAPIRequest a b c = CircleAPIRequest
     -- | Endpoint of CircleAPIRequest
     endpoint :: !Text,
     -- | Request params of CircleAPIRequest
-    -- TODO feels like I need some sort of way to differentiate between body and query params, hmm
     params :: !(Params TupleBS8 BSL.ByteString)
   }
   deriving (Show)
@@ -350,7 +349,7 @@ newtype PaginationQueryParams = PaginationQueryParams
   }
   deriving (Eq, Show)
 
-data PaginationQueryParam = PageBefore !Text | PageAfter !Text deriving (Show, Eq) -- TODO these will be IDs, but not UUIDs.  No type until we figure out what they are.
+data PaginationQueryParam = PageBefore !CircleId | PageAfter !CircleId deriving (Show, Eq) -- TODO these will be IDs, but not UUIDs.  No type until we figure out what they are.
 
 instance ToCircleParam PaginationQueryParams where
   toCircleParam (PaginationQueryParams p) =
@@ -359,9 +358,9 @@ instance ToCircleParam PaginationQueryParams where
     -- where `n` is controlled by the pageSize param.  This type exists to prevent callers from providing both params, which would error out
     case p of
       PageBefore a ->
-        joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 a)]
+        joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 (unCircleId a))]
       PageAfter a ->
-        joinQueryParams $ Params Nothing [Query ("pageAfter", TE.encodeUtf8 a)]
+        joinQueryParams $ Params Nothing [Query ("pageAfter", TE.encodeUtf8 (unCircleId a))]
 
 newtype FromQueryParam = FromQueryParam
   { fromQueryParam :: UTCTime
@@ -536,8 +535,8 @@ instance FromJSON PayoutReturn where
           <*> o .: "updateDate"
 
 data PayoutData = PayoutData
-  { payoutDataId :: !UUID,
-    payoutDataSourceWalletId :: !UUID,
+  { payoutDataId :: !CircleId,
+    payoutDataSourceWalletId :: !WalletId,
     payoutDataDestinationBankAccount :: !DestinationBankAccount,
     payoutDataAmount :: !USDOrEURAmount,
     payoutDataFees :: !USDAmount,
@@ -644,7 +643,7 @@ instance FromJSON ConfigurationData where
         ConfigurationData
           <$> o .: "payments"
 
-newtype WalletConfig = WalletConfig {masterWalletId :: Text}
+newtype WalletConfig = WalletConfig {masterWalletId :: WalletId}
   deriving (Eq, Show)
 
 instance FromJSON WalletConfig where
@@ -695,7 +694,7 @@ instance FromJSON ChannelData where
           <$> o .: "channels"
 
 data Channel = Channel
-  { channelId :: !Text,
+  { channelId :: !CircleId,
     channelDefault :: !Bool,
     channelCardDescriptor :: !Text,
     channelAchDescriptor :: !Text
@@ -722,8 +721,8 @@ type instance CircleRequest StablecoinsRequest = CircleResponse [StablecoinData]
 
 data StablecoinData = StablecoinData
   { stablecoinDataName :: !Text,
-    stablecoinDataSymbol :: !Text, -- TODO enum of stablecoin symbols
-    stablecoinDataTotalAmount :: !Text, -- TODO should this be Amount?  probably
+    stablecoinDataSymbol :: !Stablecoin,
+    stablecoinDataTotalAmount :: !Amount,
     stablecoinDataChains :: ![ChainAmount]
   }
   deriving (Eq, Show)
@@ -782,6 +781,22 @@ instance FromJSON Chain where
     "XLM" -> return XLM
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
+
+data Stablecoin = USDC | EUROC | USDT deriving (Eq, Show)
+
+instance ToJSON Stablecoin where
+  toJSON USDC = String "USDC"
+  toJSON EUROC = String "EUROC"
+  toJSON USDT = String "USDT"
+
+instance FromJSON Stablecoin where
+  parseJSON (String s) = case T.unpack s of
+    "USDC" -> return USDC
+    "EUROC" -> return EUROC
+    "USDT" -> return USDT
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
 
 ---------------------------------------------------------------
 -- Subscription endpoints
@@ -889,12 +904,12 @@ instance ToJSON TransferType where
   toJSON VerifiedBlockchain = String "verified_blockchain"
 
 data TransferData = TransferData
-  { transferDataId :: !Text, -- TODO some sort of internal ID that's not a UUID
+  { transferDataId :: !CircleId,
     transferDataSource :: !(ThisOrThat SourceWallet SourceBlockchain),
     transferDataDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
     transferDataAmount :: !CurrencyAmount,
     transferDataFees :: !(Maybe USDAmount),
-    transferDataTransactionHash :: !(Maybe Text), -- TODO there's probably a type here
+    transferDataTransactionHash :: !(Maybe HexString),
     transferDataStatus :: !Status,
     transferDataTransferErrorCode :: !(Maybe TransferErrorCode),
     transferDataCreateDate :: !(Maybe UTCTime)
@@ -918,7 +933,7 @@ instance FromJSON TransferData where
 
 data SourceWallet = SourceWallet
   { sourceWalletType :: !Text, -- it's just gonna be "wallet"
-    sourceWalletId :: !Text, -- TODO better type
+    sourceWalletId :: !WalletId, -- From Circle's docs: "Numeric value but should be treated as a string as format may change in the future"
     sourceWalletIdentities :: ![Identity]
   }
   deriving (Eq, Show)
@@ -950,8 +965,8 @@ instance FromJSON SourceBlockchain where
 
 data DestinationWallet = DestinationWallet
   { destinationWalletType :: !Text, -- just "wallet"
-    destinationWalletId :: !Text,
-    destinationWalletAddress :: !(Maybe Text), -- TODO alphanum ID
+    destinationWalletId :: !WalletId,
+    destinationWalletAddress :: !(Maybe HexString),
     destinationWalletAddressTag :: !(Maybe Text)
   }
   deriving (Eq, Show)
@@ -969,7 +984,7 @@ instance FromJSON DestinationWallet where
 data DestinationBlockchain = DestinationBlockchain
   { destinationBlockchainType :: !Text, -- just "blockchain"
     destinationBlockchainAddress :: !Text,
-    destinationBlockchainAddressTag :: !(Maybe Text), -- TODO alphanum ID
+    destinationBlockchainAddressTag :: !(Maybe CircleId),
     destinationBlockchainAddressChain :: !Chain
   }
   deriving (Eq, Show)
@@ -1044,8 +1059,8 @@ data DepositAddressRequest
 type instance CircleRequest DepositAddressRequest = CircleResponse DepositAddressData
 
 data DepositAddressData = DepositAddressData
-  { depositAddressAddress :: !Text, -- TODO alphanum
-    depositAddressAddressTag :: !(Maybe Text), -- TODO this type could be shared too.  At the very least the Tag could be a Text newtype wrapper.  Also, the docs say it's there, but the API doesn't have it.  Maybe for now.
+  { depositAddressAddress :: !HexString,
+    depositAddressAddressTag :: !(Maybe CircleId), -- The docs say it's on the response, but the sandbox API doesn't return in. Make it a `Maybe` for now.
     depositAddressCurrency :: !AllowedCurrencies,
     depositAddressChain :: !Chain
   }
@@ -1093,9 +1108,9 @@ data RecipientAddressRequest
 type instance CircleRequest RecipientAddressRequest = CircleResponse RecipientAddressData
 
 data RecipientAddressData = RecipientAddressData
-  { recipientAddressId :: !Text, -- TODO type
-    recipientAddressAddress :: !Text, -- TODO type
-    recipientAddressAddressTag :: !(Maybe Text), --  TODO type
+  { recipientAddressId :: !CircleId,
+    recipientAddressAddress :: !HexString,
+    recipientAddressAddressTag :: !(Maybe CircleId),
     recipientAddressChain :: !Chain,
     recipientAddressCurrency :: !AllowedCurrencies,
     recipientAddressDescription :: !Text
@@ -1115,9 +1130,9 @@ instance FromJSON RecipientAddressData where
           <*> o .: "description"
 
 data RecipientAddressBodyParams = RecipientAddressBodyParams
-  { recipientAddressBodyIdempotencyKey :: !UUID, -- TODO type
-    recipientAddressBodyAddress :: !Text, -- TODO type
-    recipientAddressBodyAddressTag :: !(Maybe Text), --  TODO type
+  { recipientAddressBodyIdempotencyKey :: !UUID,
+    recipientAddressBodyAddress :: !HexString,
+    recipientAddressBodyAddressTag :: !(Maybe CircleId),
     recipientAddressBodyChain :: !Chain,
     recipientAddressBodyCurrency :: !AllowedCurrencies,
     recipientAddressBodyDescription :: !Text
@@ -1154,8 +1169,8 @@ instance CircleHasParam DepositsRequest ToQueryParam
 instance CircleHasParam DepositsRequest PageSizeQueryParam
 
 data DepositData = DepositData
-  { depositId :: !Text, -- TODO type maybe
-    depositSourceWalletId :: !(Maybe Text), -- TODO this should have a type
+  { depositId :: !CircleId,
+    depositSourceWalletId :: !(Maybe WalletId),
     depositDestination :: !DestinationWallet,
     depositAmount :: !CurrencyAmount,
     depositFee :: !(Maybe USDAmount),
@@ -1325,8 +1340,8 @@ data SignetBankInstructionsRequest
 type instance CircleRequest SignetBankInstructionsRequest = CircleResponse SignetBankInstructionsData
 
 data SignetBankAccountBodyParams = SignetBankAccountBodyParams
-  { signetBankAccountBodyParamsIdempotencyKey :: !UUID, -- TODO may have a type
-    signetBankAccountBodyParamsWalletAddress :: !Text -- TODO this should have a type
+  { signetBankAccountBodyParamsIdempotencyKey :: !UUID,
+    signetBankAccountBodyParamsWalletAddress :: !HexString
   }
   deriving (Eq, Show)
 
@@ -1338,10 +1353,10 @@ instance ToJSON SignetBankAccountBodyParams where
       ]
 
 data SignetBankAccountData = SignetBankAccountData
-  { signetBankAccountId :: !Text, -- TODO may have a type
+  { signetBankAccountId :: !CircleId,
     signetBankAccountStatus :: !Status,
     signetBankAccountTrackingRef :: !TrackingReference,
-    signetBankAccountWalletAddress :: !Text, -- TODO this should have a type
+    signetBankAccountWalletAddress :: !HexString,
     signetBankAccountCreateDate :: !UTCTime,
     signetBankAccountUpdateDate :: !UTCTime
   }
@@ -1361,7 +1376,7 @@ instance FromJSON SignetBankAccountData where
 
 data SignetBankInstructionsData = SignetBankInstructionsData
   { signetBankInstructionsTrackingRef :: !(Maybe TrackingReference),
-    signetBankInstructionsWalletAddress :: !(Maybe Text) -- TODO this should have a type, looks like this 0xcac04f0069e4ac9314ac4e608e99278a3bebabcd
+    signetBankInstructionsWalletAddress :: !(Maybe HexString) -- TODO this should have a type, looks like this 0xcac04f0069e4ac9314ac4e608e99278a3bebabcd
   }
   deriving (Eq, Show)
 
@@ -1969,6 +1984,24 @@ instance Show ISO3166Alpha2 where
 -- TODO maybe constrain this?  Not sure what it looks like yet so that can happen later
 newtype TrackingReference = TrackingReference
   { unTrackingReference :: Text
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+-- TODO maybe add validation?  I don't know enough about it yet.
+newtype HexString = HexString
+  { unHexString :: Text
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+-- TODO add validation if necessary
+newtype CircleId = CircleId
+  { unCircleId :: Text
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+-- TODO add validation if necessary
+newtype WalletId = WalletId
+  { unWalletId :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
 
