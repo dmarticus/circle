@@ -1,7 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveLift #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -13,6 +12,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Unknot.Types
   ( -- Types for connecting to and wrapping Circle's API
@@ -205,6 +206,8 @@ import Refined
 import Refined.Unsafe (reallyUnsafeRefine)
 import System.Environment (getEnv)
 import Text.Regex.PCRE.Heavy
+import GHC.Generics (Generic)
+import qualified Autodocodec
 
 ---------------------------------------------------------------
 -- Circle API wrapper
@@ -670,8 +673,8 @@ instance FromJSON PayoutErrorCode where
     "invalid_ach_rtn" -> return InvalidACHRoutingTransitNumber
     "invalid_wire_rtn" -> return InvalidWireRoutingTransitNumber
     "vendor_inactive" -> return VendorInactive
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 ---------------------------------------------------------------
 -- Management endpoint
@@ -827,8 +830,8 @@ instance FromJSON Chain where
     "SOL" -> return SOL
     "TRX" -> return TRX
     "XLM" -> return XLM
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 data Stablecoin = USDC | EUROC | USDT deriving (Eq, Show)
 
@@ -842,8 +845,8 @@ instance FromJSON Stablecoin where
     "USDC" -> return USDC
     "EUROC" -> return EUROC
     "USDT" -> return USDT
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 ---------------------------------------------------------------
 -- Subscription endpoints
@@ -1068,8 +1071,8 @@ instance FromJSON IdentityType where
   parseJSON (String s) = case T.unpack s of
     "individual" -> return Individual
     "business" -> return Business
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 data TransferType = Wallet | Blockchain deriving (Eq, Show)
 
@@ -1099,8 +1102,8 @@ instance FromJSON TransferErrorCode where
     "blockchain_error" -> return BlockchainError
     "transfer_denied" -> return TransferDenied
     "transfer_failed" -> return TransferFailed
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 ---------------------------------------------------------------
 -- Address endpoints
@@ -1379,6 +1382,38 @@ instance FromJSON SENInstructionsData where
           <*> o .: "accountNumber"
           <*> o .: "currency"
 
+-- data Example = Example
+--   { exampleText :: !Text,
+--     exampleBool :: !Bool
+--   }
+
+-- instance Autodocodec.HasCodec Example where
+--   codec =
+--     Autodocodec.object "Example" $
+--       Example
+--         <$> Autodocodec.requiredField "text" "a text" .= exampleText
+--         <*> Autodocodec.requiredField "bool" "a bool" .= exampleBool
+
+-- data SENInstructionsData = SENInstructionsData
+--   { senInstructionsDataTrackingRef :: !Text, -- TODO need to figure out how to have clean ways to write Autodocodec instances for newtypes that are already deriving ToJSON and FromJSON.  
+--     senInstructionsDataAccountNumber :: !AccountNumber,
+--     senInstructionsDataCurrency :: !AllowedCurrencies
+--   }
+--   deriving stock (Eq, Show, Generic)
+--   deriving
+--     ( FromJSON, -- <- FromJSON instance for free.
+--       ToJSON -- <- ToJSON instance for free.
+--     )
+--     via (Autodocodec.Autodocodec SENInstructionsData)
+
+-- instance Autodocodec.HasCodec SENInstructionsData where
+--   codec =
+--     Autodocodec.object "SENInstructionsData" $
+--       SENInstructionsData
+--         <$> Autodocodec.requiredField "trackingRef" "documentation for the text field" Autodocodec..= senInstructionsDataTrackingRef
+--         <*> Autodocodec.requiredField "accountNumber" "documentation for the int field" Autodocodec..= senInstructionsDataAccountNumber
+--         <*> Autodocodec.requiredField "currency" "documentation for the int field" Autodocodec..= senInstructionsDataCurrency
+
 ---------------------------------------------------------------
 -- Signet endpoints
 ---------------------------------------------------------------
@@ -1540,8 +1575,8 @@ instance FromJSON Status where
     "pending" -> return Pending
     "complete" -> return Complete
     "failed" -> return Failed
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 data PaymentStatus = PaymentPending | Confirmed | Paid | PaymentFailed | ActionRequired deriving (Show, Eq)
 
@@ -1602,8 +1637,8 @@ instance FromJSON BankAccountType where
   parseJSON (String s) = case T.unpack s of
     "wire" -> return Wire
     "sen" -> return Sen
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 data DestinationBankAccount = DestinationBankAccount
   { destinationBankAccountType :: !BankAccountType,
@@ -1645,8 +1680,8 @@ instance FromJSON AllowedCurrencies where
     "EUR" -> return EUR
     "BTC" -> return BTC'
     "ETH" -> return ETH'
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 newtype Amount = Amount
   { unAmount :: Centi
@@ -1709,8 +1744,8 @@ instance FromJSON Decision where
     "approved" -> return Approved
     "denied" -> return Denied
     "review" -> return Review
-    _ -> error "JSON format not expected"
-  parseJSON _ = error "JSON format not expected"
+    _ -> fail "JSON format not expected"
+  parseJSON _ = fail "JSON format not expected"
 
 data RiskEvaluation = RiskEvaluation
   { riskEvaluationDecision :: !Decision,
