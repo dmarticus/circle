@@ -21,17 +21,21 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 
 - [x] Use custom types as much as possible.  Use smart constructors to give better type-safety.
 - [x] Split the code into more modules so it's easier to navigate around the various different bits.  Seems like better organization than one mega module.  Or, if you don't split it up, at _least_ put some comments breaking up different sections.
+
+### Infrastructure
 - [ ] Add CI pipeline to run tests
 - [ ] Add some aeson utilities to reduce boilerplate + code reuse
 - [ ] Maybe add TemplateHaskell and do some `deriveJSON` to get rid of all those hand-rolled derivations
 - [ ] Look into sharing some request/response types if there's enough in common
-- [ ] Add PR template and contribution guide
+* [ ] Investigate [autocodec](https://github.com/NorfairKing/autodocodec#readme) and see if it would help you reduce some boilerplate for your aeson derivations
+
 
 ### README and Documentation
 
 - [ ] everything exported has a doc.  Include types!  I've been good about the functions.
 - [ ] figure out how haddock works, see if I can make something nice.
 - [ ] add some usage examples to the README.
+- [ ] Add PR template and contribution guide
 
 ### Core Functionality
 
@@ -40,7 +44,6 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [x] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
 - [x] Wrap Addresses endpoint (medium)
 - [x] Wrap Deposits endpoint (small/medium)
-- [ ] Go back through and add the X-Request-Id header to the requests that need it.  Figure out a way to include it optionally.
 - [ ] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
 - [ ] Wrap On-chain payments endpoint (medium/large.  Probably can reuse some work from payments but might be hard to get working)
 - [ ] Wrap Cards endpoint (large)
@@ -55,6 +58,10 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [ ] Wrap wallets endpoint (large)
 - [ ] Differentiate between business account and bank account endpoints.  There's the same calls for different endpoints.  Will be able to reuse all the types and just switch the path, though, so this can be done last.
 - [ ] BETA Wrap SEPA endpoint (medium)
-- [ ] Wrap Signet endpoints (this will be challenging to test bc they only work in prod)
+- [x] Wrap Signet endpoints (this will be challenging to test bc they only work in prod)
 - [x] BETA Wrap SEN endpoints (medium)
 - [ ] Figure out a way to create balances for accounts via API to test payouts.  Right now all tests for payments/payouts/balances only test that the sad paths work when there's no money.
+
+### Extra goodies
+
+- [ ] Add support for showing the `X-Request-Id` on requests so that consumers of this library can take advantage of debugging their requests with the Circle API team

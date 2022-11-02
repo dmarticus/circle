@@ -11,6 +11,13 @@ packages:
       sha256: 76613a317255d72133176fccb5f2da9228c36bccd9d587b8a2dd3e5a6491cd48
   original:
     hackage: http-client-0.7.8@sha256:ed76dcd7edec3aaebe012541ca0a52594405e9b21d69420d26c0223bc4d5dc82,5400
+- completed:
+    hackage: autodocodec-0.1.0.1@sha256:4951b61e366a8b082bb1ac8d0ee4b3c8e5a9616327e3752df5d3106f281cdae6,1578
+    pantry-tree:
+      size: 760
+      sha256: d2aa8b7273960c05e4b39b1251267abd3c43143437b684a92f15453c0fbf572c
+  original:
+    hackage: autodocodec-0.1.0.1
 snapshots:
 - completed:
     size: 586103

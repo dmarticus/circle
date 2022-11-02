@@ -81,6 +81,7 @@ module Unknot.Types
     TransferBodyDestination (..),
     TransferType (..),
     TransferData (..),
+    DestinationType (..),
     -- Addresses Endpoint
     DepositAddressesRequest,
     DepositAddressRequest,
@@ -158,6 +159,9 @@ module Unknot.Types
     catThises,
     thisOrThat,
     thisOrThatToEither,
+    -- Payments API --
+    -- Payments endpoints
+
   )
 where
 
@@ -441,6 +445,49 @@ instance ToCircleParam CurrencyQueryParam where
   toCircleParam (CurrencyQueryParam i) =
     joinQueryParams $ Params Nothing [Query ("currency", currencyToBS8 i)]
 
+-- The following types are supported by the Payments API
+newtype SourceQueryParam = SourceQueryParam
+  { sourceQueryParam :: UUID
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam SourceQueryParam where
+  toCircleParam (SourceQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("source", TE.encodeUtf8 (unUUID i))]
+
+newtype SettlementIdQueryParam = SettlementIdQueryParam
+  { settlementIdQueryParam :: UUID
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam SettlementIdQueryParam where
+  toCircleParam (SettlementIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("settlementId", TE.encodeUtf8 (unUUID i))]
+
+newtype PaymentIntentIdQueryParam = PaymentIntentIdQueryParam
+  { paymentIntentIdQueryParam :: UUID
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam PaymentIntentIdQueryParam where
+  toCircleParam (PaymentIntentIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("paymentIntentId", TE.encodeUtf8 (unUUID i))]
+
+newtype PaymentStatusQueryParams = PaymentStatusQueryParams
+  { paymentStatusQueryParams :: [PaymentStatus]
+  }
+  deriving (Eq, Show)
+
+paymentStatusToBS8 :: PaymentStatus -> BS8.ByteString
+paymentStatusToBS8 PaymentPending = "pending"
+paymentStatusToBS8 Confirmed = "confirmed"
+paymentStatusToBS8 PaymentFailed = "failed"
+paymentStatusToBS8 Paid = "paid"
+paymentStatusToBS8 ActionRequired = "action_required"
+
+instance ToCircleParam PaymentStatusQueryParams where
+  toCircleParam (PaymentStatusQueryParams xs) =
+    joinQueryParams $ Params Nothing [Query ("status", BS8.intercalate "," (map paymentStatusToBS8 xs))]
 ---------------------------------------------------------------
 -- Balance endpoints
 ---------------------------------------------------------------
@@ -886,7 +933,7 @@ instance ToJSON TransferBodyParams where
       ]
 
 data TransferBodyDestination = TransferBodyDestination
-  { transferBodyDestinationType :: !TransferType,
+  { transferBodyDestinationType :: !DestinationType,
     transferBodyDestinationAddressId :: !UUID
   }
   deriving (Eq, Show)
@@ -898,9 +945,9 @@ instance ToJSON TransferBodyDestination where
         "addressId" .= transferBodyDestinationAddressId
       ]
 
-data TransferType = VerifiedBlockchain deriving (Eq, Show)
+data DestinationType = VerifiedBlockchain deriving (Eq, Show)
 
-instance ToJSON TransferType where
+instance ToJSON DestinationType where
   toJSON VerifiedBlockchain = String "verified_blockchain"
 
 data TransferData = TransferData
@@ -932,7 +979,7 @@ instance FromJSON TransferData where
           <*> o .: "createDate"
 
 data SourceWallet = SourceWallet
-  { sourceWalletType :: !Text, -- it's just gonna be "wallet"
+  { sourceWalletType :: !TransferType,
     sourceWalletId :: !WalletId, -- From Circle's docs: "Numeric value but should be treated as a string as format may change in the future"
     sourceWalletIdentities :: ![Identity]
   }
@@ -948,7 +995,7 @@ instance FromJSON SourceWallet where
           <*> o .: "identities"
 
 data SourceBlockchain = SourceBlockchain
-  { sourceBlockchainType :: !Text, -- just "blockchain"
+  { sourceBlockchainType :: !TransferType,
     sourceBlockchainChain :: !Chain,
     sourceBlockChainIdentities :: ![Identity]
   }
@@ -964,7 +1011,7 @@ instance FromJSON SourceBlockchain where
           <*> o .: "identities"
 
 data DestinationWallet = DestinationWallet
-  { destinationWalletType :: !Text, -- just "wallet"
+  { destinationWalletType :: !TransferType,
     destinationWalletId :: !WalletId,
     destinationWalletAddress :: !(Maybe HexString),
     destinationWalletAddressTag :: !(Maybe Text)
@@ -982,7 +1029,7 @@ instance FromJSON DestinationWallet where
           <*> o .: "addressTag"
 
 data DestinationBlockchain = DestinationBlockchain
-  { destinationBlockchainType :: !Text, -- just "blockchain"
+  { destinationBlockchainType :: !TransferType,
     destinationBlockchainAddress :: !Text,
     destinationBlockchainAddressTag :: !(Maybe CircleId),
     destinationBlockchainAddressChain :: !Chain
@@ -1021,6 +1068,15 @@ instance FromJSON IdentityType where
   parseJSON (String s) = case T.unpack s of
     "individual" -> return Individual
     "business" -> return Business
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
+data TransferType = Wallet | Blockchain deriving (Eq, Show)
+
+instance FromJSON TransferType where
+  parseJSON (String s) = case T.unpack s of
+    "wallet" -> return Wallet
+    "blockchain" -> return Blockchain
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
@@ -1484,6 +1540,25 @@ instance FromJSON Status where
     "pending" -> return Pending
     "complete" -> return Complete
     "failed" -> return Failed
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
+data PaymentStatus = PaymentPending | Confirmed | Paid | PaymentFailed | ActionRequired deriving (Show, Eq)
+
+instance ToJSON PaymentStatus where
+  toJSON PaymentPending = String "pending"
+  toJSON Confirmed = String "confirmed"
+  toJSON Paid = String "paid"
+  toJSON PaymentFailed = String "failed"
+  toJSON ActionRequired = String "action_required"
+
+instance FromJSON PaymentStatus where
+  parseJSON (String s) = case T.unpack s of
+    "pending" -> return PaymentPending
+    "confirmed" -> return Confirmed
+    "paid" -> return Paid
+    "failed" -> return PaymentFailed
+    "action_required" -> return ActionRequired
     _ -> error "JSON format not expected"
   parseJSON _ = error "JSON format not expected"
 
@@ -2131,3 +2206,270 @@ thisOrThatToEither = \case
 
 thisOrThat :: (a -> c) -> (b -> c) -> ThisOrThat a b -> c
 thisOrThat f g tot = either f g $ thisOrThatToEither tot
+
+---------------------------------------------------------------
+-- Payments API
+-- this could probably be a new module
+---------------------------------------------------------------
+
+---------------------------------------------------------------
+-- Payments endpoints
+---------------------------------------------------------------
+
+data PaymentRequest
+
+type instance CircleRequest PaymentRequest = CircleResponseBody (ThisOrThat FiatPayment CryptoPayment)
+
+data PaymentsRequest
+
+-- this motherfucker will be a heterogenous list so I have have to figure out how to work with that in Haskell.  Should be a good learning exercise.
+-- type instance CircleRequest PaymentsRequest = CircleResponseBody [FiatPayment, CryptoPayment, FiatCancel, FiatRefund]
+
+type instance CircleRequest PaymentsRequest = CircleResponseBody [CryptoPayment]
+
+instance CircleHasParam PaymentsRequest PaginationQueryParams
+
+instance CircleHasParam PaymentsRequest FromQueryParam
+
+instance CircleHasParam PaymentsRequest ToQueryParam
+
+instance CircleHasParam PaymentsRequest PageSizeQueryParam
+
+instance CircleHasParam PaymentsRequest PaymentStatusQueryParams
+
+instance CircleHasParam PaymentsRequest TypeQueryParam
+
+instance CircleHasParam PaymentsRequest DestinationQueryParam
+
+instance CircleHasParam PaymentsRequest SourceQueryParam
+
+instance CircleHasParam PaymentsRequest SettlementIdQueryParam
+
+instance CircleHasParam PaymentsRequest PaymentIntentIdQueryParam
+
+data CryptoPayment = CryptoPayment
+  { cryptoPaymentId :: !CircleId,
+    cryptoPaymentType :: !PaymentType,
+    cryptoPaymentMerchantId :: !CircleId, -- TODO maybe newtype for this
+    cryptoPaymentMerchantWalletId :: !WalletId,
+    cryptoPaymentMerchantAmount :: !USDAmount,
+    cryptoPaymentStatus :: !PaymentStatus,
+    cryptoPaymentFees :: !(Maybe USDAmount),
+    cryptoPaymentPaymentIntentId :: !(Maybe UUID),
+    cryptoPaymentSettlementAmount :: !(Maybe USDAmount), -- TODO this will probably change to not use Centi
+    cryptoPaymentDepositAddress :: !(Maybe PaymentDepositAddress),
+    cryptoPaymentTransactionHash :: !(Maybe Text), -- TODO this is probably a HexString too
+    cryptoPaymentCreateDate :: !(Maybe UTCTime),
+    cryptoPaymentUpdateDate :: !(Maybe UTCTime)
+  }
+  deriving (Eq, Show)
+
+instance FromJSON CryptoPayment where
+  parseJSON = withObject "CryptoPayment" parse
+    where
+      parse o =
+        CryptoPayment
+          <$> o .: "id"
+          <*> o .: "type"
+          <*> o .: "merchantId"
+          <*> o .: "merchantWalletId"
+          <*> o .: "amount"
+          <*> o .: "status"
+          <*> o .:? "fees"
+          <*> o .:? "paymentIntentId"
+          <*> o .:? "settlementAmount"
+          <*> o .:? "depositAddress"
+          <*> o .:? "transactionHash"
+          <*> o .:? "createDate"
+          <*> o .:? "updateDate"
+
+data PaymentDepositAddress = PaymentDepositAddress
+  { paymentDepositAddressChain :: !Chain,
+    paymentDepositAddressAddress :: !Text -- TODO this may be a hex string
+  }
+  deriving (Eq, Show)
+
+instance FromJSON PaymentDepositAddress where
+  parseJSON = withObject "PaymentDepositAddress" parse
+    where
+      parse o =
+        PaymentDepositAddress
+          <$> o .: "chain"
+          <*> o .: "address"
+
+-- {
+--   "data": {
+--     "id": "81855279-b53d-4119-9f1e-5d0af00f0c24",
+--     "type": "payment",
+--     "merchantId": "ff71551d-ae18-492d-baf1-d9205e20e0bf",
+--     "merchantWalletId": "1000002584",
+--     "amount": {
+--       "amount": "5.00",
+--       "currency": "USD"
+--     },
+--     "source": {
+--       "id": "1fa990d9-fd12-400c-bc7d-e54a428f7570",
+--       "type": "card"
+--     },
+--     "description": "Payment",
+--     "createDate": 1583830582515,
+--     "trackingRef": "20674453824672941243272",
+--     "status": "confirmed",
+--     "fees": {
+--       "amount": "0.10",
+--       "currency": "USD"
+--     }
+--   }
+-- }
+
+data FiatPayment = FiatPayment
+  { fiatPaymentId :: !UUID,
+    fiatPaymentType :: !PaymentType,
+    fiatPaymentMerchantId :: !UUID, -- TODO maybe newtype for this
+    fiatPaymentMerchantWalletId :: !WalletId,
+    fiatPaymentMerchantAmount :: !USDAmount,
+    fiatPaymentSource :: !PaymentSource,
+    fiatPaymentDescription :: !(Maybe Text), -- TODO this should be an enum
+    fiatPaymentStatus :: !PaymentStatus,
+    fiatPaymentCaptured :: !Bool,
+    fiatPaymentCaptureAmount :: !(Maybe USDAmount),
+    fiatPaymentCaptureDate :: !(Maybe UTCTime),
+    fiatPaymentRequiredAction :: !(Maybe PaymentActionRequired),
+    fiatPaymentCancel :: !(Maybe FiatCancel),
+    fiatPaymentRefunds :: !(Maybe [FiatRefund]),
+    fiatPaymentFees :: !(Maybe USDAmount),
+    fiatPaymentChannel :: !(Maybe Text), -- TODO this needs a type
+    fiatPaymentCreateDate :: !(Maybe UTCTime),
+    fiatPaymentUpdateDate :: !(Maybe UTCTime)
+  }
+  deriving (Eq, Show)
+
+instance FromJSON FiatPayment where
+  parseJSON = withObject "FiatPayment" parse
+    where
+      parse o =
+        FiatPayment
+          <$> o .: "id"
+          <*> o .: "type"
+          <*> o .: "merchantId"
+          <*> o .: "merchantWalletId"
+          <*> o .: "amount"
+          <*> o .: "source"
+          <*> o .:? "description"
+          <*> o .: "status"
+          <*> o .: "captured"
+          <*> o .:? "captureAmount"
+          <*> o .:? "captureDate"
+          <*> o .:? "requiredAction"
+          <*> o .:? "cancel"
+          <*> o .:? "refunds"
+          <*> o .:? "fees"
+          <*> o .:? "channel"
+          <*> o .:? "createDate"
+          <*> o .:? "updateDate"
+
+data FiatRefund = FiatRefund
+  { fiatRefundId :: !(Maybe CircleId),
+    fiatRefundType :: !(Maybe PaymentType),
+    fiatRefundAmount :: !(Maybe USDAmount),
+    fiatRefundDescription :: !(Maybe Text), -- TODO description enum
+    fiatRefundStatus :: !(Maybe PaymentStatus),
+    fiatRefundRequiredAction :: !(Maybe PaymentActionRequired),
+    fiatRefundFees :: !(Maybe USDAmount),
+    fiatRefundCreateDate :: !(Maybe UTCTime)
+  }
+  deriving (Eq, Show)
+
+instance FromJSON FiatRefund where
+  parseJSON = withObject "FiatRefund" parse
+    where
+      parse o =
+        FiatRefund
+          <$> o .:? "id"
+          <*> o .:? "type"
+          <*> o .:? "amount"
+          <*> o .:? "description"
+          <*> o .:? "status"
+          <*> o .:? "requiredAction"
+          <*> o .:? "fees"
+          <*> o .:? "createDate"
+
+
+data PaymentSource = PaymentSource
+  { paymentSourceId :: !UUID,
+    paymentSourceType :: !PaymentSourceType 
+  }
+  deriving (Eq, Show)
+
+instance FromJSON PaymentSource where
+  parseJSON = withObject "PaymentSource" parse
+    where
+      parse o =
+        PaymentSource
+          <$> o .: "id"
+          <*> o .: "type"
+
+data PaymentActionRequired = PaymentActionRequired
+  { paymentActionRequiredType :: !ActionRequiredType,
+    paymentActionRequiredRedirectUrl :: !Text -- TODO URL type
+  }
+  deriving (Eq, Show)
+
+instance FromJSON PaymentActionRequired where
+  parseJSON = withObject "PaymentActionRequired" parse
+    where
+      parse o =
+        PaymentActionRequired
+          <$> o .: "type"
+          <*> o .: "redirectUrl"
+
+data FiatCancel = FiatCancel
+  { fiatCancelId :: !CircleId,
+    fiatCancelType :: !PaymentType,
+    fiatCancelDescription :: !Text, -- TODO description enum
+    fiatCancelStatus :: !PaymentStatus,
+    fiatCancelCreateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+
+instance FromJSON FiatCancel where
+  parseJSON = withObject "FiatCancel" parse
+    where
+      parse o =
+        FiatCancel
+          <$> o .: "id"
+          <*> o .: "type"
+          <*> o .: "description"
+          <*> o .: "status"
+          <*> o .: "createDate"
+
+data ActionRequiredType = ThreeDSecureRequired deriving (Eq, Show)
+
+instance FromJSON ActionRequiredType where
+  parseJSON (String s) = case T.unpack s of
+    "three_d_secure_required" -> return ThreeDSecureRequired
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
+data PaymentType = Payment | Cancel | Refund deriving (Eq, Show)
+
+instance FromJSON PaymentType where
+  parseJSON (String s) = case T.unpack s of
+    "payment" -> return Payment
+    "cancel" -> return Cancel
+    "refund" -> return Refund
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
+data PaymentSourceType = Card | ACH | WireSource | SEPA deriving (Eq, Show)
+
+instance FromJSON PaymentSourceType where
+  parseJSON (String s) = case T.unpack s of
+    "card" -> return Card
+    "ach" -> return ACH
+    "wire" -> return WireSource
+    "sepa" -> return SEPA
+    _ -> error "JSON format not expected"
+  parseJSON _ = error "JSON format not expected"
+
+-- TODO: the subsequent two types look exactly the same but one is of type Cancel and the other is of type Refund.  How to do this in Haskell?
