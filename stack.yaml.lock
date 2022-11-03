@@ -18,6 +18,13 @@ packages:
       sha256: d2aa8b7273960c05e4b39b1251267abd3c43143437b684a92f15453c0fbf572c
   original:
     hackage: autodocodec-0.1.0.1
+- completed:
+    hackage: validity-0.11.0.1@sha256:e660f9593cb7be9860a4b8f84c72ab1e2efbb01aa4d45bfffa0aa032212886a3,2602
+    pantry-tree:
+      size: 399
+      sha256: 5af646ce3b107866a9a82c43ef3c0f9f1f9d84062f3757d30c86e77c0fb30112
+  original:
+    hackage: validity-0.11.0.1
 snapshots:
 - completed:
     size: 586103

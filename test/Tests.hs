@@ -17,13 +17,13 @@ import Unknot.Types
 testWireAccountDetails :: WireAccountBodyParams
 testWireAccountDetails =
   WireAccountBodyParams
-    (UUID "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
+    [compileUUID|e553417d-fe7a-4b7a-8d06-ff4de80a0d65|]
     [compileAccountNumber|446043103366|]
     [compileRoutingNumber|021000021|]
     ( BillingDetails
         "Test Recipient"
         (City "Snoqualmie")
-        (ISO3166Alpha2 unitedStatesOfAmerica)
+        (ISO3166Alpha2 "US")
         (AddressLine "6501 Railroad Avenue SE")
         (Just (AddressLine "Room 315"))
         (Just (District "WA"))
@@ -32,7 +32,7 @@ testWireAccountDetails =
     ( BankAddress
         (Just "Test Bank")
         (Just (City "Snoqualmie"))
-        (Just (ISO3166Alpha2 unitedStatesOfAmerica))
+        (Just (ISO3166Alpha2 "US"))
         (Just (AddressLine "6501 Railroad Avenue SE"))
         (Just (AddressLine "Room 315"))
         (Just (District "WA"))
@@ -41,7 +41,7 @@ testWireAccountDetails =
 testSENAccountDetails :: SENAccountBodyParams
 testSENAccountDetails = do
   SENAccountBodyParams
-    (UUID "89022f90-4d36-4a3b-9961-2009a637a539")
+    [compileUUID|89022f90-4d36-4a3b-9961-2009a637a539|]
     [compileAccountNumber|446043103367|]
     (Just USD)
 
@@ -80,29 +80,26 @@ main = do
             let Right CircleResponseBody {..} = stablecoins
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-        -- TODO I accidentally hit my subscription limit for the sandbox account and can't add new ones
+        -- TODO Skip the subscription tests because I I accidentally hit my subscription limit for the sandbox account and can't add new ones
         -- However, I can't delete these subscriptions either, because they're still in the 'pending' state.
         -- At least this code worked!
-        -- describe "subscriptions" $ do
-        --   it "creates a new subscription" $ do
-        --     subscription <- circleTest config manager $ createSubscription testSubscriptionBody
-        --     liftIO $ print subscription
-        --     let Right CircleResponseBody {..} = subscription
-        --     circleResponseCode `shouldBe` Nothing
-        --     circleResponseMessage `shouldBe` Nothing
-        --   it "deletes a subscription" $ do
-        --     deletionResponse <- circleTest config manager $ deleteSubscription (UUID "e85f46e4-dea8-499c-b6f5-e40ebc736f39")
-        --     let Right CircleResponseBody {..} = deletionResponse
-        --     liftIO $ print deletionResponse
-        --     circleResponseCode `shouldBe` Nothing
-        --     -- TODO we don't have a resource so it'll fail
-        --     circleResponseMessage `shouldBe` Just (ResponseMessage "Resource not found")
-        --   it "lists all subscription" $ do
-        --     subscriptions <- circleTest config manager listAllNotificationSubscriptions
-        --     liftIO $ print subscriptions
-        --     let Right CircleResponseBody {..} = subscriptions
-        --     circleResponseCode `shouldBe` Nothing
-        --     circleResponseMessage `shouldBe` Nothing
+        describe "subscriptions" $ do
+          xit "creates a new subscription" $ do
+            subscription <- circleTest config manager $ createSubscription testSubscriptionBody
+            let Right CircleResponseBody {..} = subscription
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+          xit "deletes a subscription" $ do
+            deletionResponse <- circleTest config manager $ deleteSubscription [compileUUID|e85f46e4-dea8-499c-b6f5-e40ebc736f39|]
+            let Right CircleResponseBody {..} = deletionResponse
+            circleResponseCode `shouldBe` Nothing
+            -- TODO we don't have a resource so it'll fail
+            circleResponseMessage `shouldBe` Just (ResponseMessage "Resource not found")
+          xit "lists all subscription" $ do
+            subscriptions <- circleTest config manager listAllNotificationSubscriptions
+            let Right CircleResponseBody {..} = subscriptions
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
       describe "wire endpoints" $ do
         describe "create wire account" $ do
           it "creates a new wire account" $ do
@@ -204,13 +201,13 @@ main = do
           it "will attempt to create a new transfer" $ do
             let transferBody =
                   TransferBodyParams
-                    (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
+                    [compileUUID|c14bf1a2-74fe-4cd5-8e74-c8c67903d849|]
                     ( TransferBodyDestination
                         VerifiedBlockchain
-                        (UUID "2206775d-e4f7-4681-9494-34dc650fbfd8")
+                        [compileUUID|2206775d-e4f7-4681-9494-34dc650fbfd8|]
                     )
-                    ( CurrencyAmount
-                        (Amount 100.00)
+                    ( MoneyAmount
+                        (Amount "100.00")
                         USD
                     )
             -- this request will always fail if there's no money in the account
@@ -231,13 +228,14 @@ main = do
           it "will attempt to create a recipient address" $ do
             let recipientAddressBody =
                   RecipientAddressBodyParams
-                      (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
-                      (HexString "0x8381470ED67C3802402dbbFa0058E8871F017A6F")
-                      Nothing
-                      ETH
-                      USD
-                      "test address"
+                    [compileUUID|c14bf1a2-74fe-4cd5-8e74-c8c67903d849|]
+                    (HexString "0x8381470ED67C3802402dbbFa0058E8871F017A6F")
+                    Nothing
+                    ChainETH
+                    USD
+                    "test address"
             recipientAddress <- circleTest config manager $ createRecipientAddress recipientAddressBody
+            liftIO $ print recipientAddress
             recipientAddress `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddress
             circleResponseCode `shouldBe` Nothing
@@ -253,9 +251,9 @@ main = do
           it "will attempt to create a new deposit address" $ do
             let depositAddressBody =
                   DepositAddressBodyParams
-                      (UUID "c14bf1a2-74fe-4cd5-8e74-c8c67903d849")
-                      ETH'
-                      ETH
+                    [compileUUID|c14bf1a2-74fe-4cd5-8e74-c8c67903d849|]
+                    ETH
+                    ChainETH
             depositAddress <- circleTest config manager $ createDepositAddress depositAddressBody
             depositAddress `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = depositAddress
@@ -270,32 +268,32 @@ main = do
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         -- TODO, this test fails and my guess is because the beneficiary should have all the details.  I'll try to fix this later.
-        -- describe "mock payments" $ do
-        --   it "should create a mock silvergate payment" $ do
-        --     let mockSilvergatePaymentBody =
-        --           MockSilvergatePaymentBodyParams
-        --               ( TrackingReference "CIR13FB13A" )
-        --               ( CurrencyAmount
-        --                 (Amount 100.00)
-        --                 USD
-        --               )
-        --               ( MockBeneficiaryBankDetails
-        --                 [compileAccountNumber|446043103366|]
-        --               )
-        --     mockSilvergatePayment <- circleTest config manager $ createMockSilvergatePayment mockSilvergatePaymentBody
-        --     mockSilvergatePayment `shouldSatisfy` isRight
-        --     let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSilvergatePayment
-        --     circleResponseCode `shouldBe` Nothing
-        --     circleResponseMessage `shouldBe` Nothing
+        describe "mock payments" $ do
+          xit "should create a mock silvergate payment" $ do
+            let mockSilvergatePaymentBody =
+                  MockSilvergatePaymentBodyParams
+                    (TrackingReference "CIR13FB13A")
+                    ( MoneyAmount
+                        (Amount "100.00")
+                        USD
+                    )
+                    ( MockBeneficiaryBankDetails
+                        [compileAccountNumber|446043103366|]
+                    )
+            mockSilvergatePayment <- circleTest config manager $ createMockSilvergatePayment mockSilvergatePaymentBody
+            mockSilvergatePayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSilvergatePayment
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
       describe "payout endpoints" $ do
         describe "list payouts" $ do
           -- TODO This test fails without money in the account.  I need to actually seed balances, I'll do that when I wrap that API endpoint
-          -- it " should list a subset of payouts for a given business account given the query params" $ do
-          --   payoutsBeforeFoo <- circleTest config manager $ listAllPayouts -&- PaginationQueryParams (PageSize "foo")
-          --   payoutsBeforeFoo `shouldSatisfy` isRight
-          --   let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payoutsBeforeFoo
-          --   circleResponseCode `shouldBe` Nothing
-          --   circleResponseMessage `shouldBe` Nothing
+          xit " should list a subset of payouts for a given business account given the query params" $ do
+            payoutsBeforeFoo <- circleTest config manager $ listAllPayouts -&- PaginationQueryParams (PageBefore (CircleId "a8899b8e-782a-4526-b674-0efe1e04526d"))
+            payoutsBeforeFoo `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payoutsBeforeFoo
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
           it "should list all payouts for a given business account" $ do
             payouts <- circleTest config manager listAllPayouts
             payouts `shouldSatisfy` isRight
@@ -314,14 +312,14 @@ main = do
           it "fails to create a new payout because no such account exists" $ do
             let payoutWithFakeWireAccount =
                   PayoutBodyParams
-                    (UUID "e81b86e4-c4ba-4337-97ff-08486301b618")
+                    [compileUUID|e81b86e4-c4ba-4337-97ff-08486301b618|]
                     ( DestinationBankAccount
                         Wire
-                        (UUID "6a3a947e-82d2-4204-bf7c-b17d7f380070")
+                        [compileUUID|6a3a947e-82d2-4204-bf7c-b17d7f380070|]
                         Nothing
                     )
-                    ( USDOrEURAmount
-                        (Amount 100.00)
+                    ( MoneyAmount
+                        (Amount "100.00")
                         USD
                     )
             -- this request will always fail if there's no money in the account
@@ -339,14 +337,14 @@ main = do
               -- then, we create a payout
               let payoutWithRealWireAccount =
                     PayoutBodyParams
-                      (UUID "e81b86e4-c4ba-4337-97ff-08486301b618")
+                      [compileUUID|e81b86e4-c4ba-4337-97ff-08486301b618|]
                       ( DestinationBankAccount
                           Wire
                           wireAccountDataId
                           Nothing
                       )
-                      ( USDOrEURAmount
-                          (Amount 100.00)
+                      ( MoneyAmount
+                          (Amount "100.00")
                           USD
                       )
               failedPayoutResultInsufficientFunds <- circleTest config manager $ createPayout payoutWithRealWireAccount

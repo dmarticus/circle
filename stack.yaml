@@ -4,7 +4,8 @@ packages:
 - '.'
 extra-deps: [
   'http-client-0.7.8@sha256:ed76dcd7edec3aaebe012541ca0a52594405e9b21d69420d26c0223bc4d5dc82,5400',
-  'autodocodec-0.1.0.1'
+  'autodocodec-0.1.0.1',
+  'validity-0.11.0.1',
 ]
 
 flags: {}

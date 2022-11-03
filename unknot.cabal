@@ -36,6 +36,7 @@ library
     , time
     , unordered-containers
     , uuid
+    , validity
     , vector                >=0.10.9 && <0.13
 
   default-language: Haskell2010
