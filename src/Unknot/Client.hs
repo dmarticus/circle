@@ -140,7 +140,7 @@ listAllNotificationSubscriptions = do
 
 -- | Create new subscription
 -- https://developers.circle.com/reference/createsubscribtion
-createSubscription :: SubscriptionBodyParams -> CircleAPIRequest SubscriptionsRequest TupleBS8 BSL.ByteString
+createSubscription :: SubscriptionBodyParams -> CircleAPIRequest SubscriptionRequest TupleBS8 BSL.ByteString
 createSubscription subscriptionBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
