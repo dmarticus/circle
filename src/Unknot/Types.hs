@@ -164,6 +164,19 @@ module Unknot.Types
     thisOrThatToEither,
     -- Payments API --
     -- Payments endpoints
+    PaymentRequest,
+    PaymentsRequest,
+    CreatePaymentBody (..),
+    CryptoPayment (..),
+    FiatPayment (..),
+    CreatePaymentMetadata (..),
+    PaymentErrorCode (..),
+    PaymentMetadata (..),
+    FiatRefund (..),
+    FiatCancel (..),
+    VerificationType (..),
+    PaymentSource (..),
+    PaymentSourceType (..)
   )
 where
 
@@ -2402,7 +2415,7 @@ data PaymentsRequest
 -- this motherfucker will be a heterogenous list so I have have to figure out how to work with that in Haskell.  Should be a good learning exercise.
 -- type instance CircleRequest PaymentsRequest = CircleResponseBody [FiatPayment, CryptoPayment, FiatCancel, FiatRefund]
 
-type instance CircleRequest PaymentsRequest = CircleResponseBody [CryptoPayment]
+type instance CircleRequest PaymentsRequest = CircleResponseBody [FiatPayment]
 
 instance CircleHasParam PaymentsRequest PaginationQueryParams
 
@@ -2424,30 +2437,156 @@ instance CircleHasParam PaymentsRequest SettlementIdQueryParam
 
 instance CircleHasParam PaymentsRequest PaymentIntentIdQueryParam
 
--- {
---   "data": {
---     "id": "81855279-b53d-4119-9f1e-5d0af00f0c24",
---     "type": "payment",
---     "merchantId": "ff71551d-ae18-492d-baf1-d9205e20e0bf",
---     "merchantWalletId": "1000002584",
---     "amount": {
---       "amount": "5.00",
---       "currency": "USD"
---     },
---     "source": {
---       "id": "1fa990d9-fd12-400c-bc7d-e54a428f7570",
---       "type": "card"
---     },
---     "description": "Payment",
---     "createDate": 1583830582515,
---     "trackingRef": "20674453824672941243272",
---     "status": "confirmed",
---     "fees": {
---       "amount": "0.10",
---       "currency": "USD"
---     }
---   }
--- }
+data CreatePaymentBody = CreatePaymentBody
+  { createPaymentIdempotencyKey :: !UUID,
+    createPaymentKeyId :: !Text, -- TODO this is actually a UUID, but in Sandbox it has to be `key1`.  Figure out how to reconcile this later.
+    createPaymentMetadata :: !CreatePaymentMetadata,
+    createPaymentAmount :: !MoneyAmount,
+    createPaymentAutoCapture :: !(Maybe Bool), -- TODO how to add default?
+    createPaymentVerification :: !VerificationType,
+    createPaymentVerificationSuccessUrl :: !(Maybe Text), -- TODO depends on if VerificationType = ThreeDSecure
+    createPaymentVerificationFailureUrl :: !(Maybe Text), -- TODO depends on if VerificationType = ThreeDSecure
+    createPaymentSource :: !PaymentSource,
+    createPaymentDescription :: !(Maybe Text),
+    createPaymentEncryptedData :: !(Maybe Text), -- TODO check that it contains the CVV somehow
+    createPaymentCVV :: !(Maybe Text), -- TODO CVV should be a type
+    createPaymentChannel :: !(Maybe Text)
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CreatePaymentBody)
+
+instance HasCodec CreatePaymentBody where
+  codec =
+    object "CreatePaymentBody" $
+      CreatePaymentBody
+        <$> requiredField' "idempotencyKey" .= createPaymentIdempotencyKey
+        <*> requiredField' "keyId" .= createPaymentKeyId
+        <*> requiredField' "metadata" .= createPaymentMetadata
+        <*> requiredField' "amount" .= createPaymentAmount
+        <*> optionalField' "autoCapture" .= createPaymentAutoCapture
+        <*> requiredField' "verification" .= createPaymentVerification
+        <*> optionalField' "verificationSuccessfulUrl" .= createPaymentVerificationSuccessUrl
+        <*> optionalField' "verificationFailureUrl" .= createPaymentVerificationFailureUrl
+        <*> requiredField' "source" .= createPaymentSource
+        <*> optionalField' "description" .= createPaymentDescription
+        <*> optionalField' "encryptedData" .= createPaymentEncryptedData
+        <*> optionalField' "cvv" .= createPaymentCVV
+        <*> optionalField' "channel" .= createPaymentChannel
+
+-- TODO
+data CreatePaymentMetadata = CreatePaymentMetadata
+  { createPaymentMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
+    createPaymentMetadataPhoneNumber :: !(Maybe Text), -- TODO this screams newtype w/ smart constructor
+    createPaymentMetadataSessionId :: !Text, -- TODO hash newtype or something
+    createPaymentMetadataIpAddress :: !Text -- TODO should be a newtype
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CreatePaymentMetadata)
+
+instance HasCodec CreatePaymentMetadata where
+  codec =
+    object "CreatePaymentMetadata" $
+      CreatePaymentMetadata
+        <$> requiredField' "email" .= createPaymentMetadataEmail
+        <*> optionalField' "phoneNumber" .= createPaymentMetadataPhoneNumber
+        <*> requiredField' "sessionId" .= createPaymentMetadataSessionId
+        <*> requiredField' "ipAddress" .= createPaymentMetadataIpAddress
+
+data PaymentErrorCode
+  = PaymentFailedErrorCode
+  | PaymentFraudDetected
+  | PaymentDenied
+  | PaymentNotSupportedByIssuer
+  | PaymentNotFunded
+  | PaymentUnprocessable
+  | PaymentStoppedByIssuer
+  | PaymentCanceled
+  | PaymentReturned
+  | PaymentFailedBalanceCheck
+  | CardFailed
+  | CardInvalid
+  | CardAddressMismatch
+  | CardZipMismatch
+  | CardCvvInvalid
+  | CardExpired
+  | CardLimitViolated
+  | CardNotHonored
+  | CardCvvRequired
+  | CardRestricted
+  | CardAccountIneligible
+  | CardNetworkUnsupported
+  | ChannelInvalid
+  | UnauthorizedTransaction
+  | BankAccountIneligible
+  | PaymentBankTransactionError
+  | InvalidAccountNumber
+  | InvalidWireRtn
+  | InvalidAchRtn
+  | RefIdInvalid
+  | AccountNameMismatch
+  | AccountNumberMismatch
+  | AccountIneligible
+  | WalletAddressMismatch
+  | CustomerNameMismatch
+  | InstitutionNameMismatch
+  | PaymentVendorInactive
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec PaymentErrorCode)
+
+instance HasCodec PaymentErrorCode where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (PaymentFailedErrorCode, "payment_failed"),
+          (PaymentFraudDetected, "payment_fraud_detected"),
+          (PaymentDenied, "payment_denied"),
+          (PaymentNotSupportedByIssuer, "payment_not_supported_by_issuer"),
+          (PaymentNotFunded, "payment_not_funded"),
+          (PaymentUnprocessable, "payment_unprocessable"),
+          (PaymentStoppedByIssuer, "payment_stopped_by_issuer"),
+          (PaymentCanceled, "payment_canceled"),
+          (PaymentReturned, "payment_returned"),
+          (PaymentFailedBalanceCheck, "payment_failed_balance_check"),
+          (CardFailed, "card_failed"),
+          (CardInvalid, "card_invalid"),
+          (CardAddressMismatch, "card_address_mismatch"),
+          (CardZipMismatch, "card_zip_mismatch"),
+          (CardCvvInvalid, "card_cvv_invalid"),
+          (CardExpired, "card_expired"),
+          (CardLimitViolated, "card_limit_violated"),
+          (CardNotHonored, "card_not_honored"),
+          (CardCvvRequired, "card_cvv_required"),
+          (CardRestricted, "card_restricted"),
+          (CardAccountIneligible, "card_account_ineligible"),
+          (CardNetworkUnsupported, "card_network_unsupported"),
+          (ChannelInvalid, "channel_invalid"),
+          (UnauthorizedTransaction, "unauthorized_transaction"),
+          (BankAccountIneligible, "bank_account_ineligible"),
+          (PaymentBankTransactionError, "bank_transaction_error"),
+          (InvalidAccountNumber, "invalid_account_number"),
+          (InvalidWireRtn, "invalid_wire_rtn"),
+          (InvalidAchRtn, "invalid_ach_rtn"),
+          (RefIdInvalid, "ref_id_invalid"),
+          (AccountNameMismatch, "account_name_mismatch"),
+          (AccountNumberMismatch, "account_number_mismatch"),
+          (AccountIneligible, "account_ineligible"),
+          (WalletAddressMismatch, "wallet_address_mismatch"),
+          (CustomerNameMismatch, "customer_name_mismatch"),
+          (InstitutionNameMismatch, "institution_name_mismatch"),
+          (PaymentVendorInactive, "vendor_inactive")
+        ]
 
 data FiatPayment = FiatPayment
   { fiatPaymentId :: !UUID,
@@ -2465,10 +2604,14 @@ data FiatPayment = FiatPayment
     fiatPaymentRequiredAction :: !(Maybe PaymentActionRequired),
     fiatPaymentCancel :: !(Maybe FiatCancel),
     fiatPaymentRefunds :: ![FiatRefund],
-    fiatPaymentFees :: !MoneyAmount,
+    fiatPaymentFees :: !(Maybe MoneyAmount),
     fiatPaymentChannel :: !(Maybe Text), -- TODO this needs a type
     fiatPaymentCreateDate :: !(Maybe UTCTime),
-    fiatPaymentUpdateDate :: !(Maybe UTCTime)
+    fiatPaymentUpdateDate :: !(Maybe UTCTime),
+    fiatPaymentTrackingRef :: !(Maybe TrackingReference),
+    fiatPaymentErrorCode :: !(Maybe PaymentErrorCode),
+    fiatPaymentMetadata :: !(Maybe PaymentMetadata),
+    fiatPaymentRiskEvaluation :: !(Maybe RiskEvaluation)
   }
   deriving (Eq, Show)
   deriving
@@ -2496,12 +2639,16 @@ instance HasCodec FiatPayment where
         <*> optionalField' "requiredAction" .= fiatPaymentRequiredAction
         <*> optionalField' "cancel" .= fiatPaymentCancel
         <*> requiredField' "refunds" .= fiatPaymentRefunds
-        <*> requiredField' "fees" .= fiatPaymentFees
+        <*> optionalField' "fees" .= fiatPaymentFees
         <*> optionalField' "channel" .= fiatPaymentChannel
         <*> optionalField' "createDate" .= fiatPaymentCreateDate
         <*> optionalField' "updateDate" .= fiatPaymentUpdateDate
+        <*> optionalField' "trackingRef" .= fiatPaymentTrackingRef
+        <*> optionalField' "errorCode" .= fiatPaymentErrorCode
+        <*> optionalField' "metadata" .= fiatPaymentMetadata
+        <*> optionalField' "channel" .= fiatPaymentRiskEvaluation
 
--- TODO unite these payment objects!
+-- TODO unite these payment objects!  MAybe?
 data CryptoPayment = CryptoPayment
   { cryptoPaymentId :: !UUID,
     cryptoPaymentType :: !PaymentType,
@@ -2509,7 +2656,7 @@ data CryptoPayment = CryptoPayment
     cryptoPaymentMerchantWalletId :: !WalletId,
     cryptoPaymentMerchantAmount :: !MoneyAmount,
     cryptoPaymentStatus :: !PaymentStatus,
-    cryptoPaymentFees :: !MoneyAmount,
+    cryptoPaymentFees :: !(Maybe MoneyAmount),
     cryptoPaymentPaymentIntentId :: !(Maybe UUID),
     cryptoPaymentSettlementAmount :: !(Maybe MoneyAmount), -- TODO this will probably change to not use Centi
     cryptoPaymentDepositAddress :: !(Maybe PaymentDepositAddress),
@@ -2534,13 +2681,31 @@ instance HasCodec CryptoPayment where
         <*> requiredField' "merchantWalletId" .= cryptoPaymentMerchantWalletId
         <*> requiredField' "amount" .= cryptoPaymentMerchantAmount
         <*> requiredField' "status" .= cryptoPaymentStatus
-        <*> requiredField' "fees" .= cryptoPaymentFees
+        <*> optionalField' "fees" .= cryptoPaymentFees
         <*> optionalField' "paymentIntentId" .= cryptoPaymentPaymentIntentId
         <*> optionalField' "settlementAmount" .= cryptoPaymentSettlementAmount
         <*> optionalField' "depositAddress" .= cryptoPaymentDepositAddress
         <*> optionalField' "transactionHash" .= cryptoPaymentTransactionHash
         <*> optionalField' "createDate" .= cryptoPaymentCreateDate
         <*> optionalField' "updateDate" .= cryptoPaymentUpdateDate
+
+data PaymentMetadata = PaymentMetadata
+  { paymentMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
+    paymentMetadataPhoneNumber :: !Text -- TODO this screams newtype w/ smart constructor
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec PaymentMetadata)
+
+instance HasCodec PaymentMetadata where
+  codec =
+    object "PaymentMetadata" $
+      PaymentMetadata
+        <$> requiredField' "email" .= paymentMetadataEmail
+        <*> requiredField' "phoneNumber" .= paymentMetadataPhoneNumber
 
 data VerificationData = VerificationData
   { verificationAVS :: !AVS,
@@ -2603,14 +2768,20 @@ instance HasCodec PaymentDepositAddress where
 -- TODO: the subsequent two types look exactly the same but one is of type Cancel and the other is of type Refund.
 -- How to do this in Haskell?
 data FiatRefund = FiatRefund
-  { fiatRefundId :: !(Maybe CircleId),
-    fiatRefundType :: !(Maybe PaymentType),
-    fiatRefundAmount :: !(Maybe MoneyAmount),
-    fiatRefundDescription :: !(Maybe Text), -- TODO description enum
-    fiatRefundStatus :: !(Maybe PaymentStatus),
-    fiatRefundRequiredAction :: !(Maybe PaymentActionRequired),
+  { fiatRefundId :: !UUID,
+    fiatRefundType :: !PaymentType,
+    fiatRefundMerchantId :: !UUID,
+    fiatRefundMerchantWalletId :: !WalletId,
+    fiatRefundAmount :: !MoneyAmount,
+    fiatRefundSource :: !PaymentSource,
+    fiatRefundDescription :: !Text, -- TODO description enum
+    fiatRefundStatus :: !PaymentStatus,
+    fiatRefundOriginalPayment :: !OriginalFiatPayment,
     fiatRefundFees :: !(Maybe MoneyAmount),
-    fiatRefundCreateDate :: !(Maybe UTCTime)
+    fiatRefundChannel :: !(Maybe Text),
+    fiatRefundReason :: !Text, -- TODO feels like something that could have an enum
+    fiatRefundCreateDate :: !UTCTime,
+    fiatRefundUpdateDate :: !UTCTime
   }
   deriving (Eq, Show)
   deriving
@@ -2623,14 +2794,20 @@ instance HasCodec FiatRefund where
   codec =
     object "FiatRefund" $
       FiatRefund
-        <$> optionalField' "id" .= fiatRefundId
-        <*> optionalField' "type" .= fiatRefundType
-        <*> optionalField' "amount" .= fiatRefundAmount
-        <*> optionalField' "description" .= fiatRefundDescription
-        <*> optionalField' "status" .= fiatRefundStatus
-        <*> optionalField' "requiredAction" .= fiatRefundRequiredAction
+        <$> requiredField' "id" .= fiatRefundId
+        <*> requiredField' "type" .= fiatRefundType
+        <*> requiredField' "merchantId" .= fiatRefundMerchantId
+        <*> requiredField' "merchantWalletId" .= fiatRefundMerchantWalletId
+        <*> requiredField' "amount" .= fiatRefundAmount
+        <*> requiredField' "source" .= fiatRefundSource
+        <*> requiredField' "description" .= fiatRefundDescription
+        <*> requiredField' "status" .= fiatRefundStatus
+        <*> requiredField' "originalPayment" .= fiatRefundOriginalPayment
         <*> optionalField' "fees" .= fiatRefundFees
-        <*> optionalField' "createDate" .= fiatRefundCreateDate
+        <*> optionalField' "channel" .= fiatRefundChannel
+        <*> requiredField' "reason" .= fiatRefundReason
+        <*> requiredField' "createDate" .= fiatRefundCreateDate
+        <*> requiredField' "updateDate" .= fiatRefundUpdateDate
 
 -- | A FiatCancel object represents an attempt at canceling a payment.
 -- Cancellations apply only to card payments, and its presence doesn't necessarily mean that the cancellation was successful.
@@ -2638,10 +2815,18 @@ instance HasCodec FiatRefund where
 data FiatCancel = FiatCancel
   { fiatCancelId :: !UUID,
     fiatCancelType :: !PaymentType,
+    fiatCancelMerchantId :: !UUID,
+    fiatCancelMerchantWalletId :: !WalletId,
+    fiatCancelAmount :: !MoneyAmount,
+    fiatCancelSource :: !PaymentSource,
     fiatCancelDescription :: !Text, -- TODO description enum
     fiatCancelStatus :: !PaymentStatus,
-    fiatCancelOriginalPayment :: !(Maybe OriginalFiatPayment),
-    fiatCancelCreateDate :: !UTCTime
+    fiatCancelOriginalPayment :: !OriginalFiatPayment,
+    fiatCancelFees :: !(Maybe MoneyAmount),
+    fiatCancelChannel :: !(Maybe Text),
+    fiatCancelReason :: !Text, -- TODO feels like something that could have an enum
+    fiatCancelCreateDate :: !UTCTime,
+    fiatCancelUpdateDate :: !UTCTime
   }
   deriving (Eq, Show)
   deriving
@@ -2656,17 +2841,32 @@ instance HasCodec FiatCancel where
       FiatCancel
         <$> requiredField' "id" .= fiatCancelId
         <*> requiredField' "type" .= fiatCancelType
+        <*> requiredField' "merchantId" .= fiatCancelMerchantId
+        <*> requiredField' "merchantWalletId" .= fiatCancelMerchantWalletId
+        <*> requiredField' "amount" .= fiatCancelAmount
+        <*> requiredField' "source" .= fiatCancelSource
         <*> requiredField' "description" .= fiatCancelDescription
         <*> requiredField' "status" .= fiatCancelStatus
-        <*> optionalField' "originalPayment" .= fiatCancelOriginalPayment
+        <*> requiredField' "originalPayment" .= fiatCancelOriginalPayment
+        <*> optionalField' "fees" .= fiatCancelFees
+        <*> optionalField' "channel" .= fiatCancelChannel
+        <*> requiredField' "reason" .= fiatCancelReason
         <*> requiredField' "createDate" .= fiatCancelCreateDate
+        <*> requiredField' "updateDate" .= fiatCancelUpdateDate
 
 data OriginalFiatPayment = OriginalFiatPayment
   { originalFiatPaymentId :: !UUID,
     originalFiatPaymentType :: !PaymentType,
     originalFiatPaymentStatus :: !PaymentStatus,
     originalFiatPaymentCreateDate :: !UTCTime,
-    originalFiatPaymentUpdateDate :: !UTCTime
+    originalFiatPaymentUpdateDate :: !UTCTime,
+    originalFiatPaymentDescription :: !(Maybe Text),
+    originalFiatPaymentAmount :: !(Maybe MoneyAmount),
+    originalFiatPaymentFees :: !(Maybe MoneyAmount),
+    originalFiatPaymentMerchantId :: !(Maybe UUID),
+    originalFiatPaymentMerchantWalletId :: !(Maybe WalletId),
+    originalFiatPaymentSource :: !(Maybe PaymentSource),
+    originalFiatPaymentTrackingRef :: !(Maybe TrackingReference)
   }
   deriving (Eq, Show, Generic)
   deriving
@@ -2684,6 +2884,13 @@ instance HasCodec OriginalFiatPayment where
         <*> requiredField' "status" .= originalFiatPaymentStatus
         <*> requiredField' "createDate" .= originalFiatPaymentCreateDate
         <*> requiredField' "updateDate" .= originalFiatPaymentUpdateDate
+        <*> optionalField' "description" .= originalFiatPaymentDescription
+        <*> optionalField' "amount" .= originalFiatPaymentAmount
+        <*> optionalField' "fees" .= originalFiatPaymentFees
+        <*> optionalField' "merchantId" .= originalFiatPaymentMerchantId
+        <*> optionalField' "merchantWalletId" .= originalFiatPaymentMerchantWalletId
+        <*> optionalField' "source" .= originalFiatPaymentSource
+        <*> optionalField' "trackingRef" .= originalFiatPaymentTrackingRef
 
 data PaymentSource = PaymentSource
   { paymentSourceId :: !UUID,
