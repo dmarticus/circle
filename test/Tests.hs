@@ -5,7 +5,7 @@
 
 module Main where
 
-import Control.Monad.IO.Class (liftIO)
+-- import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (for_)
 import Network.HTTP.Client (newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
@@ -122,9 +122,9 @@ main = do
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "stablecoins" $ do
-          fit "lists all stablecoins" $ do
+          it "lists all stablecoins" $ do
             stablecoins <- circleTest config manager listAllStablecoins
-            liftIO $ print stablecoins
+            -- liftIO $ print stablecoins
             let Right CircleResponseBody {..} = stablecoins
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
