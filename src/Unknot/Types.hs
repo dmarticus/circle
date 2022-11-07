@@ -182,6 +182,10 @@ module Unknot.Types
     MockBeneficiaryBankDetails (..),
     MockSEPAPaymentBodyParams (..),
     MockPaymentData (..),
+    -- On-chain Payments API --
+    OnChainTransferRequest,
+    OnChainTransfersRequest,
+    OnChainTransferBodyParams (..)
   )
 where
 
@@ -213,6 +217,7 @@ import Data.Aeson
     (.:),
     (.:?),
   )
+import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (fromJSON)
 import Data.Bifunctor
 import Data.ByteString.Char8 qualified as BS8
@@ -528,6 +533,42 @@ paymentStatusToBS8 ActionRequired = "action_required"
 instance ToCircleParam PaymentStatusQueryParams where
   toCircleParam (PaymentStatusQueryParams xs) =
     joinQueryParams $ Params Nothing [Query ("status", BS8.intercalate "," (map paymentStatusToBS8 xs))]
+
+newtype WalletIdQueryParam = WalletIdQueryParam
+    { walletIdQueryParam :: WalletId
+    }
+    deriving (Eq, Show)
+
+instance ToCircleParam WalletIdQueryParam where
+  toCircleParam (WalletIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("walletId", TE.encodeUtf8 (unWalletId i))]
+
+newtype SourceWalletIdQueryParam = SourceWalletIdQueryParam
+  { sourceWalletIdQueryParam :: WalletId
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam SourceWalletIdQueryParam where
+  toCircleParam (SourceWalletIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("sourceWalletId", TE.encodeUtf8 (unWalletId i))]
+
+newtype DestinationWalletIdQueryParam = DestinationWalletIdQueryParam
+  { destinationWalletIdQueryParam :: WalletId
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam DestinationWalletIdQueryParam where
+  toCircleParam (DestinationWalletIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("destinationWalletId", TE.encodeUtf8 (unWalletId i))]
+
+newtype ReturnIdentitiesQueryParam = ReturnIdentitiesQueryParam
+  { returnIdentitiesQueryParam :: Bool
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam ReturnIdentitiesQueryParam where
+  toCircleParam (ReturnIdentitiesQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("returnIdentities", TE.encodeUtf8 (T.pack (show i)))]
 
 ---------------------------------------------------------------
 -- Balance endpoints
@@ -1042,10 +1083,11 @@ data TransferData = TransferData
     transferDataSource :: !(ThisOrThat SourceWallet SourceBlockchain),
     transferDataDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
     transferDataAmount :: !MoneyAmount,
-    transferDataFees :: !MoneyAmount,
+    transferDataFees :: !TransferFeeAmount,
     transferDataTransactionHash :: !(Maybe HexString),
     transferDataStatus :: !Status,
     transferDataTransferErrorCode :: !(Maybe TransferErrorCode),
+    transferDataRiskEvaluation :: !(Maybe RiskEvaluation),
     transferDataCreateDate :: !(Maybe UTCTime)
   }
   deriving (Eq, Show)
@@ -1062,10 +1104,11 @@ instance FromJSON TransferData where
           <*> o .: "destination"
           <*> o .: "amount"
           <*> o .: "fees"
-          <*> o .: "transactionHash"
+          <*> o .:? "transactionHash"
           <*> o .: "status"
-          <*> o .: "errorCode"
-          <*> o .: "createDate"
+          <*> o .:? "errorCode"
+          <*> o .:? "riskEvaluation"
+          <*> o .:? "createDate"
 
 data SourceWallet = SourceWallet
   { sourceWalletType :: !TransferType,
@@ -1843,6 +1886,27 @@ instance HasCodec MoneyAmount where
         <$> requiredField' "amount" .= moneyAmountAmount
         <*> requiredField' "currency" .= moneyAmountCurrency
 
+data TransferFeeAmount = TransferFeeAmount
+  { transferFeeAmountAmount :: !Amount,
+    transferFeeAmountCurrency :: !SupportedCurrencies,
+    transferFeeAmountType :: !Text
+  }
+  deriving (Eq, Show, Generic)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+    via (Autodocodec TransferFeeAmount)
+
+instance HasCodec TransferFeeAmount where
+  codec =
+    object "TransferFeeAmount" $
+      TransferFeeAmount
+        <$> requiredField' "amount" .= transferFeeAmountAmount
+        <*> requiredField' "currency" .= transferFeeAmountCurrency
+        <*> requiredField' "type" .= transferFeeAmountType
+
+
 data Decision = Approved | Denied | Review
   deriving (Eq, Show, Generic)
   deriving
@@ -2426,9 +2490,6 @@ type instance CircleRequest PaymentRequest = CircleResponseBody (ThisOrThat Fiat
 
 data PaymentsRequest
 
--- this motherfucker will be a heterogenous list so I have have to figure out how to work with that in Haskell.  Should be a good learning exercise.
--- type instance CircleRequest PaymentsRequest = CircleResponseBody [FiatPayment, CryptoPayment, FiatCancel, FiatRefund]
-
 type instance CircleRequest PaymentsRequest = CircleResponseBody [ThisOrThat FiatOrCryptoPaymentResponse FiatCancelOrRefund]
 
 instance CircleHasParam PaymentsRequest PaginationQueryParams
@@ -2985,3 +3046,55 @@ instance HasCodec RefundPaymentBody where
         <$> requiredField' "idempotencyKey" .= refundPaymentIdempotencyKey
         <*> requiredField' "amount" .= refundPaymentAmount
         <*> optionalField' "reason" .= refundPaymentReason
+
+---------------------------------------------------------------
+-- On-chain payments endpoints
+---------------------------------------------------------------
+
+data OnChainTransferRequest
+
+type instance CircleRequest OnChainTransferRequest = CircleResponseBody TransferData
+
+instance CircleHasParam OnChainTransferRequest ReturnIdentitiesQueryParam
+
+data OnChainTransfersRequest
+
+type instance CircleRequest OnChainTransfersRequest = CircleResponseBody [TransferData]
+
+instance CircleHasParam OnChainTransfersRequest PaginationQueryParams
+
+instance CircleHasParam OnChainTransfersRequest FromQueryParam
+
+instance CircleHasParam OnChainTransfersRequest ToQueryParam
+
+instance CircleHasParam OnChainTransfersRequest PageSizeQueryParam
+
+instance CircleHasParam OnChainTransfersRequest WalletIdQueryParam
+
+instance CircleHasParam OnChainTransfersRequest SourceWalletIdQueryParam
+
+instance CircleHasParam OnChainTransfersRequest DestinationWalletIdQueryParam
+
+instance CircleHasParam OnChainTransfersRequest ReturnIdentitiesQueryParam
+
+data OnChainAddressRequest
+
+type instance CircleRequest OnChainAddressRequest = CircleResponseBody DepositAddressData
+
+data OnChainTransferBodyParams = OnChainTransferBodyParams
+  { onChainTransferBodyParamsIdempotencyKey :: !UUID,
+    onChainTransferBodyParamsSource :: !SourceWallet,
+    onChainTransferBodyParamsDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
+    onChainTransferBodyParamsAmount :: !MoneyAmount
+  }
+  deriving (Eq, Show)
+
+instance ToJSON OnChainTransferBodyParams where
+  toJSON :: OnChainTransferBodyParams -> Aeson.Value
+  toJSON OnChainTransferBodyParams {..} = 
+    Aeson.object [
+      "idempotencyKey" Aeson..= onChainTransferBodyParamsIdempotencyKey,
+      "source" Aeson..= onChainTransferBodyParamsSource,
+      "destination" Aeson..= onChainTransferBodyParamsDestination,
+      "amount" Aeson..= onChainTransferBodyParamsAmount
+    ]

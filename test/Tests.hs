@@ -229,22 +229,22 @@ main = do
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = balances
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-      describe "transfer endpoints" $ do
+      describe "business account transfer endpoints" $ do
         describe "list transfers" $ do
           it "should list all transfers for a given business account" $ do
-            transfers <- circleTest config manager listAllTransfers
+            transfers <- circleTest config manager listAllBusinessAccountTransfers
             transfers `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = transfers
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "get transfer" $ do
-          it "will attempt to return transfer data for a single transfer" $ do
-            transfer <- circleTest config manager (getTransfer "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
+          fit "will attempt to return transfer data for a single transfer" $ do
+            transfer <- circleTest config manager (getBusinessAccountTransfer [compileUUID|e553417d-fe7a-4b7a-8d06-ff4de80a0d65|])
             transfer `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = transfer
             circleResponseCode `shouldBe` Nothing
             -- will fail if there's no such payout Id
-            circleResponseMessage `shouldBe` Just (ResponseMessage "Resource not found")
+            circleResponseMessage `shouldBe` Just (ResponseMessage "API parameter invalid")
         describe "create transfer" $ do
           it "will attempt to create a new transfer" $ do
             let transferBody =
@@ -259,12 +259,12 @@ main = do
                         USD
                     )
             -- this request will always fail if there's no money in the account
-            transferAddressNotFound <- circleTest config manager $ createTransfer transferBody
+            transferAddressNotFound <- circleTest config manager $ createBusinessAccountTransfer transferBody
             transferAddressNotFound `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = transferAddressNotFound
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Just (ResponseMessage "Address not found")
-      describe "address endpoints" $ do
+      describe "business account address endpoints" $ do
         describe "list recipient addresses" $ do
           it "should list all recipient addresses for a given business account" $ do
             recipientAddresses <- circleTest config manager listAllRecipientAddresses
@@ -301,7 +301,7 @@ main = do
                     [compileUUID|c14bf1a2-74fe-4cd5-8e74-c8c67903d849|]
                     ETH
                     ChainETH
-            depositAddress <- circleTest config manager $ createDepositAddress depositAddressBody
+            depositAddress <- circleTest config manager $ createBusinessAccountDepositAddress depositAddressBody
             depositAddress `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = depositAddress
             circleResponseCode `shouldBe` Nothing
