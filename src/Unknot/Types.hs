@@ -196,7 +196,7 @@ import Autodocodec
     requiredField',
     shownBoundedEnumCodec,
     stringConstCodec,
-    (.=),
+    (.=), eitherCodec,
   )
 import Control.Monad (guard)
 import Country
@@ -206,19 +206,19 @@ import Country
 import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRico, unitedStatesMinorOutlyingIslands, unitedStatesOfAmerica, virginIslandsUs)
 import Data.Aeson
   ( FromJSON (parseJSON),
-    Result (Error, Success),
-    ToJSON (toEncoding, toJSON),
+    -- Result (Error, Success),
+    ToJSON,
     withObject,
     withText,
     (.:),
     (.:?),
   )
-import Data.Aeson.Types (fromJSON)
+-- import Data.Aeson.Types (fromJSON)
 import Data.Bifunctor
 import Data.ByteString.Char8 qualified as BS8
 import Data.ByteString.Lazy.Char8 qualified as BSL
 import Data.Coerce (coerce)
-import Data.Foldable
+-- import Data.Foldable
 import Data.List.NonEmpty qualified as NE
 import Data.Maybe (isNothing)
 import Data.Set qualified as Set
@@ -2366,7 +2366,19 @@ utcToCircle ut =
 -- as an @A@, whether or not the property @baz: <boolean>@ is present. You
 -- can fix this by instead using @'ThisOrThat' B A@.
 data ThisOrThat a b = This a | That b
-  deriving stock (Eq)
+  deriving stock (Eq, Generic)
+  deriving (FromJSON, ToJSON) via (Autodocodec (ThisOrThat a b))
+
+instance (HasCodec a, HasCodec b) => HasCodec (ThisOrThat a b) where
+  codec = dimapCodec f g $ eitherCodec codec codec
+    where
+      f = \case
+        Left a -> This a
+        Right b -> That b
+      g = \case
+        This a -> Left a
+        That b -> Right b
+
 
 catThises :: [ThisOrThat a b] -> [a]
 catThises lst = lst >>= toThis
@@ -2387,26 +2399,26 @@ instance (Show a, Show b) => Show (ThisOrThat a b) where
     This a -> show a
     That b -> show b
 
-instance (ToJSON a, ToJSON b) => ToJSON (ThisOrThat a b) where
-  toJSON (This a) = toJSON a
-  toJSON (That b) = toJSON b
-  toEncoding (This a) = toEncoding a
-  toEncoding (That b) = toEncoding b
+-- instance (ToJSON a, ToJSON b) => ToJSON (ThisOrThat a b) where
+--   toJSON (This a) = toJSON a
+--   toJSON (That b) = toJSON b
+--   toEncoding (This a) = toEncoding a
+--   toEncoding (That b) = toEncoding b
 
-instance (FromJSON a, FromJSON b) => FromJSON (ThisOrThat a b) where
-  parseJSON val = do
-    let parsedA = fromJSON val
-        parsedB = fromJSON val
-    case (parsedA, parsedB) of
-      (Success a, _) -> pure $ This a
-      (_, Success b) -> pure $ That b
-      (Error thisError, Error thatError) ->
-        fail $
-          fold
-            [ "Failed when parsing a ThisOrThat from JSON.\n",
-              "Error on the This: " <> thisError <> "\n",
-              "Error on the That: " <> thatError
-            ]
+-- instance (FromJSON a, FromJSON b) => FromJSON (ThisOrThat a b) where
+--   parseJSON val = do
+--     let parsedA = fromJSON val
+--         parsedB = fromJSON val
+--     case (parsedA, parsedB) of
+--       (Success a, _) -> pure $ This a
+--       (_, Success b) -> pure $ That b
+--       (Error thisError, Error thatError) ->
+--         fail $
+--           fold
+--             [ "Failed when parsing a ThisOrThat from JSON.\n",
+--               "Error on the This: " <> thisError <> "\n",
+--               "Error on the That: " <> thatError
+--             ]
 
 instance Bifunctor ThisOrThat where
   bimap f _ (This a) = This (f a)
