@@ -283,17 +283,6 @@ listAllDeposits = do
     url = "businessAccount/deposits"
     params = Params Nothing []
 
--- | Create mock Silvergate payment SANDBOX ONLY
--- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
--- In the sandbox environment, initiate a mock SEN transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
--- https://developers.circle.com/developer/reference/createmocksenpayment
-createMockSilvergatePayment :: MockSilvergatePaymentBodyParams -> CircleAPIRequest MockSilvergatePaymentRequest TupleBS8 BSL.ByteString
-createMockSilvergatePayment silvergateBody = do
-  mkCircleAPIRequest NHTM.methodPost url params
-  where
-    url = "mocks/payments/sen"
-    params = Params (Just $ Body (encode silvergateBody)) []
-
 ---------------------------------------------------------------
 -- Silvergate SEN Endpoints
 ---------------------------------------------------------------
@@ -356,7 +345,7 @@ createPayment createPaymentBody = do
     url = "payments"
     params = Params (Just $ Body (encode createPaymentBody)) []
 
--- Get a payment (fiat or Crypto)
+-- | Get a payment (fiat or Crypto)
 -- https://developers.circle.com/developer/reference/payments-payments-get-id
 getPayment :: UUID -> CircleAPIRequest PaymentRequest TupleBS8 BSL.ByteString
 getPayment paymentId = do
@@ -365,7 +354,7 @@ getPayment paymentId = do
     url = "payments/" <> unUUID paymentId
     params = Params Nothing []
 
--- Cancel a fiat payment
+-- | Cancel a fiat payment
 -- https://developers.circle.com/developer/reference/payments-payments-cancel-id
 cancelPayment :: UUID -> CancelPaymentBody -> CircleAPIRequest PaymentRequest TupleBS8 BSL.ByteString
 cancelPayment paymentId cancelPaymentBody = do
@@ -374,6 +363,47 @@ cancelPayment paymentId cancelPaymentBody = do
     url = "payments/" <> unUUID paymentId <> "/cancel"
     params = Params (Just $ Body (encode cancelPaymentBody)) []
 
+-- | Refund a fiat payment
+-- https://developers.circle.com/developer/reference/payments-payments-refund-id
+refundPayment :: UUID -> RefundPaymentBody -> CircleAPIRequest PaymentRequest TupleBS8 BSL.ByteString
+refundPayment paymentId refundPaymentBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "payments/" <> unUUID paymentId <> "/refund"
+    params = Params (Just $ Body (encode refundPaymentBody)) []
+
+-- | Create mock Silvergate payment SANDBOX ONLY
+-- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
+-- In the sandbox environment, initiate a mock SEN transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
+-- https://developers.circle.com/developer/reference/createmocksenpayment
+createMockSilvergatePayment :: MockSenOrWirePaymentBodyParams -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
+createMockSilvergatePayment senBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "mocks/payments/sen"
+    params = Params (Just $ Body (encode senBody)) []
+
+-- | Create mock wire payment SANDBOX ONLY
+-- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
+-- In the sandbox environment, initiate a mock wire transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
+-- https://developers.circle.com/developer/reference/createmockwirepayment
+createMockWirePayment :: MockSenOrWirePaymentBodyParams -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
+createMockWirePayment wireBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "mocks/payments/wire"
+    params = Params (Just $ Body (encode wireBody)) []
+
+-- | Create mock wire payment SANDBOX ONLY
+-- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
+-- In the sandbox environment, initiate a mock wire transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
+-- https://developers.circle.com/developer/reference/createmockwirepayment
+createMockSEPAPayment :: MockSEPAPaymentBodyParams -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
+createMockSEPAPayment sepaBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "mocks/payments/sepa"
+    params = Params (Just $ Body (encode sepaBody)) []
 
 ---------------------------------------------------------------
 -- Utility methods for calling Circle's API
