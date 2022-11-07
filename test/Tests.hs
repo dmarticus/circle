@@ -304,24 +304,6 @@ main = do
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = deposits
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-        -- TODO, this test fails and my guess is because the beneficiary should have all the details.  I'll try to fix this later.
-        describe "mock payments" $ do
-          xit "should create a mock silvergate payment" $ do
-            let mockSilvergatePaymentBody =
-                  MockSilvergatePaymentBodyParams
-                    (TrackingReference "CIR13FB13A")
-                    ( MoneyAmount
-                        (Amount "100.00")
-                        USD
-                    )
-                    ( MockBeneficiaryBankDetails
-                        [compileAccountNumber|446043103366|]
-                    )
-            mockSilvergatePayment <- circleTest config manager $ createMockSilvergatePayment mockSilvergatePaymentBody
-            mockSilvergatePayment `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSilvergatePayment
-            circleResponseCode `shouldBe` Nothing
-            circleResponseMessage `shouldBe` Nothing
       describe "payout endpoints" $ do
         describe "list payouts" $ do
           -- TODO This test fails without money in the account.  I need to actually seed balances, I'll do that when I wrap that API endpoint
@@ -408,12 +390,24 @@ main = do
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = thePayment
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-        -- TODO this payment will be cancelled already bc it's on the sandbox
+        -- TODO test doesn't pass because the payment will fail immediately if it's in the sandbox
         describe "cancel payment" $ do
           xit "should cancel a newly-created payment" $ do
-            anotherNewlyCreatedPayment <- circleTest config manager $ createPayment testFiatPayment
-            anotherNewlyCreatedPayment `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseData} = anotherNewlyCreatedPayment
+            paymentToCancel <- circleTest config manager $ createPayment testFiatPayment
+            paymentToCancel `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseData} = paymentToCancel
+            let Just (This FiatOrCryptoPaymentResponse {fiatOrCryptoPaymentId}) = circleResponseData
+            cancellablePayment <- circleTest config manager $ cancelPayment fiatOrCryptoPaymentId testCancelPaymentBody
+            cancellablePayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = cancellablePayment
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        -- TODO test doesn't pass because the payment will fail immediately if it's in the sandbox
+        describe "refund payment" $ do
+          xit "should refund a newly-created payment" $ do
+            paymentToRefund <- circleTest config manager $ createPayment testFiatPayment
+            paymentToRefund `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseData} = paymentToRefund
             let Just (This FiatOrCryptoPaymentResponse {fiatOrCryptoPaymentId}) = circleResponseData
             cancellablePayment <- circleTest config manager $ cancelPayment fiatOrCryptoPaymentId testCancelPaymentBody
             cancellablePayment `shouldSatisfy` isRight
@@ -427,3 +421,51 @@ main = do
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payments
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
+        -- TODO, this test fails and my guess is because the beneficiary should have all the details.  I'll try to fix this later.
+        describe "mock payments" $ do
+          xit "should create a mock silvergate payment" $ do
+            let mockSilvergatePaymentBody =
+                  MockSenOrWirePaymentBodyParams
+                    (TrackingReference "CIR13FB13A")
+                    ( MoneyAmount
+                        (Amount "100.00")
+                        USD
+                    )
+                    ( MockBeneficiaryBankDetails
+                        [compileAccountNumber|446043103366|]
+                    )
+            mockSilvergatePayment <- circleTest config manager $ createMockSilvergatePayment mockSilvergatePaymentBody
+            mockSilvergatePayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSilvergatePayment
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+          xit "should create a mock wire payment" $ do
+            let mockWirePaymentBody =
+                  MockSenOrWirePaymentBodyParams
+                    (TrackingReference "CIR13FB13A")
+                    ( MoneyAmount
+                        (Amount "100.00")
+                        USD
+                    )
+                    ( MockBeneficiaryBankDetails
+                        [compileAccountNumber|446043103366|]
+                    )
+            mockSilvergatePayment <- circleTest config manager $ createMockWirePayment mockWirePaymentBody
+            mockSilvergatePayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSilvergatePayment
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+          xit "should create a mock silvergate payment" $ do
+            let mockSEPAPaymentBody =
+                  MockSEPAPaymentBodyParams
+                    (TrackingReference "CIR13FB13A")
+                    ( MoneyAmount
+                        (Amount "100.00")
+                        USD
+                    )
+            mockSepaPayment <- circleTest config manager $ createMockSEPAPayment mockSEPAPaymentBody
+            mockSepaPayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSepaPayment
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+          

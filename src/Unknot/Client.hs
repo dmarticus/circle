@@ -405,6 +405,8 @@ createMockSEPAPayment sepaBody = do
     url = "mocks/payments/sepa"
     params = Params (Just $ Body (encode sepaBody)) []
 
+-- TODO add capture payment??
+
 ---------------------------------------------------------------
 -- Utility methods for calling Circle's API
 ---------------------------------------------------------------
