@@ -162,18 +162,19 @@ module Unknot.Types
     catThises,
     thisOrThat,
     thisOrThatToEither,
+    ThisOrThat (..),
     -- Payments API --
     -- Payments endpoints
     PaymentRequest,
     PaymentsRequest,
     CreatePaymentBody (..),
-    CryptoPayment (..),
-    FiatPayment (..),
+    -- CryptoPayment (..),
+    FiatOrCryptoPaymentResponse (..),
     CreatePaymentMetadata (..),
     PaymentErrorCode (..),
     PaymentMetadata (..),
-    FiatRefund (..),
-    FiatCancel (..),
+    FiatCancelOrRefund (..),
+    -- FiatCancel (..),
     VerificationType (..),
     PaymentSource (..),
     PaymentSourceType (..)
@@ -2408,14 +2409,14 @@ thisOrThat f g tot = either f g $ thisOrThatToEither tot
 
 data PaymentRequest
 
-type instance CircleRequest PaymentRequest = CircleResponseBody (ThisOrThat FiatPayment CryptoPayment)
+type instance CircleRequest PaymentRequest = CircleResponseBody (ThisOrThat FiatOrCryptoPaymentResponse FiatCancelOrRefund)
 
 data PaymentsRequest
 
 -- this motherfucker will be a heterogenous list so I have have to figure out how to work with that in Haskell.  Should be a good learning exercise.
 -- type instance CircleRequest PaymentsRequest = CircleResponseBody [FiatPayment, CryptoPayment, FiatCancel, FiatRefund]
 
-type instance CircleRequest PaymentsRequest = CircleResponseBody [FiatPayment]
+type instance CircleRequest PaymentsRequest = CircleResponseBody [ThisOrThat FiatOrCryptoPaymentResponse FiatCancelOrRefund]
 
 instance CircleHasParam PaymentsRequest PaginationQueryParams
 
@@ -2477,7 +2478,6 @@ instance HasCodec CreatePaymentBody where
         <*> optionalField' "cvv" .= createPaymentCVV
         <*> optionalField' "channel" .= createPaymentChannel
 
--- TODO
 data CreatePaymentMetadata = CreatePaymentMetadata
   { createPaymentMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
     createPaymentMetadataPhoneNumber :: !(Maybe Text), -- TODO this screams newtype w/ smart constructor
@@ -2588,110 +2588,86 @@ instance HasCodec PaymentErrorCode where
           (PaymentVendorInactive, "vendor_inactive")
         ]
 
-data FiatPayment = FiatPayment
-  { fiatPaymentId :: !UUID,
-    fiatPaymentType :: !PaymentType,
-    fiatPaymentMerchantId :: !UUID,
-    fiatPaymentMerchantWalletId :: !WalletId,
-    fiatPaymentAmount :: !MoneyAmount,
-    fiatPaymentSource :: !PaymentSource,
-    fiatPaymentDescription :: !Text, -- TODO this should be an enum that just says "Payment"
-    fiatPaymentStatus :: !PaymentStatus,
-    fiatPaymentVerification :: !(Maybe VerificationData),
-    fiatPaymentCaptured :: !(Maybe Bool),
-    fiatPaymentCaptureAmount :: !(Maybe MoneyAmount),
-    fiatPaymentCaptureDate :: !(Maybe UTCTime),
-    fiatPaymentRequiredAction :: !(Maybe PaymentActionRequired),
-    fiatPaymentCancel :: !(Maybe FiatCancel),
-    fiatPaymentRefunds :: ![FiatRefund],
-    fiatPaymentFees :: !(Maybe MoneyAmount),
-    fiatPaymentChannel :: !(Maybe Text), -- TODO this needs a type
-    fiatPaymentCreateDate :: !(Maybe UTCTime),
-    fiatPaymentUpdateDate :: !(Maybe UTCTime),
-    fiatPaymentTrackingRef :: !(Maybe TrackingReference),
-    fiatPaymentErrorCode :: !(Maybe PaymentErrorCode),
-    fiatPaymentMetadata :: !(Maybe PaymentMetadata),
-    fiatPaymentRiskEvaluation :: !(Maybe RiskEvaluation)
+-- TODO could likely make a better abstraction here
+-- | A FiatOrCryptoPaymentResponse object represents a fiat or crypto payment.  These payments look identical 
+-- except for the "Description" field, and the fact that a FiatPayment could have response verification data, whereas
+-- a crypto payment could have info about the deposit address, transaction hash etc.
+-- I'd love to differentiate these fields based on what I can parse from JSON, but there's enough overlap between
+-- the two response bodies that I can cheat for now.
+data FiatOrCryptoPaymentResponse = FiatOrCryptoPaymentResponse
+  { -- the following fields will be present on every response
+    fiatOrCryptoPaymentId :: !UUID,
+    fiatOrCryptoPaymentType :: !PaymentType,
+    fiatOrCryptoPaymentMerchantId :: !UUID,
+    fiatOrCryptoPaymentMerchantWalletId :: !WalletId,
+    fiatOrCryptoPaymentAmount :: !MoneyAmount,
+    fiatOrCryptoPaymentSource :: !PaymentSource,
+    fiatOrCryptoPaymentDescription :: !Text, -- TODO this should be an enum that just says "Payment"
+    fiatOrCryptoPaymentStatus :: !PaymentStatus,
+    -- the following fields will only be present on Crypto payments
+    fiatOrCryptoPaymentPaymentIntentId :: !(Maybe UUID),
+    fiatOrCryptoPaymentSettlementAmount :: !(Maybe MoneyAmount), -- TODO this will probably change to not use Centi
+    fiatOrCryptoPaymentDepositAddress :: !(Maybe PaymentDepositAddress),
+    fiatOrCryptoPaymentTransactionHash :: !(Maybe Text), -- TODO this is probably a HexString too
+    -- the following fields will only be present on fiat payments
+    fiatOrCryptoPaymentVerification :: !(Maybe VerificationData),
+    fiatOrCryptoPaymentCaptured :: !(Maybe Bool),
+    fiatOrCryptoPaymentCaptureAmount :: !(Maybe MoneyAmount),
+    fiatOrCryptoPaymentCaptureDate :: !(Maybe UTCTime),
+    fiatOrCryptoPaymentRequiredAction :: !(Maybe PaymentActionRequired),
+    fiatOrCryptoPaymentCancel :: !(Maybe FiatCancelOrRefund),
+    fiatOrCryptoPaymentRefunds :: !(Maybe [FiatCancelOrRefund]),
+    fiatOrCryptoPaymentFees :: !(Maybe MoneyAmount),
+    fiatOrCryptoPaymentChannel :: !(Maybe Text), -- TODO this needs a type
+    fiatOrCryptoPaymentCreateDate :: !(Maybe UTCTime),
+    fiatOrCryptoPaymentUpdateDate :: !(Maybe UTCTime),
+    fiatOrCryptoPaymentTrackingRef :: !(Maybe TrackingReference),
+    fiatOrCryptoPaymentErrorCode :: !(Maybe PaymentErrorCode),
+    fiatOrCryptoPaymentMetadata :: !(Maybe PaymentMetadata),
+    fiatOrCryptoPaymentRiskEvaluation :: !(Maybe RiskEvaluation)
   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec FiatPayment)
+    via (Autodocodec FiatOrCryptoPaymentResponse)
 
-instance HasCodec FiatPayment where
+instance HasCodec FiatOrCryptoPaymentResponse where
   codec =
-    object "FiatPayment" $
-      FiatPayment
-        <$> requiredField' "id" .= fiatPaymentId
-        <*> requiredField' "type" .= fiatPaymentType
-        <*> requiredField' "merchantId" .= fiatPaymentMerchantId
-        <*> requiredField' "merchantWalletId" .= fiatPaymentMerchantWalletId
-        <*> requiredField' "amount" .= fiatPaymentAmount
-        <*> requiredField' "source" .= fiatPaymentSource
-        <*> requiredField' "description" .= fiatPaymentDescription
-        <*> requiredField' "status" .= fiatPaymentStatus
-        <*> optionalField' "verification" .= fiatPaymentVerification
-        <*> optionalField' "captured" .= fiatPaymentCaptured
-        <*> optionalField' "captureAmount" .= fiatPaymentCaptureAmount
-        <*> optionalField' "captureDate" .= fiatPaymentCaptureDate
-        <*> optionalField' "requiredAction" .= fiatPaymentRequiredAction
-        <*> optionalField' "cancel" .= fiatPaymentCancel
-        <*> requiredField' "refunds" .= fiatPaymentRefunds
-        <*> optionalField' "fees" .= fiatPaymentFees
-        <*> optionalField' "channel" .= fiatPaymentChannel
-        <*> optionalField' "createDate" .= fiatPaymentCreateDate
-        <*> optionalField' "updateDate" .= fiatPaymentUpdateDate
-        <*> optionalField' "trackingRef" .= fiatPaymentTrackingRef
-        <*> optionalField' "errorCode" .= fiatPaymentErrorCode
-        <*> optionalField' "metadata" .= fiatPaymentMetadata
-        <*> optionalField' "channel" .= fiatPaymentRiskEvaluation
-
--- TODO unite these payment objects!  MAybe?
-data CryptoPayment = CryptoPayment
-  { cryptoPaymentId :: !UUID,
-    cryptoPaymentType :: !PaymentType,
-    cryptoPaymentMerchantId :: !UUID,
-    cryptoPaymentMerchantWalletId :: !WalletId,
-    cryptoPaymentMerchantAmount :: !MoneyAmount,
-    cryptoPaymentStatus :: !PaymentStatus,
-    cryptoPaymentFees :: !(Maybe MoneyAmount),
-    cryptoPaymentPaymentIntentId :: !(Maybe UUID),
-    cryptoPaymentSettlementAmount :: !(Maybe MoneyAmount), -- TODO this will probably change to not use Centi
-    cryptoPaymentDepositAddress :: !(Maybe PaymentDepositAddress),
-    cryptoPaymentTransactionHash :: !(Maybe Text), -- TODO this is probably a HexString too
-    cryptoPaymentCreateDate :: !(Maybe UTCTime),
-    cryptoPaymentUpdateDate :: !(Maybe UTCTime)
-  }
-  deriving (Eq, Show)
-  deriving
-    ( FromJSON,
-      ToJSON
-    )
-    via (Autodocodec CryptoPayment)
-
-instance HasCodec CryptoPayment where
-  codec =
-    object "CryptoPayment" $
-      CryptoPayment
-        <$> requiredField' "id" .= cryptoPaymentId
-        <*> requiredField' "type" .= cryptoPaymentType
-        <*> requiredField' "merchantId" .= cryptoPaymentMerchantId
-        <*> requiredField' "merchantWalletId" .= cryptoPaymentMerchantWalletId
-        <*> requiredField' "amount" .= cryptoPaymentMerchantAmount
-        <*> requiredField' "status" .= cryptoPaymentStatus
-        <*> optionalField' "fees" .= cryptoPaymentFees
-        <*> optionalField' "paymentIntentId" .= cryptoPaymentPaymentIntentId
-        <*> optionalField' "settlementAmount" .= cryptoPaymentSettlementAmount
-        <*> optionalField' "depositAddress" .= cryptoPaymentDepositAddress
-        <*> optionalField' "transactionHash" .= cryptoPaymentTransactionHash
-        <*> optionalField' "createDate" .= cryptoPaymentCreateDate
-        <*> optionalField' "updateDate" .= cryptoPaymentUpdateDate
+    object "FiatOrCryptoPaymentResponse" $
+      FiatOrCryptoPaymentResponse
+        <$> requiredField' "id" .= fiatOrCryptoPaymentId
+        <*> requiredField' "type" .= fiatOrCryptoPaymentType
+        <*> requiredField' "merchantId" .= fiatOrCryptoPaymentMerchantId
+        <*> requiredField' "merchantWalletId" .= fiatOrCryptoPaymentMerchantWalletId
+        <*> requiredField' "amount" .= fiatOrCryptoPaymentAmount
+        <*> requiredField' "source" .= fiatOrCryptoPaymentSource
+        <*> requiredField' "description" .= fiatOrCryptoPaymentDescription
+        <*> requiredField' "status" .= fiatOrCryptoPaymentStatus
+        <*> optionalField' "paymentIntentId" .= fiatOrCryptoPaymentPaymentIntentId
+        <*> optionalField' "settlementAmount" .= fiatOrCryptoPaymentSettlementAmount
+        <*> optionalField' "depositAddress" .= fiatOrCryptoPaymentDepositAddress
+        <*> optionalField' "transactionHash" .= fiatOrCryptoPaymentTransactionHash
+        <*> optionalField' "verification" .= fiatOrCryptoPaymentVerification
+        <*> optionalField' "captured" .= fiatOrCryptoPaymentCaptured
+        <*> optionalField' "captureAmount" .= fiatOrCryptoPaymentCaptureAmount
+        <*> optionalField' "captureDate" .= fiatOrCryptoPaymentCaptureDate
+        <*> optionalField' "requiredAction" .= fiatOrCryptoPaymentRequiredAction
+        <*> optionalField' "cancel" .= fiatOrCryptoPaymentCancel
+        <*> optionalField' "refunds" .= fiatOrCryptoPaymentRefunds
+        <*> optionalField' "fees" .= fiatOrCryptoPaymentFees
+        <*> optionalField' "channel" .= fiatOrCryptoPaymentChannel
+        <*> optionalField' "createDate" .= fiatOrCryptoPaymentCreateDate
+        <*> optionalField' "updateDate" .= fiatOrCryptoPaymentUpdateDate
+        <*> optionalField' "trackingRef" .= fiatOrCryptoPaymentTrackingRef
+        <*> optionalField' "errorCode" .= fiatOrCryptoPaymentErrorCode
+        <*> optionalField' "metadata" .= fiatOrCryptoPaymentMetadata
+        <*> optionalField' "channel" .= fiatOrCryptoPaymentRiskEvaluation
 
 data PaymentMetadata = PaymentMetadata
   { paymentMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
-    paymentMetadataPhoneNumber :: !Text -- TODO this screams newtype w/ smart constructor
+    paymentMetadataPhoneNumber :: !(Maybe Text) -- TODO this screams newtype w/ smart constructor
   }
   deriving (Eq, Show)
   deriving
@@ -2705,7 +2681,7 @@ instance HasCodec PaymentMetadata where
     object "PaymentMetadata" $
       PaymentMetadata
         <$> requiredField' "email" .= paymentMetadataEmail
-        <*> requiredField' "phoneNumber" .= paymentMetadataPhoneNumber
+        <*> optionalField' "phoneNumber" .= paymentMetadataPhoneNumber
 
 data VerificationData = VerificationData
   { verificationAVS :: !AVS,
@@ -2765,94 +2741,54 @@ instance HasCodec PaymentDepositAddress where
         <$> requiredField' "chain" .= paymentDepositAddressChain
         <*> requiredField' "address" .= paymentDepositAddressAddress
 
--- TODO: the subsequent two types look exactly the same but one is of type Cancel and the other is of type Refund.
--- How to do this in Haskell?
-data FiatRefund = FiatRefund
-  { fiatRefundId :: !UUID,
-    fiatRefundType :: !PaymentType,
-    fiatRefundMerchantId :: !UUID,
-    fiatRefundMerchantWalletId :: !WalletId,
-    fiatRefundAmount :: !MoneyAmount,
-    fiatRefundSource :: !PaymentSource,
-    fiatRefundDescription :: !Text, -- TODO description enum
-    fiatRefundStatus :: !PaymentStatus,
-    fiatRefundOriginalPayment :: !OriginalFiatPayment,
-    fiatRefundFees :: !(Maybe MoneyAmount),
-    fiatRefundChannel :: !(Maybe Text),
-    fiatRefundReason :: !Text, -- TODO feels like something that could have an enum
-    fiatRefundCreateDate :: !UTCTime,
-    fiatRefundUpdateDate :: !UTCTime
-  }
-  deriving (Eq, Show)
-  deriving
-    ( FromJSON,
-      ToJSON
-    )
-    via (Autodocodec FiatRefund)
-
-instance HasCodec FiatRefund where
-  codec =
-    object "FiatRefund" $
-      FiatRefund
-        <$> requiredField' "id" .= fiatRefundId
-        <*> requiredField' "type" .= fiatRefundType
-        <*> requiredField' "merchantId" .= fiatRefundMerchantId
-        <*> requiredField' "merchantWalletId" .= fiatRefundMerchantWalletId
-        <*> requiredField' "amount" .= fiatRefundAmount
-        <*> requiredField' "source" .= fiatRefundSource
-        <*> requiredField' "description" .= fiatRefundDescription
-        <*> requiredField' "status" .= fiatRefundStatus
-        <*> requiredField' "originalPayment" .= fiatRefundOriginalPayment
-        <*> optionalField' "fees" .= fiatRefundFees
-        <*> optionalField' "channel" .= fiatRefundChannel
-        <*> requiredField' "reason" .= fiatRefundReason
-        <*> requiredField' "createDate" .= fiatRefundCreateDate
-        <*> requiredField' "updateDate" .= fiatRefundUpdateDate
-
--- | A FiatCancel object represents an attempt at canceling a payment.
+-- | A FiatCancelOrRefund object represents an attempt at canceling or refunding a payment.
 -- Cancellations apply only to card payments, and its presence doesn't necessarily mean that the cancellation was successful.
--- A successful cancellation has a status of paid.
-data FiatCancel = FiatCancel
-  { fiatCancelId :: !UUID,
-    fiatCancelType :: !PaymentType,
-    fiatCancelMerchantId :: !UUID,
-    fiatCancelMerchantWalletId :: !WalletId,
-    fiatCancelAmount :: !MoneyAmount,
-    fiatCancelSource :: !PaymentSource,
-    fiatCancelDescription :: !Text, -- TODO description enum
-    fiatCancelStatus :: !PaymentStatus,
-    fiatCancelOriginalPayment :: !OriginalFiatPayment,
-    fiatCancelFees :: !(Maybe MoneyAmount),
-    fiatCancelChannel :: !(Maybe Text),
-    fiatCancelReason :: !Text, -- TODO feels like something that could have an enum
-    fiatCancelCreateDate :: !UTCTime,
-    fiatCancelUpdateDate :: !UTCTime
+-- A successful cancellation has a status of paid, a successful refund has a status of confirmed.
+-- TODO I could likely do some better data modeling here, there's a ton of shared fields between these 
+-- types so I kinda cheated and just made one mega type with maybes, but it'll be more ergonomic for devs
+-- to have a specific type that's generated from the parsing.  The tricky part is the differentiator is the
+-- field `type`, so I think I'll need to be clever about this.
+data FiatCancelOrRefund = FiatCancelOrRefund
+  { fiatCancelOrRefundId :: !UUID,
+    fiatCancelOrRefundType :: !PaymentType,
+    fiatCancelOrRefundMerchantId :: !UUID,
+    fiatCancelOrRefundMerchantWalletId :: !WalletId,
+    fiatCancelOrRefundAmount :: !MoneyAmount,
+    fiatCancelOrRefundSource :: !PaymentSource,
+    fiatCancelOrRefundDescription :: !Text, -- TODO description enum
+    fiatCancelOrRefundStatus :: !PaymentStatus,
+    fiatCancelOrRefundOriginalPayment :: !OriginalFiatPayment,
+    fiatCancelOrRefundFees :: !(Maybe MoneyAmount),
+    fiatCancelOrRefundChannel :: !(Maybe Text),
+    fiatCancelOrRefundReason :: !Text, -- TODO feels like something that could have an enum
+    fiatCancelOrRefundCreateDate :: !UTCTime,
+    fiatCancelOrRefundUpdateDate :: !UTCTime
   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec FiatCancel)
+    via (Autodocodec FiatCancelOrRefund)
 
-instance HasCodec FiatCancel where
+instance HasCodec FiatCancelOrRefund where
   codec =
-    object "FiatCancel" $
-      FiatCancel
-        <$> requiredField' "id" .= fiatCancelId
-        <*> requiredField' "type" .= fiatCancelType
-        <*> requiredField' "merchantId" .= fiatCancelMerchantId
-        <*> requiredField' "merchantWalletId" .= fiatCancelMerchantWalletId
-        <*> requiredField' "amount" .= fiatCancelAmount
-        <*> requiredField' "source" .= fiatCancelSource
-        <*> requiredField' "description" .= fiatCancelDescription
-        <*> requiredField' "status" .= fiatCancelStatus
-        <*> requiredField' "originalPayment" .= fiatCancelOriginalPayment
-        <*> optionalField' "fees" .= fiatCancelFees
-        <*> optionalField' "channel" .= fiatCancelChannel
-        <*> requiredField' "reason" .= fiatCancelReason
-        <*> requiredField' "createDate" .= fiatCancelCreateDate
-        <*> requiredField' "updateDate" .= fiatCancelUpdateDate
+    object "FiatCancelOrRefund" $
+      FiatCancelOrRefund
+        <$> requiredField' "id" .= fiatCancelOrRefundId
+        <*> requiredField' "type" .= fiatCancelOrRefundType
+        <*> requiredField' "merchantId" .= fiatCancelOrRefundMerchantId
+        <*> requiredField' "merchantWalletId" .= fiatCancelOrRefundMerchantWalletId
+        <*> requiredField' "amount" .= fiatCancelOrRefundAmount
+        <*> requiredField' "source" .= fiatCancelOrRefundSource
+        <*> requiredField' "description" .= fiatCancelOrRefundDescription
+        <*> requiredField' "status" .= fiatCancelOrRefundStatus
+        <*> requiredField' "originalPayment" .= fiatCancelOrRefundOriginalPayment
+        <*> optionalField' "fees" .= fiatCancelOrRefundFees
+        <*> optionalField' "channel" .= fiatCancelOrRefundChannel
+        <*> requiredField' "reason" .= fiatCancelOrRefundReason
+        <*> requiredField' "createDate" .= fiatCancelOrRefundCreateDate
+        <*> requiredField' "updateDate" .= fiatCancelOrRefundUpdateDate
 
 data OriginalFiatPayment = OriginalFiatPayment
   { originalFiatPaymentId :: !UUID,

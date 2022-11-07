@@ -4,7 +4,7 @@
 
 module Unknot.Client where
 
-import Control.Monad.IO.Class (liftIO)
+-- import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode, encode)
 import Data.Aeson.Types (FromJSON)
 import qualified Data.ByteString.Char8 as BS8
@@ -356,6 +356,15 @@ createPayment createPaymentBody = do
     url = "payments"
     params = Params (Just $ Body (encode createPaymentBody)) []
 
+-- Get a payment (fiat or Crypto)
+-- https://developers.circle.com/developer/reference/payments-payments-get-id
+getPayment :: UUID -> CircleAPIRequest PaymentRequest TupleBS8 BSL.ByteString
+getPayment paymentId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "payments/" <> unUUID paymentId
+    params = Params Nothing []
+
 
 ---------------------------------------------------------------
 -- Utility methods for calling Circle's API
@@ -406,9 +415,9 @@ circleTest ::
   CircleAPIRequest a TupleBS8 BSL.ByteString ->
   IO (Either CircleError (CircleRequest a))
 circleTest config tlsManager request = do
-  liftIO $ print request
+  -- liftIO $ print request
   response <- circleTest' config request tlsManager
-  liftIO $ print response
+  -- liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
     Left s -> return (Left (CircleError s response))

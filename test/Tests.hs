@@ -5,7 +5,7 @@
 
 module Main where
 
-import Control.Monad.IO.Class (liftIO)
+-- import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (for_)
 import Network.HTTP.Client (newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
@@ -49,6 +49,37 @@ testSubscriptionBody :: SubscriptionBodyParams
 testSubscriptionBody =
   SubscriptionBodyParams "https://example.org/handler/for/notifications"
 
+
+testPaymentMetadata :: CreatePaymentMetadata
+testPaymentMetadata =
+      CreatePaymentMetadata
+        "dylan@test.com"
+        Nothing
+        "DE6FA86F60BB47B379307F851E238617"
+        "244.28.239.130"
+
+testFiatPayment :: CreatePaymentBody
+testFiatPayment =
+      CreatePaymentBody
+        [compileUUID|355c8eee-8de3-484d-98fc-2eff047d0214|]
+        "key1"
+        testPaymentMetadata
+        ( MoneyAmount
+            (Amount "100.00")
+            USD
+        )
+        (Just True)
+        VerificationCVV
+        Nothing
+        Nothing
+        ( PaymentSource
+            [compileUUID|26c9db99-81c5-492a-a4eb-7a36f0f4548c|]
+            Card
+        )
+        Nothing
+        Nothing
+        Nothing
+        Nothing
 main :: IO ()
 main = do
   manager <- newManager tlsManagerSettings
@@ -235,7 +266,6 @@ main = do
                     USD
                     "test address"
             recipientAddress <- circleTest config manager $ createRecipientAddress recipientAddressBody
-            liftIO $ print recipientAddress
             recipientAddress `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddress
             circleResponseCode `shouldBe` Nothing
@@ -355,47 +385,26 @@ main = do
       describe "payments endpoint" $ do
         describe "create payment" $ do
           it "should create a payment" $ do
-            let paymentMetadata =
-                  CreatePaymentMetadata
-                    "dylan@test.com"
-                    Nothing
-                    "DE6FA86F60BB47B379307F851E238617"
-                    "244.28.239.130"
-
-            let testPayment =
-                  CreatePaymentBody
-                    [compileUUID|355c8eee-8de3-484d-98fc-2eff047d0214|]
-                    "key1"
-                    paymentMetadata
-                    ( MoneyAmount
-                        (Amount "100.00")
-                        USD
-                    )
-                    (Just True)
-                    VerificationCVV
-                    Nothing
-                    Nothing
-                    ( PaymentSource
-                        [compileUUID|26c9db99-81c5-492a-a4eb-7a36f0f4548c|]
-                        Card
-                    )
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-
-            payment <- circleTest config manager $ createPayment testPayment
-            liftIO $ print payment
+            payment <- circleTest config manager $ createPayment testFiatPayment
             payment `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payment
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
+        describe "get payment" $ do
+          it "should get a newly-created payment" $ do
+            newlyCreatedPayment <- circleTest config manager $ createPayment testFiatPayment
+            newlyCreatedPayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseData} = newlyCreatedPayment
+            let Just (This FiatOrCryptoPaymentResponse {fiatOrCryptoPaymentId}) = circleResponseData
+            thePayment <- circleTest config manager $ getPayment fiatOrCryptoPaymentId
+            thePayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = thePayment
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
         describe "list payments" $ do
           it "should list all payments" $ do
-            -- TODO this gets more exciting after we have some payments to list
             payments <- circleTest config manager listAllPayments
             payments `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payments
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-            -- TODO add query string tests

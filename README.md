@@ -21,6 +21,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 
 - [x] Use custom types as much as possible.  Use smart constructors to give better type-safety.
 - [x] Split the code into more modules so it's easier to navigate around the various different bits.  Seems like better organization than one mega module.  Or, if you don't split it up, at _least_ put some comments breaking up different sections.
+- [ ] Figure out how to model the `FiatOrCryptoPaymentResponse` and `FiatCancelOrRefund` types a bit better.  There's enough overlap that I can parse them pretty easily but I feel like I could make it more ergonomic to parse more intentionally.
 
 ### Infrastructure
 - [ ] Add CI pipeline to run tests
