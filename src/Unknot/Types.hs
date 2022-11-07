@@ -2438,20 +2438,6 @@ instance CircleHasParam PaymentsRequest SettlementIdQueryParam
 
 instance CircleHasParam PaymentsRequest PaymentIntentIdQueryParam
 
--- data PaymentListReturnTypes
---   = ListFiatPayment !FiatPayment
---   | ListCryptoPayment !CryptoPayment
---   | ListFiatCancel !FiatCancel
---   | ListFiatRefund !FiatRefund
---   deriving (Eq, Show)
---   deriving
---   ( FromJSON,
---     ToJSON
---   )
---   via (Autodocodec PaymentListReturnTypes)
-
-
-
 data CreatePaymentBody = CreatePaymentBody
   { createPaymentIdempotencyKey :: !UUID,
     createPaymentKeyId :: !Text, -- TODO this is actually a UUID, but in Sandbox it has to be `key1`.  Figure out how to reconcile this later.
