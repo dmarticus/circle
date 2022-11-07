@@ -207,7 +207,7 @@ import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRi
 import Data.Aeson
   ( FromJSON (parseJSON),
     Result (Error, Success),
-    ToJSON (toEncoding, toJSON),
+    ToJSON (toJSON, toEncoding),
     withObject,
     withText,
     (.:),
@@ -280,6 +280,8 @@ data CircleResponseBody a = CircleResponseBody
   }
   deriving (Eq, Show)
 
+-- NB: This type parses every response from the Circle API, so I can't use Autodocodec to derive FromJSON here
+-- because I'm using ThisOrThat (see below) as a smart parser for certain types, and that type doesn't have Autodocodec instances
 instance FromJSON a => FromJSON (CircleResponseBody a) where
   parseJSON = withObject "CircleResponseBody" parse
     where
@@ -291,14 +293,20 @@ instance FromJSON a => FromJSON (CircleResponseBody a) where
 
 -- these types have to do with Circle's actual API
 newtype ResponseStatus = ResponseStatus
-  { unResponseStatus :: Integer
+  { unResponseStatus :: Int
   }
   deriving (Eq, Show, FromJSON)
+
+instance HasCodec ResponseStatus where
+  codec = dimapCodec ResponseStatus unResponseStatus codec
 
 newtype ResponseMessage = ResponseMessage
   { unResponseMessage :: Text
   }
   deriving (Eq, Show, FromJSON)
+
+instance HasCodec ResponseMessage where
+  codec = dimapCodec ResponseMessage unResponseMessage codec
 
 type Reply = Response BSL.ByteString
 
@@ -745,14 +753,14 @@ data EncryptionData = EncryptionData
     encryptionDataPublicKey :: !Text -- TODO is there a PGP key type in Haskell?
   }
   deriving (Eq, Show)
+  deriving (ToJSON, FromJSON) via (Autodocodec EncryptionData)
 
-instance FromJSON EncryptionData where
-  parseJSON = withObject "EncryptionData" parse
-    where
-      parse o =
-        EncryptionData
-          <$> o .: "keyId"
-          <*> o .: "publicKey"
+instance HasCodec EncryptionData where
+  codec =
+    object "EncryptionData" $
+      EncryptionData
+        <$> requiredField' "keyId" .= encryptionDataKeyId
+        <*> requiredField' "publicKey" .= encryptionDataPublicKey
 
 ---------------------------------------------------------------
 -- Channels endpoint
@@ -848,7 +856,7 @@ instance HasCodec ChainAmount where
         <*> requiredField' "chain" .= chainAmountChain
         <*> requiredField' "updateDate" .= chainAmountUpdateDate
 
-data Chain = ALGO | AVAX | ChainBTC | ChainETH | FLOW | HBAR | MATIC | SOL | TRX | XLM
+data Chain = ALGO | ARB | AVAX | ChainBTC | ChainETH | FLOW | HBAR | MATIC | SOL | TRX | XLM
   deriving (Eq, Show)
   deriving
     ( FromJSON,
@@ -861,6 +869,7 @@ instance HasCodec Chain where
     stringConstCodec $
       NE.fromList
         [ (ALGO, "ALGO"),
+          (ARB, "ARB"),
           (AVAX, "AVAX"),
           (ChainBTC, "BTC"),
           (ChainETH, "ETH"),
@@ -1041,27 +1050,8 @@ data TransferData = TransferData
   }
   deriving (Eq, Show)
 
---   deriving
---     ( FromJSON,
---       ToJSON
---     )
---     via (Autodocodec TransferData)
-
--- instance HasCodec TransferData where
---   codec =
---     object "TransferData" $
---       TransferData
---         <$> requiredField' "id" .= transferDataId
---         <*> requiredField' "source" .= transferDataSource
---         <*> requiredField' "destination" .= transferDataDestination
---         <*> requiredField' "amount" .= transferDataAmount
---         <*> requiredField' "fees" .= transferDataFees
---         <*> optionalField' "transactionHash" .= transferDataTransactionHash
---         <*> requiredField' "status" .= transferDataStatus
---         <*> optionalField' "errorCode" .= transferDataTransferErrorCode
---         <*> optionalField' "createDate" .= transferDataCreateDate
-
--- TODO: Need to keep this as vanilla aeson since Idk how to do HasCodec instances for ThisOrThat
+-- NB: this doesn't use Autodocodec for deriving ToJSON and FromJSON since I'm using the hand-rolled
+-- ThisOrThat helper for smartly parsing types.  
 instance FromJSON TransferData where
   parseJSON = withObject "TransferData" parse
     where
@@ -2366,7 +2356,8 @@ utcToCircle ut =
 -- as an @A@, whether or not the property @baz: <boolean>@ is present. You
 -- can fix this by instead using @'ThisOrThat' B A@.
 data ThisOrThat a b = This a | That b
-  deriving stock (Eq)
+  deriving stock (Eq, Generic)
+
 
 catThises :: [ThisOrThat a b] -> [a]
 catThises lst = lst >>= toThis

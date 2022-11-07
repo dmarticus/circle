@@ -124,6 +124,7 @@ main = do
         describe "stablecoins" $ do
           it "lists all stablecoins" $ do
             stablecoins <- circleTest config manager listAllStablecoins
+            -- liftIO $ print stablecoins
             let Right CircleResponseBody {..} = stablecoins
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
