@@ -80,6 +80,13 @@ testFiatPayment =
         Nothing
         Nothing
         Nothing
+
+testCancelPaymentBody :: CancelPaymentBody
+testCancelPaymentBody =
+      CancelPaymentBody
+        [compileUUID|65d6ccee-cb53-40ea-8be6-4e9485b50bb5|]
+        (Just CancelPaymentReasonDuplicate)
+
 main :: IO ()
 main = do
   manager <- newManager tlsManagerSettings
@@ -399,6 +406,18 @@ main = do
             thePayment <- circleTest config manager $ getPayment fiatOrCryptoPaymentId
             thePayment `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = thePayment
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        -- TODO this payment will be cancelled already bc it's on the sandbox
+        describe "cancel payment" $ do
+          xit "should cancel a newly-created payment" $ do
+            anotherNewlyCreatedPayment <- circleTest config manager $ createPayment testFiatPayment
+            anotherNewlyCreatedPayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseData} = anotherNewlyCreatedPayment
+            let Just (This FiatOrCryptoPaymentResponse {fiatOrCryptoPaymentId}) = circleResponseData
+            cancellablePayment <- circleTest config manager $ cancelPayment fiatOrCryptoPaymentId testCancelPaymentBody
+            cancellablePayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = cancellablePayment
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "list payments" $ do

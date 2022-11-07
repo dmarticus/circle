@@ -177,7 +177,9 @@ module Unknot.Types
     -- FiatCancel (..),
     VerificationType (..),
     PaymentSource (..),
-    PaymentSourceType (..)
+    PaymentSourceType (..),
+    CancelPaymentBody (..),
+    CancelPaymentReason (..)
   )
 where
 
@@ -2760,7 +2762,7 @@ data FiatCancelOrRefund = FiatCancelOrRefund
     fiatCancelOrRefundOriginalPayment :: !OriginalFiatPayment,
     fiatCancelOrRefundFees :: !(Maybe MoneyAmount),
     fiatCancelOrRefundChannel :: !(Maybe Text),
-    fiatCancelOrRefundReason :: !Text, -- TODO feels like something that could have an enum
+    fiatCancelOrRefundReason :: !(Maybe CancelPaymentReason), -- TODO feels like something that could have an enum
     fiatCancelOrRefundCreateDate :: !UTCTime,
     fiatCancelOrRefundUpdateDate :: !UTCTime
   }
@@ -2786,7 +2788,7 @@ instance HasCodec FiatCancelOrRefund where
         <*> requiredField' "originalPayment" .= fiatCancelOrRefundOriginalPayment
         <*> optionalField' "fees" .= fiatCancelOrRefundFees
         <*> optionalField' "channel" .= fiatCancelOrRefundChannel
-        <*> requiredField' "reason" .= fiatCancelOrRefundReason
+        <*> optionalField' "reason" .= fiatCancelOrRefundReason
         <*> requiredField' "createDate" .= fiatCancelOrRefundCreateDate
         <*> requiredField' "updateDate" .= fiatCancelOrRefundUpdateDate
 
@@ -2907,3 +2909,48 @@ data PaymentSourceType = Card | ACH | WireSource | SEPA
 
 instance HasCodec PaymentSourceType where
   codec = stringConstCodec $ NE.fromList [(Card, "card"), (ACH, "ach"), (WireSource, "wire"), (SEPA, "sepa")]
+
+data CancelPaymentBody = CancelPaymentBody
+  { cancelPaymentIdempotencyKey :: !UUID,
+    cancelPaymentReason :: !(Maybe CancelPaymentReason)
+  }
+  deriving (Eq, Show)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+  via (Autodocodec CancelPaymentBody)
+
+instance HasCodec CancelPaymentBody where
+  codec = object "CancelPaymentBody" $
+      CancelPaymentBody
+        <$> requiredField' "idempotencyKey" .= cancelPaymentIdempotencyKey
+        <*> optionalField' "reason" .= cancelPaymentReason
+
+data CancelPaymentReason
+  = CancelPaymentReasonDuplicate
+  | CancelPaymentReasonFraudulent
+  | CancelPaymentReasonRequestedByCustomer
+  | CancelPaymentReasonBankTransactionError
+  | CancelPaymentReasonInvalidAccountNumber
+  | CancelPaymentReasonInsufficientFunds
+  | CancelPaymentReasonPaymentStoppedByIssuer
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CancelPaymentReason)
+
+instance HasCodec CancelPaymentReason where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (CancelPaymentReasonDuplicate, "duplicate"),
+          (CancelPaymentReasonFraudulent, "fraudulent"),
+          (CancelPaymentReasonRequestedByCustomer, "requested_by_customer"),
+          (CancelPaymentReasonBankTransactionError, "bank_transaction_error"),
+          (CancelPaymentReasonInvalidAccountNumber, "invalid_account_number"),
+          (CancelPaymentReasonInsufficientFunds, "insufficient_funds"),
+          (CancelPaymentReasonPaymentStoppedByIssuer, "payment_stopped_by_issuer")
+        ]

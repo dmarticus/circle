@@ -365,6 +365,15 @@ getPayment paymentId = do
     url = "payments/" <> unUUID paymentId
     params = Params Nothing []
 
+-- Cancel a fiat payment
+-- https://developers.circle.com/developer/reference/payments-payments-cancel-id
+cancelPayment :: UUID -> CancelPaymentBody -> CircleAPIRequest PaymentRequest TupleBS8 BSL.ByteString
+cancelPayment paymentId cancelPaymentBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "payments/" <> unUUID paymentId <> "/cancel"
+    params = Params (Just $ Body (encode cancelPaymentBody)) []
+
 
 ---------------------------------------------------------------
 -- Utility methods for calling Circle's API
