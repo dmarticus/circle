@@ -28,7 +28,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [ ] Add some aeson utilities to reduce boilerplate + code reuse
 - [ ] Maybe add TemplateHaskell and do some `deriveJSON` to get rid of all those hand-rolled derivations
 - [ ] Look into sharing some request/response types if there's enough in common
-* [ ] Investigate [autocodec](https://github.com/NorfairKing/autodocodec#readme) and see if it would help you reduce some boilerplate for your aeson derivations
+* [x] Investigate [autocodec](https://github.com/NorfairKing/autodocodec#readme) and see if it would help you reduce some boilerplate for your aeson derivations
 
 
 ### README and Documentation
@@ -45,7 +45,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [x] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
 - [x] Wrap Addresses endpoint (medium)
 - [x] Wrap Deposits endpoint (small/medium)
-- [ ] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
+- [x] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
 - [ ] Wrap On-chain payments endpoint (medium/large.  Probably can reuse some work from payments but might be hard to get working)
 - [ ] Wrap Cards endpoint (large)
 - [ ] Wrap Wires endpoint (may be medium or small depending on if it's the same as the other wire work but with a different route)
@@ -53,7 +53,7 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [ ] Wrap settlements endpoints (small/medium)
 - [ ] Wrap chargebacks endpoint (medium)
 - [ ] Wrap reversals endpoint (small)
-- [ ] Wrap crypto payment intents API (medium/large)
+- [ ] Wrap crypto payment intents API (medium)
 - [ ] Wrap crypto payments API (small/medium)
 - [ ] Wrap on-chain transfer API (medium)
 - [ ] Wrap wallets endpoint (large)
