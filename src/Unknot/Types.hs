@@ -96,10 +96,6 @@ module Unknot.Types
     -- Deposits Endpoints
     DepositsRequest,
     DepositData (..),
-    MockSilvergatePaymentRequest,
-    MockSilvergatePaymentBodyParams (..),
-    MockBeneficiaryBankDetails (..),
-    MockSilvergatePaymentData (..),
     -- Silvergate SEN Endpoints
     SENAccountBodyParams (..),
     SENAccountData (..),
@@ -177,7 +173,15 @@ module Unknot.Types
     -- FiatCancel (..),
     VerificationType (..),
     PaymentSource (..),
-    PaymentSourceType (..)
+    PaymentSourceType (..),
+    CancelPaymentBody (..),
+    CancelPaymentReason (..),
+    RefundPaymentBody (..),
+    MockPaymentRequest,
+    MockSenOrWirePaymentBodyParams (..),
+    MockBeneficiaryBankDetails (..),
+    MockSEPAPaymentBodyParams (..),
+    MockPaymentData (..),
   )
 where
 
@@ -1394,52 +1398,70 @@ instance HasCodec DepositData where
         <*> requiredField' "updateDate" .= depositUpdateDate
 
 -- TODO is this real?  Like should I make some real code that does what this mock does and expose that in the module?
-data MockSilvergatePaymentRequest
+data MockPaymentRequest
 
-type instance CircleRequest MockSilvergatePaymentRequest = CircleResponseBody MockSilvergatePaymentData
+type instance CircleRequest MockPaymentRequest = CircleResponseBody MockPaymentData
 
 -- TODO bidirectional types should have names
-data MockSilvergatePaymentData = MockSilvergatePaymentData
-  { mockSilvergatePaymentDataTrackingRef :: !TrackingReference,
-    mockSilvergatePaymentDataAmount :: !MoneyAmount,
-    mockSilvergatePaymentDataBeneficiaryBank :: !BeneficiaryBankDetails,
-    mockSilvergatePaymentDataStatus :: !Status
+data MockPaymentData = MockPaymentData
+  { mockPaymentDataTrackingRef :: !(Maybe TrackingReference),
+    mockPaymentDataAmount :: !(Maybe MoneyAmount),
+    mockPaymentDataBeneficiaryBank :: !(Maybe BeneficiaryBankDetails),
+    mockPaymentDataStatus :: !(Maybe Status)
   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec MockSilvergatePaymentData)
+    via (Autodocodec MockPaymentData)
 
-instance HasCodec MockSilvergatePaymentData where
+instance HasCodec MockPaymentData where
   codec =
-    object "MockSilvergatePaymentData" $
-      MockSilvergatePaymentData
-        <$> requiredField' "trackingRef" .= mockSilvergatePaymentDataTrackingRef
-        <*> requiredField' "amount" .= mockSilvergatePaymentDataAmount
-        <*> requiredField' "beneficiaryBank" .= mockSilvergatePaymentDataBeneficiaryBank
-        <*> requiredField' "status" .= mockSilvergatePaymentDataStatus
+    object "MockPaymentData" $
+      MockPaymentData
+        <$> optionalField' "trackingRef" .= mockPaymentDataTrackingRef
+        <*> optionalField' "amount" .= mockPaymentDataAmount
+        <*> optionalField' "beneficiaryBank" .= mockPaymentDataBeneficiaryBank
+        <*> optionalField' "status" .= mockPaymentDataStatus
 
-data MockSilvergatePaymentBodyParams = MockSilvergatePaymentBodyParams
-  { mockSilvergatePaymentBodyParamsTrackingRef :: !TrackingReference,
-    mockSilvergatePaymentBodyParamsAmount :: !MoneyAmount,
-    mockSilvergatePaymentBodyParamsBeneficiaryBank :: !MockBeneficiaryBankDetails
+data MockSenOrWirePaymentBodyParams = MockSenOrWirePaymentBodyParams
+  { mockSenOrWirePaymentBodyParamsTrackingRef :: !TrackingReference,
+    mockSenOrWirePaymentBodyParamsAmount :: !MoneyAmount,
+    mockSenOrWirePaymentBodyParamsBeneficiaryBank :: !MockBeneficiaryBankDetails
   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec MockSilvergatePaymentBodyParams)
+    via (Autodocodec MockSenOrWirePaymentBodyParams)
 
-instance HasCodec MockSilvergatePaymentBodyParams where
+instance HasCodec MockSenOrWirePaymentBodyParams where
   codec =
-    object "MockSilvergatePaymentBodyParams" $
-      MockSilvergatePaymentBodyParams
-        <$> requiredField' "trackingRef" .= mockSilvergatePaymentBodyParamsTrackingRef
-        <*> requiredField' "amount" .= mockSilvergatePaymentBodyParamsAmount
-        <*> requiredField' "beneficiaryBank" .= mockSilvergatePaymentBodyParamsBeneficiaryBank
+    object "MockSenOrWirePaymentBodyParams" $
+      MockSenOrWirePaymentBodyParams
+        <$> requiredField' "trackingRef" .= mockSenOrWirePaymentBodyParamsTrackingRef
+        <*> requiredField' "amount" .= mockSenOrWirePaymentBodyParamsAmount
+        <*> requiredField' "beneficiaryBank" .= mockSenOrWirePaymentBodyParamsBeneficiaryBank
+
+data MockSEPAPaymentBodyParams = MockSEPAPaymentBodyParams
+  { mockSEPAPaymentBodyParamsTrackingRef :: !TrackingReference,
+    mockSEPAPaymentBodyParamsAmount :: !MoneyAmount
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec MockSEPAPaymentBodyParams)
+
+instance HasCodec MockSEPAPaymentBodyParams where
+  codec =
+    object "MockSEPAPaymentBodyParams" $
+      MockSEPAPaymentBodyParams
+        <$> requiredField' "trackingRef" .= mockSEPAPaymentBodyParamsTrackingRef
+        <*> requiredField' "amount" .= mockSEPAPaymentBodyParamsAmount
 
 newtype MockBeneficiaryBankDetails = MockBeneficiaryBankDetails {mockBeneficiaryBankDetailsAccountNumber :: AccountNumber}
   deriving (Eq, Show, ToJSON, FromJSON)
@@ -2760,7 +2782,7 @@ data FiatCancelOrRefund = FiatCancelOrRefund
     fiatCancelOrRefundOriginalPayment :: !OriginalFiatPayment,
     fiatCancelOrRefundFees :: !(Maybe MoneyAmount),
     fiatCancelOrRefundChannel :: !(Maybe Text),
-    fiatCancelOrRefundReason :: !Text, -- TODO feels like something that could have an enum
+    fiatCancelOrRefundReason :: !(Maybe CancelPaymentReason), -- TODO feels like something that could have an enum
     fiatCancelOrRefundCreateDate :: !UTCTime,
     fiatCancelOrRefundUpdateDate :: !UTCTime
   }
@@ -2786,7 +2808,7 @@ instance HasCodec FiatCancelOrRefund where
         <*> requiredField' "originalPayment" .= fiatCancelOrRefundOriginalPayment
         <*> optionalField' "fees" .= fiatCancelOrRefundFees
         <*> optionalField' "channel" .= fiatCancelOrRefundChannel
-        <*> requiredField' "reason" .= fiatCancelOrRefundReason
+        <*> optionalField' "reason" .= fiatCancelOrRefundReason
         <*> requiredField' "createDate" .= fiatCancelOrRefundCreateDate
         <*> requiredField' "updateDate" .= fiatCancelOrRefundUpdateDate
 
@@ -2907,3 +2929,68 @@ data PaymentSourceType = Card | ACH | WireSource | SEPA
 
 instance HasCodec PaymentSourceType where
   codec = stringConstCodec $ NE.fromList [(Card, "card"), (ACH, "ach"), (WireSource, "wire"), (SEPA, "sepa")]
+
+data CancelPaymentBody = CancelPaymentBody
+  { cancelPaymentIdempotencyKey :: !UUID,
+    cancelPaymentReason :: !(Maybe CancelPaymentReason)
+  }
+  deriving (Eq, Show)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+  via (Autodocodec CancelPaymentBody)
+
+instance HasCodec CancelPaymentBody where
+  codec = object "CancelPaymentBody" $
+      CancelPaymentBody
+        <$> requiredField' "idempotencyKey" .= cancelPaymentIdempotencyKey
+        <*> optionalField' "reason" .= cancelPaymentReason
+
+data CancelPaymentReason
+  = CancelPaymentReasonDuplicate
+  | CancelPaymentReasonFraudulent
+  | CancelPaymentReasonRequestedByCustomer
+  | CancelPaymentReasonBankTransactionError
+  | CancelPaymentReasonInvalidAccountNumber
+  | CancelPaymentReasonInsufficientFunds
+  | CancelPaymentReasonPaymentStoppedByIssuer
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CancelPaymentReason)
+
+instance HasCodec CancelPaymentReason where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (CancelPaymentReasonDuplicate, "duplicate"),
+          (CancelPaymentReasonFraudulent, "fraudulent"),
+          (CancelPaymentReasonRequestedByCustomer, "requested_by_customer"),
+          (CancelPaymentReasonBankTransactionError, "bank_transaction_error"),
+          (CancelPaymentReasonInvalidAccountNumber, "invalid_account_number"),
+          (CancelPaymentReasonInsufficientFunds, "insufficient_funds"),
+          (CancelPaymentReasonPaymentStoppedByIssuer, "payment_stopped_by_issuer")
+        ]
+
+data RefundPaymentBody = RefundPaymentBody
+  { refundPaymentIdempotencyKey :: !UUID,
+    refundPaymentAmount :: MoneyAmount,
+    refundPaymentReason :: !(Maybe CancelPaymentReason)
+  }
+  deriving (Eq, Show)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+    via (Autodocodec RefundPaymentBody)
+
+instance HasCodec RefundPaymentBody where
+  codec =
+    object "RefundPaymentBody" $
+      RefundPaymentBody
+        <$> requiredField' "idempotencyKey" .= refundPaymentIdempotencyKey
+        <*> requiredField' "amount" .= refundPaymentAmount
+        <*> optionalField' "reason" .= refundPaymentReason
