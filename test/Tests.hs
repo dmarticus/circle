@@ -49,43 +49,52 @@ testSubscriptionBody :: SubscriptionBodyParams
 testSubscriptionBody =
   SubscriptionBodyParams "https://example.org/handler/for/notifications"
 
-
 testPaymentMetadata :: CreatePaymentMetadata
 testPaymentMetadata =
-      CreatePaymentMetadata
-        "dylan@test.com"
-        Nothing
-        "DE6FA86F60BB47B379307F851E238617"
-        "244.28.239.130"
+  CreatePaymentMetadata
+    "dylan@test.com"
+    Nothing
+    "DE6FA86F60BB47B379307F851E238617"
+    "244.28.239.130"
 
 testFiatPayment :: CreatePaymentBody
 testFiatPayment =
-      CreatePaymentBody
-        [compileUUID|355c8eee-8de3-484d-98fc-2eff047d0214|]
-        "key1"
-        testPaymentMetadata
-        ( MoneyAmount
-            (Amount "100.00")
-            USD
-        )
-        (Just True)
-        VerificationCVV
-        Nothing
-        Nothing
-        ( PaymentSource
-            [compileUUID|26c9db99-81c5-492a-a4eb-7a36f0f4548c|]
-            Card
-        )
-        Nothing
-        Nothing
-        Nothing
-        Nothing
+  CreatePaymentBody
+    [compileUUID|355c8eee-8de3-484d-98fc-2eff047d0214|]
+    "key1"
+    testPaymentMetadata
+    ( MoneyAmount
+        (Amount "100.00")
+        USD
+    )
+    (Just True)
+    VerificationCVV
+    Nothing
+    Nothing
+    ( PaymentSource
+        [compileUUID|26c9db99-81c5-492a-a4eb-7a36f0f4548c|]
+        Card
+    )
+    Nothing
+    Nothing
+    Nothing
+    Nothing
 
 testCancelPaymentBody :: CancelPaymentBody
 testCancelPaymentBody =
-      CancelPaymentBody
-        [compileUUID|65d6ccee-cb53-40ea-8be6-4e9485b50bb5|]
-        (Just CancelPaymentReasonDuplicate)
+  CancelPaymentBody
+    [compileUUID|65d6ccee-cb53-40ea-8be6-4e9485b50bb5|]
+    (Just CancelPaymentReasonDuplicate)
+
+testRefundPaymentBody :: RefundPaymentBody
+testRefundPaymentBody =
+  RefundPaymentBody
+    [compileUUID|65d6ccee-cb53-40ea-8be6-4e9485b50bb5|]
+    ( MoneyAmount
+        (Amount "100.00")
+        USD
+    )
+    Nothing
 
 main :: IO ()
 main = do
@@ -409,9 +418,9 @@ main = do
             paymentToRefund `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseData} = paymentToRefund
             let Just (This FiatOrCryptoPaymentResponse {fiatOrCryptoPaymentId}) = circleResponseData
-            cancellablePayment <- circleTest config manager $ cancelPayment fiatOrCryptoPaymentId testCancelPaymentBody
-            cancellablePayment `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = cancellablePayment
+            refundablePayment <- circleTest config manager $ refundPayment fiatOrCryptoPaymentId testRefundPaymentBody
+            refundablePayment `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = refundablePayment
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "list payments" $ do
@@ -468,4 +477,3 @@ main = do
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSepaPayment
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-          
