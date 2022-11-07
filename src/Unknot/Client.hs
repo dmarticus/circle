@@ -394,10 +394,10 @@ createMockWirePayment wireBody = do
     url = "mocks/payments/wire"
     params = Params (Just $ Body (encode wireBody)) []
 
--- | Create mock wire payment SANDBOX ONLY
+-- | Create mock SEPA payment SANDBOX ONLY
 -- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
--- In the sandbox environment, initiate a mock wire transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
--- https://developers.circle.com/developer/reference/createmockwirepayment
+-- In the sandbox environment, initiate a mock SEPA transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
+-- https://developers.circle.com/developer/reference/createmocksepapayment
 createMockSEPAPayment :: MockSEPAPaymentBodyParams -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
 createMockSEPAPayment sepaBody = do
   mkCircleAPIRequest NHTM.methodPost url params
