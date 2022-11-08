@@ -28,39 +28,44 @@ import qualified Network.HTTP.Types.Method as NHTM
 import Unknot.Types
 
 ---------------------------------------------------------------
--- Wire endpoints
+-- Business Account Wire endpoints
 ---------------------------------------------------------------
--- | Create a bank account for a wire
+-- | Create a business bank account for a wire
 -- https://developers.circle.com/reference/createbusinesswireaccount
-createWireAccount :: WireAccountBodyParams -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
-createWireAccount wireAccountBody = do
+createBusinessWireAccount :: WireAccountBodyParams -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+createBusinessWireAccount wireAccountBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
     url = "businessAccount/banks/wires"
-    params = Params (Just $ Body (encode wireAccountBody)) []
+    -- TODO this seems stupid but I can't figure out the fucking encoding for autodocodec where
+    -- the type doesn't have corresponding fields to map to
+    params = case wireAccountBody of 
+      USBankAccount usBankAccountBody -> Params (Just $ Body (encode usBankAccountBody)) []
+      IBANBankAccount ibanBankAccountBody -> Params (Just $ Body (encode ibanBankAccountBody)) []
+      NonIBANBankAccount nonIBANBankAccountBody -> Params (Just $ Body (encode nonIBANBankAccountBody)) [] 
 
--- | Get a list of wire accounts
+-- | Get a list of business account wire accounts
 -- https://developers.circle.com/reference/listbusinesswireaccounts
-listWireAccounts :: CircleAPIRequest WireAccountsRequest TupleBS8 BSL.ByteString
-listWireAccounts = do
+listBusinessWireAccounts :: CircleAPIRequest WireAccountsRequest TupleBS8 BSL.ByteString
+listBusinessWireAccounts = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/banks/wires"
     params = Params Nothing []
 
--- | Get a single wire account, accepts the wire account Id as a parameter
+-- | Get a single business account wire account, accepts the wire account Id as a parameter
 -- https://developers.circle.com/reference/getbusinesswireaccount
-getWireAccount :: UUID -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
-getWireAccount wireAccountId = do
+getBusinessWireAccount :: UUID -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+getBusinessWireAccount wireAccountId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/banks/wires/" <> unUUID wireAccountId
     params = Params Nothing []
 
--- | Get the wire transfer instructions into the Circle bank account given your bank account id.
+-- | Get the wire transfer instructions into the Circle business bank account given your bank account id.
 -- https://developers.circle.com/reference/getbusinesswireaccountinstructions
-getWireAccountInstructions :: UUID -> CircleAPIRequest WireInstructionsRequest TupleBS8 BSL.ByteString
-getWireAccountInstructions wireAccountId = do
+getBusinessWireAccountInstructions :: UUID -> CircleAPIRequest WireInstructionsRequest TupleBS8 BSL.ByteString
+getBusinessWireAccountInstructions wireAccountId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/banks/wires/" <> unUUID wireAccountId <> "/instructions"
@@ -208,7 +213,7 @@ getBusinessAccountTransfer :: UUID -> CircleAPIRequest TransferRequest TupleBS8 
 getBusinessAccountTransfer transferId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
-    url = "businessAccount/transfers/" <> (unUUID transferId)
+    url = "businessAccount/transfers/" <> unUUID transferId
     params = Params Nothing []
 
 -- | Create a new transfer
@@ -431,7 +436,7 @@ getOnChainTransfer :: UUID -> CircleAPIRequest TransferRequest TupleBS8 BSL.Byte
 getOnChainTransfer transferId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
-    url = "transfers/" <> (unUUID transferId)
+    url = "transfers/" <> unUUID transferId
     params = Params Nothing []
 
 createOnChainTransfer :: OnChainTransferBodyParams -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
@@ -440,7 +445,6 @@ createOnChainTransfer onChainTransferBody = do
   where
     url = "transfers"
     params = Params (Just $ Body (encode onChainTransferBody)) []
-
 
 -- | Create new deposit address
 -- Generates a new blockchain address for a wallet for a given currency/chain pair. 
@@ -464,6 +468,74 @@ listAllAddresses walletId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "wallets/" <> unUUID walletId <> "/addresses"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Card endpoints
+---------------------------------------------------------------
+
+listAllCards :: CircleAPIRequest CardsRequest TupleBS8 BSL.ByteString
+listAllCards = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "cards"
+    params = Params Nothing []
+
+getCard :: UUID -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
+getCard cardId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "cards/" <> unUUID cardId
+    params = Params Nothing []
+
+createCard :: CreateCardBodyParams -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
+createCard createCardBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "cards"
+    params = Params (Just $ Body (encode createCardBody)) []
+
+updateCard :: UUID -> UpdateCardBodyParams -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
+updateCard cardId updateCardBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "cards/" <> unUUID cardId
+    params = Params (Just $ Body (encode updateCardBody)) []
+
+---------------------------------------------------------------
+-- Wire endpoints
+---------------------------------------------------------------
+
+-- | Create a bank account for a wire
+-- https://developers.circle.com/developer/reference/createwireaccount-1
+createWireAccount :: WireAccountBodyParams -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+createWireAccount wireAccountBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "banks/wires"
+    -- TODO this seems stupid but I can't figure out the fucking encoding for autodocodec where
+    -- the type doesn't have corresponding fields to map to
+    params = case wireAccountBody of 
+      USBankAccount usBankAccountBody -> Params (Just $ Body (encode usBankAccountBody)) []
+      IBANBankAccount ibanBankAccountBody -> Params (Just $ Body (encode ibanBankAccountBody)) []
+      NonIBANBankAccount nonIBANBankAccountBody -> Params (Just $ Body (encode nonIBANBankAccountBody)) []
+
+-- | Get a single wire account, accepts the wire account Id as a parameter
+-- https://developers.circle.com/developer/reference/getwireaccount-1
+getWireAccount :: UUID -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+getWireAccount wireAccountId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "banks/wires/" <> unUUID wireAccountId
+    params = Params Nothing []
+
+-- | Get the wire transfer instructions into the Circle bank account given your bank account id.
+-- https://developers.circle.com/developer/reference/getwireaccountinstructions
+getWireAccountInstructions :: UUID -> CircleAPIRequest WireInstructionsRequest TupleBS8 BSL.ByteString
+getWireAccountInstructions wireAccountId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "banks/wires/" <> unUUID wireAccountId <> "/instructions"
     params = Params Nothing []
 
 ---------------------------------------------------------------

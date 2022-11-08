@@ -14,28 +14,30 @@ import Test.Hspec.Expectations.Contrib (isRight)
 import Unknot.Client
 import Unknot.Types
 
-testWireAccountDetails :: WireAccountBodyParams
-testWireAccountDetails =
-  WireAccountBodyParams
-    [compileUUID|e553417d-fe7a-4b7a-8d06-ff4de80a0d65|]
-    [compileAccountNumber|446043103366|]
-    [compileRoutingNumber|021000021|]
-    ( BillingDetails
-        "Test Recipient"
-        (City "Snoqualmie")
-        (ISO3166Alpha2 "US")
-        (AddressLine "6501 Railroad Avenue SE")
-        (Just (AddressLine "Room 315"))
-        (Just (District "WA"))
-        (PostalCode "85283")
-    )
-    ( BankAddress
-        (Just "Test Bank")
-        (Just (City "Snoqualmie"))
-        (Just (ISO3166Alpha2 "US"))
-        (Just (AddressLine "6501 Railroad Avenue SE"))
-        (Just (AddressLine "Room 315"))
-        (Just (District "WA"))
+testUSWireAccountDetails :: WireAccountBodyParams
+testUSWireAccountDetails =
+  USBankAccount
+    ( USBankAccountBodyParams
+        [compileUUID|e553417d-fe7a-4b7a-8d06-ff4de80a0d65|]
+        [compileAccountNumber|446043103366|]
+        [compileRoutingNumber|021000021|]
+        ( BillingDetails
+            "Test Recipient"
+            (City "Snoqualmie")
+            (ISO3166Alpha2 "US")
+            (AddressLine "6501 Railroad Avenue SE")
+            (Just (AddressLine "Room 315"))
+            (Just (District "WA"))
+            (PostalCode "85283")
+        )
+        ( BankAddress
+            (Just "Test Bank")
+            (Just (City "Snoqualmie"))
+            (Just (ISO3166Alpha2 "US"))
+            (Just (AddressLine "6501 Railroad Avenue SE"))
+            (Just (AddressLine "Room 315"))
+            (Just (District "WA"))
+        )
     )
 
 testSENAccountDetails :: SENAccountBodyParams
@@ -49,9 +51,9 @@ testSubscriptionBody :: SubscriptionBodyParams
 testSubscriptionBody =
   SubscriptionBodyParams "https://example.org/handler/for/notifications"
 
-testPaymentMetadata :: CreatePaymentMetadata
+testPaymentMetadata :: CreateMetadata
 testPaymentMetadata =
-  CreatePaymentMetadata
+  CreateMetadata
     "dylan@test.com"
     Nothing
     "DE6FA86F60BB47B379307F851E238617"
@@ -75,7 +77,6 @@ testFiatPayment =
         [compileUUID|26c9db99-81c5-492a-a4eb-7a36f0f4548c|]
         Card
     )
-    Nothing
     Nothing
     Nothing
     Nothing
@@ -151,35 +152,35 @@ main = do
       describe "wire endpoints" $ do
         describe "create wire account" $ do
           it "creates a new wire account" $ do
-            newWireAccount <- circleTest config manager $ createWireAccount testWireAccountDetails
+            newWireAccount <- circleTest config manager $ createBusinessWireAccount testUSWireAccountDetails
             newWireAccount `shouldSatisfy` isRight
             let Right CircleResponseBody {..} = newWireAccount
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "list wire accounts" $ do
           it "gets a list of wire accounts" $ do
-            wireAccounts <- circleTest config manager listWireAccounts
+            wireAccounts <- circleTest config manager listBusinessWireAccounts
             wireAccounts `shouldSatisfy` isRight
             let Right CircleResponseBody {..} = wireAccounts
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "get wire account" $ do
           it "gets a single wire account" $ do
-            wireAccount1 <- circleTest config manager $ createWireAccount testWireAccountDetails
+            wireAccount1 <- circleTest config manager $ createBusinessWireAccount testUSWireAccountDetails
             wireAccount1 `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseData} = wireAccount1
             for_ circleResponseData $ \WireAccountData {..} -> do
-              wireAccount <- circleTest config manager $ getWireAccount wireAccountDataId
+              wireAccount <- circleTest config manager $ getBusinessWireAccount wireAccountDataId
               wireAccount `shouldSatisfy` isRight
               let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = wireAccount
               circleResponseCode `shouldBe` Nothing
               circleResponseMessage `shouldBe` Nothing
           it "gets wire instructions for a wire account" $ do
-            wireAccount2 <- circleTest config manager $ createWireAccount testWireAccountDetails
+            wireAccount2 <- circleTest config manager $ createBusinessWireAccount testUSWireAccountDetails
             wireAccount2 `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseData} = wireAccount2
             for_ circleResponseData $ \WireAccountData {..} -> do
-              wireAccountInstructions <- circleTest config manager $ getWireAccountInstructions wireAccountDataId
+              wireAccountInstructions <- circleTest config manager $ getBusinessWireAccountInstructions wireAccountDataId
               wireAccountInstructions `shouldSatisfy` isRight
               let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = wireAccountInstructions
               circleResponseCode `shouldBe` Nothing
@@ -238,7 +239,7 @@ main = do
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "get transfer" $ do
-          fit "will attempt to return transfer data for a single transfer" $ do
+          it "will attempt to return transfer data for a single transfer" $ do
             transfer <- circleTest config manager (getBusinessAccountTransfer [compileUUID|e553417d-fe7a-4b7a-8d06-ff4de80a0d65|])
             transfer `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = transfer
@@ -267,7 +268,7 @@ main = do
       describe "business account address endpoints" $ do
         describe "list recipient addresses" $ do
           it "should list all recipient addresses for a given business account" $ do
-            recipientAddresses <- circleTest config manager listAllRecipientAddresses
+            recipientAddresses <- circleTest config manager listAllBusinessAccountRecipientAddresses
             recipientAddresses `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddresses
             circleResponseCode `shouldBe` Nothing
@@ -282,7 +283,7 @@ main = do
                     ChainETH
                     USD
                     "test address"
-            recipientAddress <- circleTest config manager $ createRecipientAddress recipientAddressBody
+            recipientAddress <- circleTest config manager $ createBusinessAccountRecipientAddress recipientAddressBody
             recipientAddress `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddress
             circleResponseCode `shouldBe` Nothing
@@ -359,7 +360,7 @@ main = do
             circleResponseMessage `shouldBe` Just (ResponseMessage "Fiat account not found")
           it "fails to create a new payout because the account has insufficient funds" $ do
             -- we first create the wire account so we have an account to send the payout to
-            createdAccount <- circleTest config manager $ createWireAccount testWireAccountDetails
+            createdAccount <- circleTest config manager $ createBusinessWireAccount testUSWireAccountDetails
             createdAccount `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseData} = createdAccount
             for_ circleResponseData $ \WireAccountData {..} -> do
@@ -465,7 +466,7 @@ main = do
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = mockSilvergatePayment
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-          xit "should create a mock silvergate payment" $ do
+          xit "should create a mock SEPA payment" $ do
             let mockSEPAPaymentBody =
                   MockSEPAPaymentBodyParams
                     (TrackingReference "CIR13FB13A")
