@@ -43,6 +43,9 @@ module Unknot.Types
     PaginationQueryParam (..),
     -- Wires Endpoint
     WireAccountBodyParams (..),
+    USBankAccountBodyParams (..),
+    IBANBankAccountBodyParams (..),
+    NonIBANBankAccountBodyParams (..),
     WireAccountData (..),
     WireInstructionsData (..),
     WireAccountRequest,
@@ -166,9 +169,9 @@ module Unknot.Types
     CreatePaymentBody (..),
     -- CryptoPayment (..),
     FiatOrCryptoPaymentResponse (..),
-    CreatePaymentMetadata (..),
+    CreateMetadata (..),
     PaymentErrorCode (..),
-    PaymentMetadata (..),
+    Metadata (..),
     FiatCancelOrRefund (..),
     -- FiatCancel (..),
     VerificationType (..),
@@ -182,6 +185,20 @@ module Unknot.Types
     MockBeneficiaryBankDetails (..),
     MockSEPAPaymentBodyParams (..),
     MockPaymentData (..),
+    -- On-chain Payments Endpoint
+    OnChainTransferRequest,
+    OnChainTransfersRequest,
+    OnChainTransferBodyParams (..),
+    -- Cards Endpoint
+    CardsRequest,
+    CardRequest,
+    CardData (..),
+    ListCardData (..),
+    CreateCardBodyParams (..),
+    UpdateCardBodyParams (..),
+    -- ACH Endpoint
+    ACHBankAccountRequest,
+    ACHBankAccountData (..),
   )
 where
 
@@ -207,12 +224,13 @@ import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRi
 import Data.Aeson
   ( FromJSON (parseJSON),
     Result (Error, Success),
-    ToJSON (toJSON, toEncoding),
+    ToJSON (toEncoding, toJSON),
     withObject,
     withText,
     (.:),
     (.:?),
   )
+import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (fromJSON)
 import Data.Bifunctor
 import Data.ByteString.Char8 qualified as BS8
@@ -528,6 +546,42 @@ paymentStatusToBS8 ActionRequired = "action_required"
 instance ToCircleParam PaymentStatusQueryParams where
   toCircleParam (PaymentStatusQueryParams xs) =
     joinQueryParams $ Params Nothing [Query ("status", BS8.intercalate "," (map paymentStatusToBS8 xs))]
+
+newtype WalletIdQueryParam = WalletIdQueryParam
+  { walletIdQueryParam :: WalletId
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam WalletIdQueryParam where
+  toCircleParam (WalletIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("walletId", TE.encodeUtf8 (unWalletId i))]
+
+newtype SourceWalletIdQueryParam = SourceWalletIdQueryParam
+  { sourceWalletIdQueryParam :: WalletId
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam SourceWalletIdQueryParam where
+  toCircleParam (SourceWalletIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("sourceWalletId", TE.encodeUtf8 (unWalletId i))]
+
+newtype DestinationWalletIdQueryParam = DestinationWalletIdQueryParam
+  { destinationWalletIdQueryParam :: WalletId
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam DestinationWalletIdQueryParam where
+  toCircleParam (DestinationWalletIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("destinationWalletId", TE.encodeUtf8 (unWalletId i))]
+
+newtype ReturnIdentitiesQueryParam = ReturnIdentitiesQueryParam
+  { returnIdentitiesQueryParam :: Bool
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam ReturnIdentitiesQueryParam where
+  toCircleParam (ReturnIdentitiesQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("returnIdentities", TE.encodeUtf8 (T.pack (show i)))]
 
 ---------------------------------------------------------------
 -- Balance endpoints
@@ -1042,16 +1096,17 @@ data TransferData = TransferData
     transferDataSource :: !(ThisOrThat SourceWallet SourceBlockchain),
     transferDataDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
     transferDataAmount :: !MoneyAmount,
-    transferDataFees :: !MoneyAmount,
+    transferDataFees :: !TransferFeeAmount,
     transferDataTransactionHash :: !(Maybe HexString),
     transferDataStatus :: !Status,
     transferDataTransferErrorCode :: !(Maybe TransferErrorCode),
+    transferDataRiskEvaluation :: !(Maybe RiskEvaluation),
     transferDataCreateDate :: !(Maybe UTCTime)
   }
   deriving (Eq, Show)
 
 -- NB: this doesn't use Autodocodec for deriving ToJSON and FromJSON since I'm using the hand-rolled
--- ThisOrThat helper for smartly parsing types.  
+-- ThisOrThat helper for smartly parsing types.
 instance FromJSON TransferData where
   parseJSON = withObject "TransferData" parse
     where
@@ -1062,10 +1117,11 @@ instance FromJSON TransferData where
           <*> o .: "destination"
           <*> o .: "amount"
           <*> o .: "fees"
-          <*> o .: "transactionHash"
+          <*> o .:? "transactionHash"
           <*> o .: "status"
-          <*> o .: "errorCode"
-          <*> o .: "createDate"
+          <*> o .:? "errorCode"
+          <*> o .:? "riskEvaluation"
+          <*> o .:? "createDate"
 
 data SourceWallet = SourceWallet
   { sourceWalletType :: !TransferType,
@@ -1639,29 +1695,81 @@ type instance CircleRequest WireInstructionsRequest = CircleResponseBody WireIns
 
 instance CircleHasParam WireInstructionsRequest PaginationQueryParams
 
-data WireAccountBodyParams = WireAccountBodyParams
-  { wireAccountBodyParamsIdempotencyKey :: !UUID,
-    wireAccountBodyParamsAccountNumber :: !AccountNumber,
-    wireAccountBodyParamsRoutingNumber :: !RoutingNumber,
-    wireAccountBodyParamsBillingDetails :: !BillingDetails,
-    wireAccountBodyParamsBankAddress :: !BankAddress
+data WireAccountBodyParams
+  = USBankAccount !USBankAccountBodyParams
+  | IBANBankAccount !IBANBankAccountBodyParams
+  | NonIBANBankAccount !NonIBANBankAccountBodyParams
+  deriving (Eq, Show)
+
+data USBankAccountBodyParams = USBankAccountBodyParams
+  { usBankAccountIdempotencyKey :: !UUID,
+    usBankAccountAccountNumber :: !AccountNumber,
+    usBankAccountRoutingNumber :: !RoutingNumber,
+    usBankAccountBillingDetails :: !BillingDetails,
+    usBankAccountBankAddress :: !BankAddress
   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec WireAccountBodyParams)
+    via (Autodocodec USBankAccountBodyParams)
 
-instance HasCodec WireAccountBodyParams where
+instance HasCodec USBankAccountBodyParams where
   codec =
-    object "WireAccountBodyParams" $
-      WireAccountBodyParams
-        <$> requiredField' "idempotencyKey" .= wireAccountBodyParamsIdempotencyKey
-        <*> requiredField' "accountNumber" .= wireAccountBodyParamsAccountNumber
-        <*> requiredField' "routingNumber" .= wireAccountBodyParamsRoutingNumber
-        <*> requiredField' "billingDetails" .= wireAccountBodyParamsBillingDetails
-        <*> requiredField' "bankAddress" .= wireAccountBodyParamsBankAddress
+    object "USBankAccountBodyParams" $
+      USBankAccountBodyParams
+        <$> requiredField' "idempotencyKey" .= usBankAccountIdempotencyKey
+        <*> requiredField' "accountNumber" .= usBankAccountAccountNumber
+        <*> requiredField' "routingNumber" .= usBankAccountRoutingNumber
+        <*> requiredField' "billingDetails" .= usBankAccountBillingDetails
+        <*> requiredField' "bankAddress" .= usBankAccountBankAddress
+
+data IBANBankAccountBodyParams = IBANBankAccountBodyParams
+  { ibanBankAccountIdempotencyKey :: !UUID,
+    ibanBankAccountIBAN :: !Text, -- TODO needs IBAN newtype
+    ibanBankAccountBillingDetails :: !BillingDetails,
+    ibanBankAccountBankAddress :: !BankAddress
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec IBANBankAccountBodyParams)
+
+instance HasCodec IBANBankAccountBodyParams where
+  codec =
+    object "IBANBankAccountBodyParams" $
+      IBANBankAccountBodyParams
+        <$> requiredField' "idempotencyKey" .= ibanBankAccountIdempotencyKey
+        <*> requiredField' "iban" .= ibanBankAccountIBAN
+        <*> requiredField' "billingDetails" .= ibanBankAccountBillingDetails
+        <*> requiredField' "bankAddress" .= ibanBankAccountBankAddress
+
+data NonIBANBankAccountBodyParams = NonIBANBankAccountBodyParams
+  { nonIBANBankAccountIdempotencyKey :: !UUID,
+    nonIBANBankAccountAccountNumber :: !AccountNumber,
+    nonIBANBankAccountRoutingNumber :: !RoutingNumber,
+    nonIBANBankAccountBillingDetails :: !BillingDetails,
+    nonIBANBankAccountBankAddress :: !BankAddress
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec NonIBANBankAccountBodyParams)
+
+instance HasCodec NonIBANBankAccountBodyParams where
+  codec =
+    object "NonIBANBankAccountBodyParams" $
+      NonIBANBankAccountBodyParams
+        <$> requiredField' "idempotencyKey" .= nonIBANBankAccountIdempotencyKey
+        <*> requiredField' "accountNumber" .= nonIBANBankAccountAccountNumber
+        <*> requiredField' "routingNumber" .= nonIBANBankAccountRoutingNumber
+        <*> requiredField' "billingDetails" .= nonIBANBankAccountBillingDetails
+        <*> requiredField' "bankAddress" .= nonIBANBankAccountBankAddress
 
 data WireInstructionsData = WireInstructionsData
   { wireInstructionsDataTrackingRef :: !TrackingReference,
@@ -1783,6 +1891,17 @@ data BankAccountType = Wire | Sen
 instance HasCodec BankAccountType where
   codec = stringConstCodec $ NE.fromList [(Wire, "wire"), (Sen, "sen")]
 
+data ACHBankAccountType = RetailType | BusinessType
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ACHBankAccountType)
+
+instance HasCodec ACHBankAccountType where
+  codec = stringConstCodec $ NE.fromList [(RetailType, "retail"), (BusinessType, "business")]
+
 data DestinationBankAccount = DestinationBankAccount
   { destinationBankAccountType :: !BankAccountType,
     destinationBankAccountId :: !UUID,
@@ -1842,6 +1961,26 @@ instance HasCodec MoneyAmount where
       MoneyAmount
         <$> requiredField' "amount" .= moneyAmountAmount
         <*> requiredField' "currency" .= moneyAmountCurrency
+
+data TransferFeeAmount = TransferFeeAmount
+  { transferFeeAmountAmount :: !Amount,
+    transferFeeAmountCurrency :: !SupportedCurrencies,
+    transferFeeAmountType :: !Text
+  }
+  deriving (Eq, Show, Generic)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+    via (Autodocodec TransferFeeAmount)
+
+instance HasCodec TransferFeeAmount where
+  codec =
+    object "TransferFeeAmount" $
+      TransferFeeAmount
+        <$> requiredField' "amount" .= transferFeeAmountAmount
+        <*> requiredField' "currency" .= transferFeeAmountCurrency
+        <*> requiredField' "type" .= transferFeeAmountType
 
 data Decision = Approved | Denied | Review
   deriving (Eq, Show, Generic)
@@ -2358,7 +2497,6 @@ utcToCircle ut =
 data ThisOrThat a b = This a | That b
   deriving stock (Eq, Generic)
 
-
 catThises :: [ThisOrThat a b] -> [a]
 catThises lst = lst >>= toThis
   where
@@ -2426,9 +2564,6 @@ type instance CircleRequest PaymentRequest = CircleResponseBody (ThisOrThat Fiat
 
 data PaymentsRequest
 
--- this motherfucker will be a heterogenous list so I have have to figure out how to work with that in Haskell.  Should be a good learning exercise.
--- type instance CircleRequest PaymentsRequest = CircleResponseBody [FiatPayment, CryptoPayment, FiatCancel, FiatRefund]
-
 type instance CircleRequest PaymentsRequest = CircleResponseBody [ThisOrThat FiatOrCryptoPaymentResponse FiatCancelOrRefund]
 
 instance CircleHasParam PaymentsRequest PaginationQueryParams
@@ -2454,7 +2589,7 @@ instance CircleHasParam PaymentsRequest PaymentIntentIdQueryParam
 data CreatePaymentBody = CreatePaymentBody
   { createPaymentIdempotencyKey :: !UUID,
     createPaymentKeyId :: !Text, -- TODO this is actually a UUID, but in Sandbox it has to be `key1`.  Figure out how to reconcile this later.
-    createPaymentMetadata :: !CreatePaymentMetadata,
+    createMetadata :: !CreateMetadata,
     createPaymentAmount :: !MoneyAmount,
     createPaymentAutoCapture :: !(Maybe Bool), -- TODO how to add default?
     createPaymentVerification :: !VerificationType,
@@ -2463,7 +2598,6 @@ data CreatePaymentBody = CreatePaymentBody
     createPaymentSource :: !PaymentSource,
     createPaymentDescription :: !(Maybe Text),
     createPaymentEncryptedData :: !(Maybe Text), -- TODO check that it contains the CVV somehow
-    createPaymentCVV :: !(Maybe Text), -- TODO CVV should be a type
     createPaymentChannel :: !(Maybe Text)
   }
   deriving (Eq, Show)
@@ -2479,7 +2613,7 @@ instance HasCodec CreatePaymentBody where
       CreatePaymentBody
         <$> requiredField' "idempotencyKey" .= createPaymentIdempotencyKey
         <*> requiredField' "keyId" .= createPaymentKeyId
-        <*> requiredField' "metadata" .= createPaymentMetadata
+        <*> requiredField' "metadata" .= createMetadata
         <*> requiredField' "amount" .= createPaymentAmount
         <*> optionalField' "autoCapture" .= createPaymentAutoCapture
         <*> requiredField' "verification" .= createPaymentVerification
@@ -2488,30 +2622,29 @@ instance HasCodec CreatePaymentBody where
         <*> requiredField' "source" .= createPaymentSource
         <*> optionalField' "description" .= createPaymentDescription
         <*> optionalField' "encryptedData" .= createPaymentEncryptedData
-        <*> optionalField' "cvv" .= createPaymentCVV
         <*> optionalField' "channel" .= createPaymentChannel
 
-data CreatePaymentMetadata = CreatePaymentMetadata
-  { createPaymentMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
-    createPaymentMetadataPhoneNumber :: !(Maybe Text), -- TODO this screams newtype w/ smart constructor
-    createPaymentMetadataSessionId :: !Text, -- TODO hash newtype or something
-    createPaymentMetadataIpAddress :: !Text -- TODO should be a newtype
+data CreateMetadata = CreateMetadata
+  { createMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
+    createMetadataPhoneNumber :: !(Maybe Text), -- TODO this screams newtype w/ smart constructor
+    createMetadataSessionId :: !Text, -- TODO hash newtype or something
+    createMetadataIpAddress :: !Text -- TODO should be a newtype
   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec CreatePaymentMetadata)
+    via (Autodocodec CreateMetadata)
 
-instance HasCodec CreatePaymentMetadata where
+instance HasCodec CreateMetadata where
   codec =
-    object "CreatePaymentMetadata" $
-      CreatePaymentMetadata
-        <$> requiredField' "email" .= createPaymentMetadataEmail
-        <*> optionalField' "phoneNumber" .= createPaymentMetadataPhoneNumber
-        <*> requiredField' "sessionId" .= createPaymentMetadataSessionId
-        <*> requiredField' "ipAddress" .= createPaymentMetadataIpAddress
+    object "CreateMetadata" $
+      CreateMetadata
+        <$> requiredField' "email" .= createMetadataEmail
+        <*> optionalField' "phoneNumber" .= createMetadataPhoneNumber
+        <*> requiredField' "sessionId" .= createMetadataSessionId
+        <*> requiredField' "ipAddress" .= createMetadataIpAddress
 
 data PaymentErrorCode
   = PaymentFailedErrorCode
@@ -2602,7 +2735,8 @@ instance HasCodec PaymentErrorCode where
         ]
 
 -- TODO could likely make a better abstraction here
--- | A FiatOrCryptoPaymentResponse object represents a fiat or crypto payment.  These payments look identical 
+
+-- | A FiatOrCryptoPaymentResponse object represents a fiat or crypto payment.  These payments look identical
 -- except for the "Description" field, and the fact that a FiatPayment could have response verification data, whereas
 -- a crypto payment could have info about the deposit address, transaction hash etc.
 -- I'd love to differentiate these fields based on what I can parse from JSON, but there's enough overlap between
@@ -2636,7 +2770,7 @@ data FiatOrCryptoPaymentResponse = FiatOrCryptoPaymentResponse
     fiatOrCryptoPaymentUpdateDate :: !(Maybe UTCTime),
     fiatOrCryptoPaymentTrackingRef :: !(Maybe TrackingReference),
     fiatOrCryptoPaymentErrorCode :: !(Maybe PaymentErrorCode),
-    fiatOrCryptoPaymentMetadata :: !(Maybe PaymentMetadata),
+    fiatOrCryptoMetadata :: !(Maybe Metadata),
     fiatOrCryptoPaymentRiskEvaluation :: !(Maybe RiskEvaluation)
   }
   deriving (Eq, Show)
@@ -2675,26 +2809,26 @@ instance HasCodec FiatOrCryptoPaymentResponse where
         <*> optionalField' "updateDate" .= fiatOrCryptoPaymentUpdateDate
         <*> optionalField' "trackingRef" .= fiatOrCryptoPaymentTrackingRef
         <*> optionalField' "errorCode" .= fiatOrCryptoPaymentErrorCode
-        <*> optionalField' "metadata" .= fiatOrCryptoPaymentMetadata
+        <*> optionalField' "metadata" .= fiatOrCryptoMetadata
         <*> optionalField' "channel" .= fiatOrCryptoPaymentRiskEvaluation
 
-data PaymentMetadata = PaymentMetadata
-  { paymentMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
-    paymentMetadataPhoneNumber :: !(Maybe Text) -- TODO this screams newtype w/ smart constructor
+data Metadata = Metadata
+  { metadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
+    metadataPhoneNumber :: !(Maybe Text) -- TODO this screams newtype w/ smart constructor
   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec PaymentMetadata)
+    via (Autodocodec Metadata)
 
-instance HasCodec PaymentMetadata where
+instance HasCodec Metadata where
   codec =
-    object "PaymentMetadata" $
-      PaymentMetadata
-        <$> requiredField' "email" .= paymentMetadataEmail
-        <*> optionalField' "phoneNumber" .= paymentMetadataPhoneNumber
+    object "Metadata" $
+      Metadata
+        <$> requiredField' "email" .= metadataEmail
+        <*> optionalField' "phoneNumber" .= metadataPhoneNumber
 
 data VerificationData = VerificationData
   { verificationAVS :: !AVS,
@@ -2757,7 +2891,7 @@ instance HasCodec PaymentDepositAddress where
 -- | A FiatCancelOrRefund object represents an attempt at canceling or refunding a payment.
 -- Cancellations apply only to card payments, and its presence doesn't necessarily mean that the cancellation was successful.
 -- A successful cancellation has a status of paid, a successful refund has a status of confirmed.
--- TODO I could likely do some better data modeling here, there's a ton of shared fields between these 
+-- TODO I could likely do some better data modeling here, there's a ton of shared fields between these
 -- types so I kinda cheated and just made one mega type with maybes, but it'll be more ergonomic for devs
 -- to have a specific type that's generated from the parsing.  The tricky part is the differentiator is the
 -- field `type`, so I think I'll need to be clever about this.
@@ -2930,10 +3064,11 @@ data CancelPaymentBody = CancelPaymentBody
     ( ToJSON,
       FromJSON
     )
-  via (Autodocodec CancelPaymentBody)
+    via (Autodocodec CancelPaymentBody)
 
 instance HasCodec CancelPaymentBody where
-  codec = object "CancelPaymentBody" $
+  codec =
+    object "CancelPaymentBody" $
       CancelPaymentBody
         <$> requiredField' "idempotencyKey" .= cancelPaymentIdempotencyKey
         <*> optionalField' "reason" .= cancelPaymentReason
@@ -2985,3 +3120,482 @@ instance HasCodec RefundPaymentBody where
         <$> requiredField' "idempotencyKey" .= refundPaymentIdempotencyKey
         <*> requiredField' "amount" .= refundPaymentAmount
         <*> optionalField' "reason" .= refundPaymentReason
+
+---------------------------------------------------------------
+-- On-chain payments endpoints
+---------------------------------------------------------------
+
+data OnChainTransferRequest
+
+type instance CircleRequest OnChainTransferRequest = CircleResponseBody TransferData
+
+instance CircleHasParam OnChainTransferRequest ReturnIdentitiesQueryParam
+
+data OnChainTransfersRequest
+
+type instance CircleRequest OnChainTransfersRequest = CircleResponseBody [TransferData]
+
+instance CircleHasParam OnChainTransfersRequest PaginationQueryParams
+
+instance CircleHasParam OnChainTransfersRequest FromQueryParam
+
+instance CircleHasParam OnChainTransfersRequest ToQueryParam
+
+instance CircleHasParam OnChainTransfersRequest PageSizeQueryParam
+
+instance CircleHasParam OnChainTransfersRequest WalletIdQueryParam
+
+instance CircleHasParam OnChainTransfersRequest SourceWalletIdQueryParam
+
+instance CircleHasParam OnChainTransfersRequest DestinationWalletIdQueryParam
+
+instance CircleHasParam OnChainTransfersRequest ReturnIdentitiesQueryParam
+
+data OnChainAddressRequest
+
+type instance CircleRequest OnChainAddressRequest = CircleResponseBody DepositAddressData
+
+data OnChainTransferBodyParams = OnChainTransferBodyParams
+  { onChainTransferBodyParamsIdempotencyKey :: !UUID,
+    onChainTransferBodyParamsSource :: !SourceWallet,
+    onChainTransferBodyParamsDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
+    onChainTransferBodyParamsAmount :: !MoneyAmount
+  }
+  deriving (Eq, Show)
+
+instance ToJSON OnChainTransferBodyParams where
+  toJSON :: OnChainTransferBodyParams -> Aeson.Value
+  toJSON OnChainTransferBodyParams {..} =
+    Aeson.object
+      [ "idempotencyKey" Aeson..= onChainTransferBodyParamsIdempotencyKey,
+        "source" Aeson..= onChainTransferBodyParamsSource,
+        "destination" Aeson..= onChainTransferBodyParamsDestination,
+        "amount" Aeson..= onChainTransferBodyParamsAmount
+      ]
+
+---------------------------------------------------------------
+-- Card endpoints
+---------------------------------------------------------------
+
+data CardsRequest
+
+type instance CircleRequest CardsRequest = CircleResponseBody [CardData]
+
+instance CircleHasParam CardsRequest PaginationQueryParams
+
+instance CircleHasParam CardsRequest PageSizeQueryParam
+
+data CardRequest
+
+type instance CircleRequest CardRequest = CircleResponseBody CardData
+
+data ListCardData = ListCardData
+  { listCardId :: !UUID,
+    listCardStatus :: !Status,
+    listCardBillingDetails :: !ListCardBillingDetails,
+    listCardExpiryMonth :: !Int,
+    listCardExpiryYear :: !Int,
+    listCardNetwork :: !CardNetwork,
+    listCardBin :: !(Maybe Text), -- first 6 digits of the Card, should be a custom newtype
+    listCardIssuerCountry :: !(Maybe ISO3166Alpha2),
+    listCardFingerprint :: !UUID,
+    listCardVerification :: !VerificationData,
+    listCardRiskEvaluation :: !RiskEvaluation,
+    listCardCreateDate :: !UTCTime,
+    listCardUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ListCardData)
+
+instance HasCodec ListCardData where
+  codec =
+    object "ListCardData" $
+      ListCardData
+        <$> requiredField' "id" .= listCardId
+        <*> requiredField' "status" .= listCardStatus
+        <*> requiredField' "billingDetails" .= listCardBillingDetails
+        <*> requiredField' "expMonth" .= listCardExpiryMonth
+        <*> requiredField' "expYear" .= listCardExpiryYear
+        <*> requiredField' "network" .= listCardNetwork
+        <*> optionalField' "bin" .= listCardBin
+        <*> optionalField' "issuerCountry" .= listCardIssuerCountry
+        <*> requiredField' "fingerprint" .= listCardFingerprint
+        <*> requiredField' "verification" .= listCardVerification
+        <*> requiredField' "riskEvaluation" .= listCardRiskEvaluation
+        <*> requiredField' "createDate" .= listCardCreateDate
+        <*> requiredField' "updateDate" .= listCardUpdateDate
+
+data CardData = CardData
+  { cardId :: !UUID,
+    cardStatus :: !Status,
+    cardBillingDetails :: !BillingDetails,
+    cardExpiryMonth :: !Int,
+    cardExpiryYear :: !Int,
+    cardNetwork :: !CardNetwork,
+    cardLast4 :: !Text, -- last 4 digits of card, should be a custom type
+    cardBin :: !(Maybe Text), -- first 6 digits of the card, should be a custom newtype
+    cardIssuerCountry :: !(Maybe ISO3166Alpha2),
+    cardFundingType :: !(Maybe CardFundingType),
+    cardFingerprint :: !UUID,
+    cardErrorCode :: !(Maybe VerificationErrorCode),
+    cardVerification :: !VerificationData,
+    cardRiskEvaluation :: !RiskEvaluation,
+    cardMetadata :: !Metadata,
+    cardCreateDate :: !UTCTime,
+    cardUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CardData)
+
+instance HasCodec CardData where
+  codec =
+    object "CardData" $
+      CardData
+        <$> requiredField' "id" .= cardId
+        <*> requiredField' "status" .= cardStatus
+        <*> requiredField' "billingDetails" .= cardBillingDetails
+        <*> requiredField' "expMonth" .= cardExpiryMonth
+        <*> requiredField' "expYear" .= cardExpiryYear
+        <*> requiredField' "network" .= cardNetwork
+        <*> requiredField' "last4" .= cardLast4
+        <*> optionalField' "bin" .= cardBin
+        <*> optionalField' "issuerCountry" .= cardIssuerCountry
+        <*> optionalField' "fundingType" .= cardFundingType
+        <*> requiredField' "fingerprint" .= cardFingerprint
+        <*> optionalField' "errorCode" .= cardErrorCode
+        <*> requiredField' "verification" .= cardVerification
+        <*> requiredField' "riskEvaluation" .= cardRiskEvaluation
+        <*> requiredField' "metadata" .= cardMetadata
+        <*> requiredField' "createDate" .= cardCreateDate
+        <*> requiredField' "updateDate" .= cardUpdateDate
+
+data CreateCardBodyParams = CreateCardBodyParams
+  { createCardIdempotencyKey :: !UUID,
+    createCardKeyId :: !(Maybe Text), -- key1 in sandbox
+    createCardEncryptedData :: !(Maybe Text), -- TODO check that it contains the CVV AND the card number somehow
+    createCardBillingDetails :: !BillingDetails,
+    createCardExpiryMonth :: !Int,
+    createCardExpiryYear :: !Int,
+    createCardMetadata :: !CreateMetadata
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CreateCardBodyParams)
+
+instance HasCodec CreateCardBodyParams where
+  codec =
+    object "CreateCardBodyParams" $
+      CreateCardBodyParams
+        <$> requiredField' "idempotencyKey" .= createCardIdempotencyKey
+        <*> optionalField' "keyId" .= createCardKeyId
+        <*> requiredField' "encryptedData" .= createCardEncryptedData
+        <*> requiredField' "billingDetails" .= createCardBillingDetails
+        <*> requiredField' "expMonth" .= createCardExpiryMonth
+        <*> requiredField' "expYear" .= createCardExpiryYear
+        <*> requiredField' "metadata" .= createCardMetadata
+
+data UpdateCardBodyParams = UpdateCardBodyParams
+  { updateCardKeyId :: !(Maybe Text), -- key1 in sandbox
+    updateCardEncryptedData :: !(Maybe Text), -- TODO check that it contains the CVV AND the card number somehow
+    updateCardExpiryMonth :: !Int,
+    updateCardExpiryYear :: !Int
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec UpdateCardBodyParams)
+
+instance HasCodec UpdateCardBodyParams where
+  codec =
+    object "UpdateCardBodyParams" $
+      UpdateCardBodyParams
+        <$> requiredField' "keyId" .= updateCardKeyId
+        <*> requiredField' "encryptedData" .= updateCardEncryptedData
+        <*> requiredField' "expMonth" .= updateCardExpiryMonth
+        <*> requiredField' "expYear" .= updateCardExpiryYear
+
+data ListCardBillingDetails = ListCardBillingDetails
+  { listCardBillingDetailsCountry :: !ISO3166Alpha2,
+    listCardBillingDetailsDistrict :: !District
+  }
+  deriving (Eq, Show, Generic)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+    via (Autodocodec ListCardBillingDetails)
+
+instance HasCodec ListCardBillingDetails where
+  codec =
+    object "ListCardBillingDetails" $
+      ListCardBillingDetails
+        <$> requiredField' "country" .= listCardBillingDetailsCountry
+        <*> requiredField' "district" .= listCardBillingDetailsDistrict
+
+data CardNetwork
+  = VISA
+  | MASTERCARD
+  | AMEX
+  | UNKNOWN
+  deriving (Eq, Show, Enum, Bounded)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CardNetwork)
+
+instance HasCodec CardNetwork where
+  codec = shownBoundedEnumCodec
+
+data CardFundingType
+  = Credit
+  | Debit
+  | Prepaid
+  | Unknown
+  deriving (Eq, Show, Enum, Bounded)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CardFundingType)
+
+instance HasCodec CardFundingType where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (Credit, "credit"),
+          (Debit, "debit"),
+          (Prepaid, "prepaid"),
+          (Unknown, "unknown")
+        ]
+
+data VerificationErrorCode
+  = VerificationFailed
+  | VerificationFraudDetected
+  | VerificationDenied
+  | VerificationNotSupportedByIssuer
+  | VerificationStoppedByIssuer
+  | VerificationCardFailed
+  | VerificationCardInvalid
+  | VerificationCardAddressMismatch
+  | VerificationCardZipMismatch
+  | VerificationCardCvvInvalid
+  | VerificationCardExpired
+  | VerificationCardLimitViolated
+  | VerificationCardNotHonored
+  | VerificationCardCvvRequired
+  | VerificationCreditCardNotAllowed
+  | VerificationCardAccountIneligible
+  | VerificationCardNetworkUnsupported
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec VerificationErrorCode)
+
+instance HasCodec VerificationErrorCode where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (VerificationFailed, "verification_failed"),
+          (VerificationFraudDetected, "verification_fraud_detected"),
+          (VerificationDenied, "verification_denied"),
+          (VerificationNotSupportedByIssuer, "verification_not_supported_by_issuer"),
+          (VerificationStoppedByIssuer, "verification_stopped_by_issuer"),
+          (VerificationCardFailed, "card_failed"),
+          (VerificationCardInvalid, "card_invalid"),
+          (VerificationCardAddressMismatch, "card_address_mismatch"),
+          (VerificationCardZipMismatch, "card_zip_mismatch"),
+          (VerificationCardCvvInvalid, "card_cvv_invalid"),
+          (VerificationCardExpired, "card_expired"),
+          (VerificationCardLimitViolated, "card_limit_violated"),
+          (VerificationCardNotHonored, "card_not_honored"),
+          (VerificationCardCvvRequired, "card_cvv_required"),
+          (VerificationCreditCardNotAllowed, "credit_card_not_allowed"),
+          (VerificationCardAccountIneligible, "card_account_ineligible"),
+          (VerificationCardNetworkUnsupported, "card_network_unsupported")
+        ]
+
+---------------------------------------------------------------
+-- ACH endpoints
+---------------------------------------------------------------
+
+data ACHBankAccountRequest
+
+type instance CircleRequest ACHBankAccountRequest = CircleResponseBody ACHBankAccountData
+
+data ACHBankAccountData = ACHBankAccountData
+  { achBankAccountId :: !UUID,
+    achBankAccountStatus :: !Status,
+    achBankAccountAccountNumber :: !AccountNumber,
+    achBankAccountRoutingNumber :: !RoutingNumber,
+    achBankAccountBillingDetails :: !BillingDetails,
+    achBankAccountType :: !(Maybe ACHBankAccountType),
+    achBankAccountBankAddress :: !BankAddress,
+    achBankAccountFingerprint :: !UUID,
+    achBankAccountErrorCode :: !(Maybe ACHBankAccountErrorCode),
+    achBankAccountRiskEvaluation :: !(Maybe RiskEvaluation),
+    achBankAccountMetadata :: !Metadata,
+    achBankAccountCreateDate :: !UTCTime,
+    achBankAccountUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ACHBankAccountData)
+
+instance HasCodec ACHBankAccountData where
+  codec =
+    object "ACHBankAccountData" $
+      ACHBankAccountData
+        <$> requiredField' "id" .= achBankAccountId
+        <*> requiredField' "status" .= achBankAccountStatus
+        <*> requiredField' "accountNumber" .= achBankAccountAccountNumber
+        <*> requiredField' "routingNumber" .= achBankAccountRoutingNumber
+        <*> requiredField' "billingDetails" .= achBankAccountBillingDetails
+        <*> optionalField' "bankAccountType" .= achBankAccountType
+        <*> requiredField' "bankAddress" .= achBankAccountBankAddress
+        <*> requiredField' "fingerprint" .= achBankAccountFingerprint
+        <*> optionalField' "errorCode" .= achBankAccountErrorCode
+        <*> optionalField' "riskEvaluation" .= achBankAccountRiskEvaluation
+        <*> requiredField' "metadata" .= achBankAccountMetadata
+        <*> requiredField' "createDate" .= achBankAccountCreateDate
+        <*> requiredField' "updateDate" .= achBankAccountUpdateDate
+
+data ACHBankAccountErrorCode
+  = ACHBankAccountAuthorizationExpired
+  | ACHBankAccountError
+  | ACHBankAccountIneligible
+  | ACHBankAccountNotFound
+  | ACHBankAccountUnauthorized
+  | ACHBankAccountUnsupportedRoutingNumber
+  | ACHBankAccountVerificationFailed
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ACHBankAccountErrorCode)
+
+instance HasCodec ACHBankAccountErrorCode where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (ACHBankAccountAuthorizationExpired, "bank_account_authorization_expired"),
+          (ACHBankAccountError, "bank_account_error"),
+          (ACHBankAccountIneligible, "bank_account_ineligible"),
+          (ACHBankAccountNotFound, "bank_account_not_found"),
+          (ACHBankAccountUnauthorized, "bank_account_unauthorized"),
+          (ACHBankAccountUnsupportedRoutingNumber, "unsupported_routing_number"),
+          (ACHBankAccountVerificationFailed, "verification_failed")
+        ]
+
+data CreateACHBankAccountBodyParams = CreateACHBankAccountBodyParams
+  { achBankAccountBodyIdempotencyKey :: !UUID,
+    achBankAccountBodyPlaidProcessorToken :: !Text, -- TODO newtype
+    achBankAccountBodyBillingDetails :: !BillingDetails,
+    achBankAccountBodyBankAccountType :: !(Maybe ACHBankAccountType),
+    achBankAccountBodyMetadata :: !CreateMetadata
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CreateACHBankAccountBodyParams)
+
+instance HasCodec CreateACHBankAccountBodyParams where
+  codec =
+    object "CreateACHBankAccountBodyParams" $
+      CreateACHBankAccountBodyParams
+        <$> requiredField' "idempotencyKey" .= achBankAccountBodyIdempotencyKey
+        <*> requiredField' "plaidProcessorToken" .= achBankAccountBodyPlaidProcessorToken
+        <*> requiredField' "billingDetails" .= achBankAccountBodyBillingDetails
+        <*> optionalField' "bankAccountType" .= achBankAccountBodyBankAccountType
+        <*> requiredField' "metadata" .= achBankAccountBodyMetadata
+
+data CreateMockACHBankAccountBodyParams = CreateMockACHBankAccountBodyParams
+  { mockACHBankAccountBodyAccount :: !MockACHBankAccount,
+    mockACHBankAccountBodyBalance :: MoneyAmount
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CreateMockACHBankAccountBodyParams)
+
+instance HasCodec CreateMockACHBankAccountBodyParams where
+  codec =
+    object "CreateMockACHBankAccountBodyParams" $
+      CreateMockACHBankAccountBodyParams
+        <$> requiredField' "account" .= mockACHBankAccountBodyAccount
+        <*> requiredField' "balance" .= mockACHBankAccountBodyBalance
+
+data MockACHBankAccount = MockACHBankAccount
+  { mockACHBankAccountAccountNumber :: !AccountNumber,
+    mockACHBankAccountRoutingNumber :: !MockRoutingNumber,
+    mockACHBankAccountDescription :: !Text
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec MockACHBankAccount)
+
+instance HasCodec MockACHBankAccount where
+  codec =
+    object "MockACHBankAccount" $
+      MockACHBankAccount
+        <$> requiredField' "accountNumber" .= mockACHBankAccountAccountNumber
+        <*> requiredField' "routingNumber" .= mockACHBankAccountRoutingNumber
+        <*> requiredField' "description" .= mockACHBankAccountDescription
+
+data MockRoutingNumber
+  = MockRoutingNumber1
+  | MockRoutingNumber2
+  | MockRoutingNumber3
+  | MockRoutingNumber4
+  | MockRoutingNumber5
+  | MockRoutingNumber6
+  | MockRoutingNumber7
+  | MockRoutingNumber8
+  | MockRoutingNumber9
+  deriving (Eq, Show, Enum, Bounded)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec MockRoutingNumber)
+
+instance HasCodec MockRoutingNumber where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (MockRoutingNumber1, "011000028"),
+          (MockRoutingNumber2, "011201762"),
+          (MockRoutingNumber3, "011500120"),
+          (MockRoutingNumber4, "021214862"),
+          (MockRoutingNumber5, "121000248"),
+          (MockRoutingNumber6, "121140399"),
+          (MockRoutingNumber7, "211073473"),
+          (MockRoutingNumber8, "221172610"),
+          (MockRoutingNumber9, "011000138")
+        ]
