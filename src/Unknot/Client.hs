@@ -504,7 +504,7 @@ createCard createCardBody = do
 
 updateCard :: UUID -> UpdateCardBodyParams -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
 updateCard cardId updateCardBody = do
-  mkCircleAPIRequest NHTM.methodPost url params
+  mkCircleAPIRequest NHTM.methodPut url params
   where
     url = "cards/" <> unUUID cardId
     params = Params (Just $ Body (encode updateCardBody)) []
@@ -543,6 +543,49 @@ getWireAccountInstructions wireAccountId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "banks/wires/" <> unUUID wireAccountId <> "/instructions"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- SEPA Endpoint
+---------------------------------------------------------------
+
+createSEPAAccount :: SEPAAccountBodyParams -> CircleAPIRequest SEPAAccountRequest TupleBS8 BSL.ByteString
+createSEPAAccount sepaAccountBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "banks/sepa"
+    params = Params (Just $ Body (encode sepaAccountBody)) []
+
+getSEPAAccount :: UUID -> CircleAPIRequest SEPAAccountRequest TupleBS8 BSL.ByteString
+getSEPAAccount sepaAccountId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "banks/sepa/" <> unUUID sepaAccountId
+    params = Params Nothing []
+
+getSEPAAccountInstructions :: UUID -> CircleAPIRequest SEPAInstructionsRequest TupleBS8 BSL.ByteString
+getSEPAAccountInstructions sepaAccountId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "banks/sepa/" <> unUUID sepaAccountId <> "/instructions"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Settlements Endpoint
+---------------------------------------------------------------
+
+listAllSettlements :: CircleAPIRequest SettlementsRequest TupleBS8 BSL.ByteString
+listAllSettlements = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "settlements"
+    params = Params Nothing []
+
+getSettlement :: UUID -> CircleAPIRequest SettlementRequest TupleBS8 BSL.ByteString
+getSettlement settlementId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "settlements/" <> unUUID settlementId
     params = Params Nothing []
 
 ---------------------------------------------------------------

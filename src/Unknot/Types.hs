@@ -199,6 +199,14 @@ module Unknot.Types
     -- ACH Endpoint
     ACHBankAccountRequest,
     ACHBankAccountData (..),
+    -- SEPA Endpoint
+    SEPAAccountData (..),
+    SEPAAccountRequest,
+    SEPAAccountBodyParams (..),
+    SEPAInstructionsRequest,
+    -- Settlements Endpoint
+    SettlementsRequest,
+    SettlementRequest,
   )
 where
 
@@ -1105,7 +1113,7 @@ data TransferData = TransferData
   }
   deriving (Eq, Show)
 
--- NB: this doesn't use Autodocodec for deriving ToJSON and FromJSON since I'm using the hand-rolled
+-- NB: this doesn't use autodocodec for deriving ToJSON and FromJSON since I'm using the hand-rolled
 -- ThisOrThat helper for smartly parsing types.
 instance FromJSON TransferData where
   parseJSON = withObject "TransferData" parse
@@ -3599,3 +3607,118 @@ instance HasCodec MockRoutingNumber where
           (MockRoutingNumber8, "221172610"),
           (MockRoutingNumber9, "011000138")
         ]
+
+---------------------------------------------------------------
+-- SEPA endpoint
+---------------------------------------------------------------
+
+data SEPAAccountRequest
+
+type instance CircleRequest SEPAAccountRequest = CircleResponseBody SEPAAccountData
+
+data SEPAInstructionsRequest
+
+type instance CircleRequest SEPAInstructionsRequest = CircleResponseBody WireInstructionsData -- reuse this type
+data SEPAAccountBodyParams = SEPAAccountBodyParams
+  { sepaAccountBodyParamsIdempotencyKey :: !UUID,
+    sepaAccountBodyParamsIBAN :: !Text, -- TODO newtype IBAN
+    sepaAccountBodyParamsBillingDetails :: !BillingDetails
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec SEPAAccountBodyParams)
+
+instance HasCodec SEPAAccountBodyParams where
+  codec =
+    object "SEPAAccountBodyParams" $
+      SEPAAccountBodyParams
+        <$> requiredField' "idempotencyKey" .= sepaAccountBodyParamsIdempotencyKey
+        <*> requiredField' "iban" .= sepaAccountBodyParamsIBAN
+        <*> requiredField' "billingDetails" .= sepaAccountBodyParamsBillingDetails
+
+data SEPAAccountData = SEPAAccountData
+  { sepaAccountDataId :: !UUID,
+    sepaAccountDataStatus :: !Status,
+    sepaAccountDataDescription :: !Text, -- TODO better type: Bank name plus last four digits of the bank account number or IBAN.  Make a custom type for this
+    sepaAccountDataTrackingRef :: !TrackingReference,
+    sepaAccountDataFingerprint :: !UUID, -- TODO newtype this
+    sepaAccountDataRiskEvaluation :: !(Maybe RiskEvaluation),
+    sepaAccountDataBillingDetails :: !BillingDetails,
+    sepaAccountDataCreateDate :: !UTCTime,
+    sepaAccountDataUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec SEPAAccountData)
+
+instance HasCodec SEPAAccountData where
+  codec =
+    object "SEPAAccountData" $
+      SEPAAccountData
+        <$> requiredField' "id" .= sepaAccountDataId
+        <*> requiredField' "status" .= sepaAccountDataStatus
+        <*> requiredField' "description" .= sepaAccountDataDescription
+        <*> requiredField' "trackingRef" .= sepaAccountDataTrackingRef
+        <*> requiredField' "fingerprint" .= sepaAccountDataFingerprint
+        <*> optionalField' "riskEvaluation" .= sepaAccountDataRiskEvaluation
+        <*> requiredField' "billingDetails" .= sepaAccountDataBillingDetails
+        <*> requiredField' "createDate" .= sepaAccountDataCreateDate
+        <*> requiredField' "updateDate" .= sepaAccountDataUpdateDate
+
+---------------------------------------------------------------
+-- Settlements Endpoint
+---------------------------------------------------------------
+
+data SettlementRequest
+
+type instance CircleRequest SettlementRequest = CircleResponseBody SettlementData
+
+data SettlementsRequest
+
+type instance CircleRequest SettlementsRequest = CircleResponseBody [SettlementData]
+
+instance CircleHasParam SettlementsRequest PaginationQueryParams
+
+instance CircleHasParam SettlementsRequest FromQueryParam
+
+instance CircleHasParam SettlementsRequest ToQueryParam
+
+instance CircleHasParam SettlementsRequest PageSizeQueryParam
+
+data SettlementData = SettlementData
+  { settlementDataId :: !UUID,
+    settlementDataMerchantWalletId :: !UUID,
+    settlementDataWalletId :: !UUID,
+    settlementDataTotalDebits :: !MoneyAmount,
+    settlementDataTotalCredits :: !MoneyAmount,
+    settlementDataPaymentFees :: !MoneyAmount,
+    settlementDataChargebackFees :: !MoneyAmount,
+    settlementDataCreateDate :: !UTCTime,
+    settlementDataUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec SettlementData)
+
+instance HasCodec SettlementData where
+  codec =
+    object "SettlementData" $
+      SettlementData
+        <$> requiredField' "id" .= settlementDataId
+        <*> requiredField' "merchantWalletId" .= settlementDataMerchantWalletId
+        <*> requiredField' "walletId" .= settlementDataWalletId
+        <*> requiredField' "totalDebits" .= settlementDataTotalDebits
+        <*> requiredField' "totalCredits" .= settlementDataTotalCredits
+        <*> requiredField' "paymentFees" .= settlementDataPaymentFees
+        <*> requiredField' "chargebackFees" .= settlementDataChargebackFees
+        <*> requiredField' "createDate" .= settlementDataCreateDate
+        <*> requiredField' "updateDate" .= settlementDataUpdateDate
