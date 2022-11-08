@@ -224,7 +224,7 @@ import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRi
 import Data.Aeson
   ( FromJSON (parseJSON),
     Result (Error, Success),
-    ToJSON (toJSON, toEncoding),
+    ToJSON (toEncoding, toJSON),
     withObject,
     withText,
     (.:),
@@ -548,9 +548,9 @@ instance ToCircleParam PaymentStatusQueryParams where
     joinQueryParams $ Params Nothing [Query ("status", BS8.intercalate "," (map paymentStatusToBS8 xs))]
 
 newtype WalletIdQueryParam = WalletIdQueryParam
-    { walletIdQueryParam :: WalletId
-    }
-    deriving (Eq, Show)
+  { walletIdQueryParam :: WalletId
+  }
+  deriving (Eq, Show)
 
 instance ToCircleParam WalletIdQueryParam where
   toCircleParam (WalletIdQueryParam i) =
@@ -1106,7 +1106,7 @@ data TransferData = TransferData
   deriving (Eq, Show)
 
 -- NB: this doesn't use Autodocodec for deriving ToJSON and FromJSON since I'm using the hand-rolled
--- ThisOrThat helper for smartly parsing types.  
+-- ThisOrThat helper for smartly parsing types.
 instance FromJSON TransferData where
   parseJSON = withObject "TransferData" parse
     where
@@ -1982,7 +1982,6 @@ instance HasCodec TransferFeeAmount where
         <*> requiredField' "currency" .= transferFeeAmountCurrency
         <*> requiredField' "type" .= transferFeeAmountType
 
-
 data Decision = Approved | Denied | Review
   deriving (Eq, Show, Generic)
   deriving
@@ -2498,7 +2497,6 @@ utcToCircle ut =
 data ThisOrThat a b = This a | That b
   deriving stock (Eq, Generic)
 
-
 catThises :: [ThisOrThat a b] -> [a]
 catThises lst = lst >>= toThis
   where
@@ -2737,7 +2735,8 @@ instance HasCodec PaymentErrorCode where
         ]
 
 -- TODO could likely make a better abstraction here
--- | A FiatOrCryptoPaymentResponse object represents a fiat or crypto payment.  These payments look identical 
+
+-- | A FiatOrCryptoPaymentResponse object represents a fiat or crypto payment.  These payments look identical
 -- except for the "Description" field, and the fact that a FiatPayment could have response verification data, whereas
 -- a crypto payment could have info about the deposit address, transaction hash etc.
 -- I'd love to differentiate these fields based on what I can parse from JSON, but there's enough overlap between
@@ -2892,7 +2891,7 @@ instance HasCodec PaymentDepositAddress where
 -- | A FiatCancelOrRefund object represents an attempt at canceling or refunding a payment.
 -- Cancellations apply only to card payments, and its presence doesn't necessarily mean that the cancellation was successful.
 -- A successful cancellation has a status of paid, a successful refund has a status of confirmed.
--- TODO I could likely do some better data modeling here, there's a ton of shared fields between these 
+-- TODO I could likely do some better data modeling here, there's a ton of shared fields between these
 -- types so I kinda cheated and just made one mega type with maybes, but it'll be more ergonomic for devs
 -- to have a specific type that's generated from the parsing.  The tricky part is the differentiator is the
 -- field `type`, so I think I'll need to be clever about this.
@@ -3065,10 +3064,11 @@ data CancelPaymentBody = CancelPaymentBody
     ( ToJSON,
       FromJSON
     )
-  via (Autodocodec CancelPaymentBody)
+    via (Autodocodec CancelPaymentBody)
 
 instance HasCodec CancelPaymentBody where
-  codec = object "CancelPaymentBody" $
+  codec =
+    object "CancelPaymentBody" $
       CancelPaymentBody
         <$> requiredField' "idempotencyKey" .= cancelPaymentIdempotencyKey
         <*> optionalField' "reason" .= cancelPaymentReason
@@ -3165,13 +3165,13 @@ data OnChainTransferBodyParams = OnChainTransferBodyParams
 
 instance ToJSON OnChainTransferBodyParams where
   toJSON :: OnChainTransferBodyParams -> Aeson.Value
-  toJSON OnChainTransferBodyParams {..} = 
-    Aeson.object [
-      "idempotencyKey" Aeson..= onChainTransferBodyParamsIdempotencyKey,
-      "source" Aeson..= onChainTransferBodyParamsSource,
-      "destination" Aeson..= onChainTransferBodyParamsDestination,
-      "amount" Aeson..= onChainTransferBodyParamsAmount
-    ]
+  toJSON OnChainTransferBodyParams {..} =
+    Aeson.object
+      [ "idempotencyKey" Aeson..= onChainTransferBodyParamsIdempotencyKey,
+        "source" Aeson..= onChainTransferBodyParamsSource,
+        "destination" Aeson..= onChainTransferBodyParamsDestination,
+        "amount" Aeson..= onChainTransferBodyParamsAmount
+      ]
 
 ---------------------------------------------------------------
 -- Card endpoints
@@ -3294,7 +3294,7 @@ data CreateCardBodyParams = CreateCardBodyParams
     via (Autodocodec CreateCardBodyParams)
 
 instance HasCodec CreateCardBodyParams where
-  codec = 
+  codec =
     object "CreateCardBodyParams" $
       CreateCardBodyParams
         <$> requiredField' "idempotencyKey" .= createCardIdempotencyKey
