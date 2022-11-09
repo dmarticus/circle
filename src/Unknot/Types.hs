@@ -183,6 +183,7 @@ module Unknot.Types
     CancelPaymentReason (..),
     RefundPaymentBody (..),
     MockPaymentRequest,
+    MockAccountRequest,
     MockSenOrWirePaymentRequestBody (..),
     MockBeneficiaryBankDetails (..),
     MockSEPAPaymentRequestBody (..),
@@ -201,6 +202,8 @@ module Unknot.Types
     -- ACH Endpoint
     ACHBankAccountRequest,
     ACHBankAccountResponseBody (..),
+    CreateACHBankAccountRequestBody (..),
+    CreateMockACHBankAccountRequestBody (..),
     -- SEPA Endpoint
     SEPAAccountResponseBody (..),
     SEPAAccountRequest,
@@ -212,6 +215,7 @@ module Unknot.Types
     -- Chargebacks Endpoint
     ChargebacksRequest,
     ChargebackRequest,
+    MockChargebackRequest,
     -- Reversals Endpoint
     ReversalsRequest,
     -- Payment Intents Endpoints
@@ -633,7 +637,7 @@ instance ToCircleParam ReturnIdentitiesQueryParam where
     joinQueryParams $ Params Nothing [Query ("returnIdentities", TE.encodeUtf8 (T.pack (show i)))]
 
 ---------------------------------------------------------------
--- Balance endpoints
+-- Balance Types
 ---------------------------------------------------------------
 
 data BalanceRequest
@@ -659,7 +663,7 @@ instance HasCodec BalanceResponseBody where
         <*> requiredField' "unsettled" .= balanceResponseBodyAvailable
 
 ---------------------------------------------------------------
--- Payout endpoints
+-- Payout Types
 ---------------------------------------------------------------
 data PayoutRequest
 
@@ -842,7 +846,7 @@ instance HasCodec PayoutErrorCode where
         ]
 
 ---------------------------------------------------------------
--- Management endpoint
+-- Configuration Types
 ---------------------------------------------------------------
 
 data ConfigurationRequest
@@ -878,7 +882,7 @@ instance HasCodec WalletConfig where
         <$> requiredField' "masterWalletId" .= masterWalletId
 
 ---------------------------------------------------------------
--- Encryption endpoint
+-- Encryption Types
 ---------------------------------------------------------------
 
 data EncryptionRequest
@@ -900,7 +904,7 @@ instance HasCodec EncryptionResponseBody where
         <*> requiredField' "publicKey" .= encryptionResponseBodyPublicKey
 
 ---------------------------------------------------------------
--- Channels endpoint
+-- Channels Types
 ---------------------------------------------------------------
 
 data ChannelsRequest
@@ -944,7 +948,7 @@ instance HasCodec Channel where
         <*> requiredField' "achDescriptor" .= channelAchDescriptor
 
 ---------------------------------------------------------------
--- Stablecoins endpoint
+-- Stablecoin Types
 ---------------------------------------------------------------
 
 data StablecoinsRequest
@@ -1036,7 +1040,7 @@ instance HasCodec Stablecoin where
         ]
 
 ---------------------------------------------------------------
--- Subscription endpoints
+-- Subscription Types
 ---------------------------------------------------------------
 
 data SubscriptionsRequest
@@ -1102,7 +1106,7 @@ instance HasCodec SubscriptionRequestBody where
         <$> requiredField' "endpoint" .= subscriptionRequestBodyEndpoint
 
 ---------------------------------------------------------------
--- Transfer endpoints
+-- Transfer Types
 ---------------------------------------------------------------
 
 data TransfersRequest
@@ -1387,7 +1391,7 @@ instance HasCodec TransferErrorCode where
         ]
 
 ---------------------------------------------------------------
--- Address endpoints
+-- Address Types
 ---------------------------------------------------------------
 
 data DepositAddressesRequest
@@ -1509,7 +1513,7 @@ instance HasCodec RecipientAddressRequestBody where
         <*> requiredField' "description" .= recipientAddressRequestBodyDescription
 
 ---------------------------------------------------------------
--- Deposits endpoints
+-- Deposit Types
 ---------------------------------------------------------------
 
 data DepositsRequest
@@ -1558,7 +1562,10 @@ instance HasCodec DepositResponseBody where
         <*> requiredField' "createDate" .= depositResponseBodyCreateDate
         <*> requiredField' "updateDate" .= depositResponseBodyUpdateDate
 
--- TODO is this real?  Like should I make some real code that does what this mock does and expose that in the module?
+---------------------------------------------------------------
+-- Mock Payment Types
+---------------------------------------------------------------
+
 data MockPaymentRequest
 
 type instance CircleRequest MockPaymentRequest = CircleResponseBody MockPaymentResponseBody
@@ -1630,7 +1637,7 @@ instance HasCodec MockBeneficiaryBankDetails where
   codec = dimapCodec MockBeneficiaryBankDetails mockBeneficiaryBankDetailsAccountNumber codec
 
 ---------------------------------------------------------------
--- Silvergate SEN endpoints
+-- Silvergate SEN Types
 ---------------------------------------------------------------
 
 data SENAccountRequest
@@ -1714,7 +1721,7 @@ instance HasCodec SENInstructionsResponseData where
         <*> requiredField' "currency" .= senInstructionsResponseDataCurrency
 
 ---------------------------------------------------------------
--- Signet endpoints
+-- Signet Bank Account Types
 ---------------------------------------------------------------
 
 data SignetBankAccountRequest
@@ -1792,7 +1799,7 @@ instance HasCodec SignetBankInstructionsResponseData where
         <*> optionalField' "walletAddress" .= signetBankInstructionsWalletAddress
 
 ---------------------------------------------------------------
--- Wire endpoints
+-- Wire Account Types
 ---------------------------------------------------------------
 
 data WireAccountRequest
@@ -1937,13 +1944,12 @@ instance HasCodec WireAccountResponseBody where
         <*> requiredField' "createDate" .= wireAccountResponseBodyCreateDate
         <*> requiredField' "updateDate" .= wireAccountResponseBodyUpdateDate
 
----------------------------------------------------------------
+
 -- Payments API
--- this could probably be a new module
----------------------------------------------------------------
+-- this could maybe be a new module?  IDK.
 
 ---------------------------------------------------------------
--- Payments endpoints
+-- Payment Types
 ---------------------------------------------------------------
 
 data PaymentRequest
@@ -2510,7 +2516,7 @@ instance HasCodec RefundPaymentBody where
         <*> optionalField' "reason" .= refundPaymentReason
 
 ---------------------------------------------------------------
--- On-chain payments endpoints
+-- On-chain Payment Types
 ---------------------------------------------------------------
 
 data OnChainTransferRequest
@@ -2562,7 +2568,7 @@ instance ToJSON OnChainTransferRequestBody where
       ]
 
 ---------------------------------------------------------------
--- Card endpoints
+-- Card Types
 ---------------------------------------------------------------
 
 data CardsRequest
@@ -2819,7 +2825,7 @@ instance HasCodec VerificationErrorCode where
         ]
 
 ---------------------------------------------------------------
--- ACH endpoints
+-- ACH Types
 ---------------------------------------------------------------
 
 data ACHBankAccountRequest
@@ -2894,33 +2900,41 @@ instance HasCodec ACHBankAccountErrorCode where
           (ACHBankAccountVerificationFailed, "verification_failed")
         ]
 
-data CreateACHBankAccountBodyParams = CreateACHBankAccountBodyParams
-  { achBankAccountBodyIdempotencyKey :: !UUID,
-    achBankAccountBodyPlaidProcessorToken :: !Text, -- TODO newtype
-    achBankAccountBodyBillingDetails :: !BillingDetails,
-    achBankAccountBodyBankAccountType :: !(Maybe ACHBankAccountType),
-    achBankAccountBodyMetadata :: !RequestMetadata
-  }
+data CreateACHBankAccountRequestBody = CreateACHBankAccountRequestBody
+   { achBankAccountBodyIdempotencyKey :: !UUID,
+     achBankAccountBodyPlaidProcessorToken :: !Text, -- TODO newtype
+     achBankAccountBodyBillingDetails :: !BillingDetails,
+     achBankAccountBodyBankAccountType :: !(Maybe ACHBankAccountType),
+     achBankAccountBodyMetadata :: !RequestMetadata
+   }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
       ToJSON
     )
-    via (Autodocodec CreateACHBankAccountBodyParams)
+    via (Autodocodec CreateACHBankAccountRequestBody)
 
-instance HasCodec CreateACHBankAccountBodyParams where
+instance HasCodec CreateACHBankAccountRequestBody where
   codec =
-    object "CreateACHBankAccountBodyParams" $
-      CreateACHBankAccountBodyParams
+    object "CreateACHBankAccountRequestBody" $
+      CreateACHBankAccountRequestBody
         <$> requiredField' "idempotencyKey" .= achBankAccountBodyIdempotencyKey
         <*> requiredField' "plaidProcessorToken" .= achBankAccountBodyPlaidProcessorToken
         <*> requiredField' "billingDetails" .= achBankAccountBodyBillingDetails
         <*> optionalField' "bankAccountType" .= achBankAccountBodyBankAccountType
         <*> requiredField' "metadata" .= achBankAccountBodyMetadata
 
+---------------------------------------------------------------
+-- Mock Account Types
+---------------------------------------------------------------
+
+data MockAccountRequest
+
+type instance CircleRequest MockAccountRequest = CircleResponseBody MockACHBankAccountResponseBody
+
 data CreateMockACHBankAccountRequestBody = CreateMockACHBankAccountRequestBody
   { mockACHBankAccountBodyAccount :: !MockACHBankAccount,
-    mockACHBankAccountBodyBalance :: MoneyAmount
+    mockACHBankAccountBodyBalance :: !MoneyAmount
   }
   deriving (Eq, Show)
   deriving
@@ -2935,6 +2949,26 @@ instance HasCodec CreateMockACHBankAccountRequestBody where
       CreateMockACHBankAccountRequestBody
         <$> requiredField' "account" .= mockACHBankAccountBodyAccount
         <*> requiredField' "balance" .= mockACHBankAccountBodyBalance
+
+data MockACHBankAccountResponseBody = MockACHBankAccountResponseBody
+  { mockACHBankAccountResponseBodyAccount :: !MockACHBankAccount,
+    mockACHBankAccountResponseBodyBalance :: !MoneyAmount,
+    mockACHBankAccountResponseBodyProcessorToken :: !Text -- TODO newtype
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec MockACHBankAccountResponseBody)
+
+instance HasCodec MockACHBankAccountResponseBody where
+  codec =
+    object "MockACHBankAccountResponseBody" $
+      MockACHBankAccountResponseBody
+        <$> requiredField' "account" .= mockACHBankAccountResponseBodyAccount
+        <*> requiredField' "balance" .= mockACHBankAccountResponseBodyBalance
+        <*> requiredField' "processorToken" .= mockACHBankAccountResponseBodyProcessorToken
 
 data MockACHBankAccount = MockACHBankAccount
   { mockACHBankAccountAccountNumber :: !AccountNumber,
@@ -2989,7 +3023,7 @@ instance HasCodec MockRoutingNumber where
         ]
 
 ---------------------------------------------------------------
--- SEPA endpoint
+-- SEPA Types
 ---------------------------------------------------------------
 
 data SEPAAccountRequest
@@ -3053,7 +3087,7 @@ instance HasCodec SEPAAccountResponseBody where
         <*> requiredField' "updateDate" .= sepaAccountResponseBodyUpdateDate
 
 ---------------------------------------------------------------
--- Settlements Endpoint
+-- Settlements Types
 ---------------------------------------------------------------
 
 data SettlementRequest
@@ -3105,7 +3139,7 @@ instance HasCodec SettlementResponseBody where
         <*> requiredField' "updateDate" .= settlementResponseBodyUpdateDate
 
 ---------------------------------------------------------------
--- Chargebacks Endpoint
+-- Chargeback Types
 ---------------------------------------------------------------
 
 data ChargebacksRequest
@@ -3233,7 +3267,7 @@ instance HasCodec ChargebackHistoryType where
         ]
 
 ---------------------------------------------------------------
--- Reversals Endpoint
+-- Reversal Types
 ---------------------------------------------------------------
 
 data ReversalsRequest
@@ -3321,7 +3355,7 @@ instance HasCodec ReversalReason where
         ]
 
 ---------------------------------------------------------------
--- Payment Intents Endpoint
+-- Payment Intent Types
 ---------------------------------------------------------------
 
 data PaymentIntentRequest
@@ -3445,7 +3479,7 @@ instance HasCodec TimelineData where
         <*> requiredField' "time" .= timelineDataTime
 
 ---------------------------------------------------------------
--- Returns Endpoint
+-- Payout Return Types
 ---------------------------------------------------------------
 
 data ReturnsRequest
@@ -3461,7 +3495,7 @@ instance CircleHasParam ReturnsRequest ToQueryParam
 instance CircleHasParam ReturnsRequest PageSizeQueryParam
 
 ---------------------------------------------------------------
--- Wallets Endpoint
+-- Wallet Types
 ---------------------------------------------------------------
 
 data WalletRequest
@@ -3620,7 +3654,7 @@ thisOrThat :: (a -> c) -> (b -> c) -> ThisOrThat a b -> c
 thisOrThat f g tot = either f g $ thisOrThatToEither tot
 
 ---------------------------------------------------------------
--- Shared types
+-- General, shared types
 ---------------------------------------------------------------
 data Status = Pending | Complete | Failed
   deriving (Show, Eq)
