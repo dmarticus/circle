@@ -33,7 +33,7 @@ import Unknot.Types
 
 -- | Create a business bank account for a wire
 -- https://developers.circle.com/reference/createbusinesswireaccount
-createBusinessWireAccount :: WireAccountBodyParams -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+createBusinessWireAccount :: WireAccountRequestBody -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
 createBusinessWireAccount wireAccountBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -152,7 +152,7 @@ listAllNotificationSubscriptions = do
 
 -- | Create new subscription
 -- https://developers.circle.com/reference/createsubscribtion
-createSubscription :: SubscriptionBodyParams -> CircleAPIRequest SubscriptionRequest TupleBS8 BSL.ByteString
+createSubscription :: SubscriptionRequestBody -> CircleAPIRequest SubscriptionRequest TupleBS8 BSL.ByteString
 createSubscription subscriptionBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -181,7 +181,7 @@ listAllBusinessAccountPayouts = do
     url = "businessAccount/payouts"
     params = Params Nothing []
 
--- | Gets a specific business account payout based on an ID
+-- | Gets a specific payout associated with a business account
 -- https://developers.circle.com/reference/getbusinesspayout
 getBusinessAccountPayout :: T.Text -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
 getBusinessAccountPayout payoutId = do
@@ -192,7 +192,7 @@ getBusinessAccountPayout payoutId = do
 
 -- | Creates a business account payout
 -- https://developers.circle.com/reference/createbusinesspayout
-createBusinessAccountPayout :: BusinessPayoutBodyParams -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+createBusinessAccountPayout :: BusinessPayoutRequestBody -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
 createBusinessAccountPayout payoutBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -225,7 +225,7 @@ getBusinessAccountTransfer transferId = do
 
 -- | Create a new transfer
 -- https://developers.circle.com/reference/createbusinesstransfer
-createBusinessAccountTransfer :: BusinessTransferBodyParams -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
+createBusinessAccountTransfer :: BusinessTransferRequestBody -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
 createBusinessAccountTransfer transferBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -252,7 +252,7 @@ listAllDepositAddresses = do
 -- you may see the same Ethereum address returned.
 -- Depositing cryptocurrency to a generated address will credit the associated wallet with the value of the deposit.
 -- https://developers.circle.com/developer/reference/createbusinessdepositaddress
-createBusinessAccountDepositAddress :: DepositAddressBodyParams -> CircleAPIRequest DepositAddressRequest TupleBS8 BSL.ByteString
+createBusinessAccountDepositAddress :: DepositAddressRequestBody -> CircleAPIRequest DepositAddressRequest TupleBS8 BSL.ByteString
 createBusinessAccountDepositAddress depositAddressBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -273,7 +273,7 @@ listAllBusinessAccountRecipientAddresses = do
 -- | Create a new recipient address
 -- Stores an external blockchain address. Once added, the recipient address must be verified to ensure that you know and trust each new address.
 -- https://developers.circle.com/developer/reference/createbusinessrecipientaddress
-createBusinessAccountRecipientAddress :: RecipientAddressBodyParams -> CircleAPIRequest RecipientAddressRequest TupleBS8 BSL.ByteString
+createBusinessAccountRecipientAddress :: RecipientAddressRequestBody -> CircleAPIRequest RecipientAddressRequest TupleBS8 BSL.ByteString
 createBusinessAccountRecipientAddress recipientAddressBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -301,7 +301,7 @@ listAllDeposits = do
 
 -- | Create a bank account for a SEN
 -- https://developers.circle.com/developer/reference/createbusinesssenaccount
-createSENAccount :: SENAccountBodyParams -> CircleAPIRequest SENAccountRequest TupleBS8 BSL.ByteString
+createSENAccount :: SENAccountRequestBody -> CircleAPIRequest SENAccountRequest TupleBS8 BSL.ByteString
 createSENAccount senAccountBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -350,7 +350,7 @@ listAllPayments = do
 
 -- | Create a payment (fiat or Crypto)
 -- https://developers.circle.com/developer/reference/payments-payments-create
-createPayment :: CreatePaymentBody -> CircleAPIRequest PaymentRequest TupleBS8 BSL.ByteString
+createPayment :: CreatePaymentRequestBody -> CircleAPIRequest PaymentRequest TupleBS8 BSL.ByteString
 createPayment createPaymentBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -388,7 +388,7 @@ refundPayment paymentId refundPaymentBody = do
 -- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
 -- In the sandbox environment, initiate a mock SEN transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
 -- https://developers.circle.com/developer/reference/createmocksenpayment
-createMockSilvergatePayment :: MockSenOrWirePaymentBodyParams -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
+createMockSilvergatePayment :: MockSenOrWirePaymentRequestBody -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
 createMockSilvergatePayment senBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -399,7 +399,7 @@ createMockSilvergatePayment senBody = do
 -- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
 -- In the sandbox environment, initiate a mock wire transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
 -- https://developers.circle.com/developer/reference/createmockwirepayment
-createMockWirePayment :: MockSenOrWirePaymentBodyParams -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
+createMockWirePayment :: MockSenOrWirePaymentRequestBody -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
 createMockWirePayment wireBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -410,7 +410,7 @@ createMockWirePayment wireBody = do
 -- TODO constrain this method to be sandbox only.  Would be cool to do the same thing with the Production only methods
 -- In the sandbox environment, initiate a mock SEPA transfer that mimics the behavior of funds sent through the Silvergate SEN account linked to master wallet.
 -- https://developers.circle.com/developer/reference/createmocksepapayment
-createMockSEPAPayment :: MockSEPAPaymentBodyParams -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
+createMockSEPAPayment :: MockSEPAPaymentRequestBody -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
 createMockSEPAPayment sepaBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -446,7 +446,7 @@ getOnChainTransfer transferId = do
     url = "transfers/" <> unUUID transferId
     params = Params Nothing []
 
-createOnChainTransfer :: OnChainTransferBodyParams -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
+createOnChainTransfer :: OnChainTransferRequestBody -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
 createOnChainTransfer onChainTransferBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -471,14 +471,14 @@ getCard cardId = do
     url = "cards/" <> unUUID cardId
     params = Params Nothing []
 
-createCard :: CreateCardBodyParams -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
+createCard :: CreateCardRequestBody -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
 createCard createCardBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
     url = "cards"
     params = Params (Just $ Body (encode createCardBody)) []
 
-updateCard :: UUID -> UpdateCardBodyParams -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
+updateCard :: UUID -> UpdateCardRequestBody -> CircleAPIRequest CardRequest TupleBS8 BSL.ByteString
 updateCard cardId updateCardBody = do
   mkCircleAPIRequest NHTM.methodPut url params
   where
@@ -491,7 +491,7 @@ updateCard cardId updateCardBody = do
 
 -- | Create a bank account for a wire
 -- https://developers.circle.com/developer/reference/createwireaccount
-createWireAccount :: WireAccountBodyParams -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
+createWireAccount :: WireAccountRequestBody -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
 createWireAccount wireAccountBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -525,7 +525,7 @@ getWireAccountInstructions wireAccountId = do
 -- SEPA Endpoint
 ---------------------------------------------------------------
 
-createSEPAAccount :: SEPAAccountBodyParams -> CircleAPIRequest SEPAAccountRequest TupleBS8 BSL.ByteString
+createSEPAAccount :: SEPAAccountRequestBody -> CircleAPIRequest SEPAAccountRequest TupleBS8 BSL.ByteString
 createSEPAAccount sepaAccountBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -628,7 +628,7 @@ listAllPaymentIntents = do
 
 -- | Create a payment intent
 -- https://developers.circle.com/developer/reference/createpaymentintent
-createPaymentIntent :: CreatePaymentIntentBody -> CircleAPIRequest PaymentIntentRequest TupleBS8 BSL.ByteString
+createPaymentIntent :: CreatePaymentIntentRequestBody -> CircleAPIRequest PaymentIntentRequest TupleBS8 BSL.ByteString
 createPaymentIntent createPaymentBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -677,7 +677,7 @@ getPayout payoutId = do
 
 -- | Creates a payout
 -- https://developers.circle.com/reference/createbusinesspayout
-createPayout :: PayoutBodyParams -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+createPayout :: PayoutRequestBody -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
 createPayout payoutBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -710,7 +710,7 @@ getTransfer transferId = do
 
 -- | Create a new transfer
 -- https://developers.circle.com/developer/reference/payouts-transfers-create
-createTransfer :: TransferBodyParams -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
+createTransfer :: TransferRequestBody -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
 createTransfer transferBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -746,7 +746,7 @@ getWallet walletId = do
     url = "wallets/" <> walletId
     params = Params Nothing []
 
-createWallet :: CreateWalletBodyParams -> CircleAPIRequest WalletRequest TupleBS8 BSL.ByteString
+createWallet :: CreateWalletRequestBody -> CircleAPIRequest WalletRequest TupleBS8 BSL.ByteString
 createWallet walletBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -760,7 +760,7 @@ createWallet walletBody = do
 -- you may see the same Ethereum address returned.
 -- Depositing cryptocurrency to a generated address will credit the associated wallet with the value of the deposit.
 -- https://developers.circle.com/developer/reference/payments-on-chain-addresses-create
-createDepositAddress :: T.Text -> DepositAddressBodyParams -> CircleAPIRequest DepositAddressRequest TupleBS8 BSL.ByteString
+createDepositAddress :: T.Text -> DepositAddressRequestBody -> CircleAPIRequest DepositAddressRequest TupleBS8 BSL.ByteString
 createDepositAddress walletId depositAddressBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
