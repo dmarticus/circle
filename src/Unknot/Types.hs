@@ -79,9 +79,11 @@ module Unknot.Types
     PayoutRequest,
     PayoutData (..),
     PayoutBodyParams (..),
+    BusinessPayoutBodyParams (..),
     -- Transfers Endpoint
     TransfersRequest,
     TransferRequest,
+    BusinessTransferBodyParams (..),
     TransferBodyParams (..),
     TransferBodyDestination (..),
     TransferType (..),
@@ -207,6 +209,21 @@ module Unknot.Types
     -- Settlements Endpoint
     SettlementsRequest,
     SettlementRequest,
+    -- Chargebacks Endpoint
+    ChargebacksRequest,
+    ChargebackRequest,
+    -- Reversals Endpoint
+    ReversalsRequest,
+    -- Payment Intents Endpoints
+    PaymentIntentRequest,
+    PaymentIntentsRequest,
+    CreatePaymentIntentBody (..),
+    -- Returns endpoint
+    ReturnsRequest,
+    -- Wallets endpoint
+    WalletRequest,
+    WalletsRequest,
+    CreateWalletBodyParams (..),
   )
 where
 
@@ -539,6 +556,15 @@ instance ToCircleParam PaymentIntentIdQueryParam where
   toCircleParam (PaymentIntentIdQueryParam i) =
     joinQueryParams $ Params Nothing [Query ("paymentIntentId", TE.encodeUtf8 (unUUID i))]
 
+newtype PaymentIdQueryParam = PaymentIdQueryParam
+  { paymentIdQueryParam :: UUID
+  }
+  deriving (Eq, Show)
+
+instance ToCircleParam PaymentIdQueryParam where
+  toCircleParam (PaymentIdQueryParam i) =
+    joinQueryParams $ Params Nothing [Query ("paymentId", TE.encodeUtf8 (unUUID i))]
+
 newtype PaymentStatusQueryParams = PaymentStatusQueryParams
   { paymentStatusQueryParams :: [PaymentStatus]
   }
@@ -554,6 +580,20 @@ paymentStatusToBS8 ActionRequired = "action_required"
 instance ToCircleParam PaymentStatusQueryParams where
   toCircleParam (PaymentStatusQueryParams xs) =
     joinQueryParams $ Params Nothing [Query ("status", BS8.intercalate "," (map paymentStatusToBS8 xs))]
+
+newtype PaymentIntentContextQueryParams = PaymentIntentContextQueryParams
+  { paymentIntentContextQueryParams :: [PaymentIntentContext]
+  }
+  deriving (Eq, Show)
+
+paymentIntentContextToBS8 :: PaymentIntentContext -> BS8.ByteString
+paymentIntentContextToBS8 ContextUnderpaid = "underpaid"
+paymentIntentContextToBS8 ContextPaid = "paid"
+paymentIntentContextToBS8 ContextOverpaid = "overpaid"
+
+instance ToCircleParam PaymentIntentContextQueryParams where
+  toCircleParam (PaymentIntentContextQueryParams xs) =
+    joinQueryParams $ Params Nothing [Query ("context", BS8.intercalate "," (map paymentIntentContextToBS8 xs))]
 
 newtype WalletIdQueryParam = WalletIdQueryParam
   { walletIdQueryParam :: WalletId
@@ -712,10 +752,48 @@ instance HasCodec PayoutData where
         <*> requiredField' "createDate" .= payoutDataCreateDate
         <*> requiredField' "updateDate" .= payoutDataUpdateDate
 
+data BusinessPayoutBodyParams = BusinessPayoutBodyParams
+  { businessPayoutBodyParamsIdempotencyKey :: !UUID,
+    businessPayoutBodyParamsDestination :: !DestinationBankAccount,
+    businessPayoutBodyParamsAmount :: !MoneyAmount
+  }
+  deriving (Eq, Show)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+    via (Autodocodec BusinessPayoutBodyParams)
+
+instance HasCodec BusinessPayoutBodyParams where
+  codec =
+    object "BusinessPayoutBodyParams" $
+      BusinessPayoutBodyParams
+        <$> requiredField' "idempotencyKey" .= businessPayoutBodyParamsIdempotencyKey
+        <*> requiredField' "destination" .= businessPayoutBodyParamsDestination
+        <*> requiredField' "amount" .= businessPayoutBodyParamsAmount
+
+data PayoutMetadata = PayoutMetadata
+  { payoutMetadataBeneficiaryEmail :: !Text -- TODO email
+  }
+  deriving (Eq, Show)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+    via (Autodocodec PayoutMetadata)
+
+instance HasCodec PayoutMetadata where
+  codec =
+    object "PayoutMetadata" $
+      PayoutMetadata
+        <$> requiredField' "beneficiaryEmail" .= payoutMetadataBeneficiaryEmail
+
 data PayoutBodyParams = PayoutBodyParams
   { payoutBodyParamsIdempotencyKey :: !UUID,
+    payoutBodyParamsSource :: !(Maybe PaymentSource),
     payoutBodyParamsDestination :: !DestinationBankAccount,
-    payoutBodyParamsAmount :: !MoneyAmount
+    payoutBodyParamsAmount :: !MoneyAmount,
+    payoutBodyParamsMetadata :: !PayoutMetadata
   }
   deriving (Eq, Show)
   deriving
@@ -729,8 +807,10 @@ instance HasCodec PayoutBodyParams where
     object "PayoutBodyParams" $
       PayoutBodyParams
         <$> requiredField' "idempotencyKey" .= payoutBodyParamsIdempotencyKey
+        <*> optionalField' "source" .= payoutBodyParamsSource
         <*> requiredField' "destination" .= payoutBodyParamsDestination
         <*> requiredField' "amount" .= payoutBodyParamsAmount
+        <*> requiredField' "metadata" .= payoutBodyParamsMetadata
 
 data PayoutErrorCode
   = InsufficientFunds
@@ -1042,12 +1122,43 @@ instance CircleHasParam TransfersRequest ToQueryParam
 
 instance CircleHasParam TransfersRequest PageSizeQueryParam
 
+instance CircleHasParam TransfersRequest WalletIdQueryParam
+
+instance CircleHasParam TransfersRequest SourceWalletIdQueryParam
+
+instance CircleHasParam TransfersRequest DestinationWalletIdQueryParam
+
+instance CircleHasParam TransfersRequest ReturnIdentitiesQueryParam
+
 data TransferRequest
 
 type instance CircleRequest TransferRequest = CircleResponseBody TransferData
 
+instance CircleHasParam TransferRequest ReturnIdentitiesQueryParam
+
+data BusinessTransferBodyParams = BusinessTransferBodyParams
+  { businessTransferBodyParamsIdempotencyKey :: !UUID,
+    businessTransferBodyParamsDestination :: !TransferBodyDestination,
+    businessTransferBodyParamsAmount :: !MoneyAmount
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec BusinessTransferBodyParams)
+
+instance HasCodec BusinessTransferBodyParams where
+  codec =
+    object "BusinessTransferBodyParams" $
+      BusinessTransferBodyParams
+        <$> requiredField' "idempotencyKey" .= businessTransferBodyParamsIdempotencyKey
+        <*> requiredField' "destination" .= businessTransferBodyParamsDestination
+        <*> requiredField' "amount" .= businessTransferBodyParamsAmount
+
 data TransferBodyParams = TransferBodyParams
   { transferBodyParamsIdempotencyKey :: !UUID,
+    transferBodyParamsSource :: !PaymentSource,
     transferBodyParamsDestination :: !TransferBodyDestination,
     transferBodyParamsAmount :: !MoneyAmount
   }
@@ -1063,6 +1174,7 @@ instance HasCodec TransferBodyParams where
     object "TransferBodyParams" $
       TransferBodyParams
         <$> requiredField' "idempotencyKey" .= transferBodyParamsIdempotencyKey
+        <*> requiredField' "source" .= transferBodyParamsSource
         <*> requiredField' "destination" .= transferBodyParamsDestination
         <*> requiredField' "amount" .= transferBodyParamsAmount
 
@@ -1845,7 +1957,12 @@ data Status = Pending | Complete | Failed
 instance HasCodec Status where
   codec = stringConstCodec $ NE.fromList [(Pending, "pending"), (Complete, "complete"), (Failed, "failed")]
 
-data PaymentStatus = PaymentPending | Confirmed | Paid | PaymentFailed | ActionRequired
+data PaymentStatus
+  = PaymentPending
+  | Confirmed
+  | Paid
+  | PaymentFailed
+  | ActionRequired
   deriving (Show, Eq)
   deriving
     ( FromJSON,
@@ -1862,6 +1979,50 @@ instance HasCodec PaymentStatus where
           (Paid, "paid"),
           (PaymentFailed, "failed"),
           (ActionRequired, "action_required")
+        ]
+
+data PaymentIntentStatus
+  = PaymentIntentCreated
+  | PaymentIntentPending
+  | PaymentIntentComplete
+  | PaymentIntentExpired
+  | PaymentIntentFailed
+  deriving (Show, Eq)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec PaymentIntentStatus)
+
+instance HasCodec PaymentIntentStatus where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (PaymentIntentCreated, "created"),
+          (PaymentIntentPending, "pending"),
+          (PaymentIntentComplete, "complete"),
+          (PaymentIntentExpired, "expired"),
+          (PaymentIntentFailed, "failed")
+        ]
+
+data PaymentIntentContext
+  = ContextUnderpaid
+  | ContextPaid
+  | ContextOverpaid
+  deriving (Show, Eq)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec PaymentIntentContext)
+
+instance HasCodec PaymentIntentContext where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (ContextUnderpaid, "underpaid"),
+          (ContextPaid, "paid"),
+          (ContextOverpaid, "overpaid")
         ]
 
 data Address = Address
@@ -1951,6 +2112,37 @@ newtype Amount = Amount
 
 instance HasCodec Amount where
   codec = dimapCodec Amount unAmount codec
+
+data BlockchainFeeType = BlockchainLeaseFee | TotalPaymentFees
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec BlockchainFeeType)
+
+instance HasCodec BlockchainFeeType where
+  codec = stringConstCodec $ NE.fromList [(BlockchainLeaseFee, "blockChainLeaseFee"), (TotalPaymentFees, "totalPaymentFees")]
+
+data BlockchainFeeMoneyAmount = BlockchainFeeMoneyAmount
+  { blockchainFeeMoneyAmountType :: !BlockchainFeeType, -- TODO sum type
+    blockchainFeeMoneyAmountAmount :: !Amount,
+    blockchainFeeMoneyAmountCurrency :: !SupportedCurrencies
+  }
+  deriving (Eq, Show, Generic)
+  deriving
+    ( ToJSON,
+      FromJSON
+    )
+    via (Autodocodec BlockchainFeeMoneyAmount)
+
+instance HasCodec BlockchainFeeMoneyAmount where
+  codec =
+    object "BlockchainFeeMoneyAmount" $
+      BlockchainFeeMoneyAmount
+        <$> requiredField' "type" .= blockchainFeeMoneyAmountType
+        <*> requiredField' "amount" .= blockchainFeeMoneyAmountAmount
+        <*> requiredField' "currency" .= blockchainFeeMoneyAmountCurrency
 
 data MoneyAmount = MoneyAmount
   { moneyAmountAmount :: !Amount,
@@ -3619,6 +3811,7 @@ type instance CircleRequest SEPAAccountRequest = CircleResponseBody SEPAAccountD
 data SEPAInstructionsRequest
 
 type instance CircleRequest SEPAInstructionsRequest = CircleResponseBody WireInstructionsData -- reuse this type
+
 data SEPAAccountBodyParams = SEPAAccountBodyParams
   { sepaAccountBodyParamsIdempotencyKey :: !UUID,
     sepaAccountBodyParamsIBAN :: !Text, -- TODO newtype IBAN
@@ -3722,3 +3915,421 @@ instance HasCodec SettlementData where
         <*> requiredField' "chargebackFees" .= settlementDataChargebackFees
         <*> requiredField' "createDate" .= settlementDataCreateDate
         <*> requiredField' "updateDate" .= settlementDataUpdateDate
+
+---------------------------------------------------------------
+-- Chargebacks Endpoint
+---------------------------------------------------------------
+
+data ChargebacksRequest
+
+type instance CircleRequest ChargebacksRequest = CircleResponseBody [ChargebackData]
+
+instance CircleHasParam ChargebacksRequest PaginationQueryParams
+
+instance CircleHasParam ChargebacksRequest FromQueryParam
+
+instance CircleHasParam ChargebacksRequest ToQueryParam
+
+instance CircleHasParam ChargebacksRequest PageSizeQueryParam
+
+instance CircleHasParam ChargebacksRequest PaymentIdQueryParam
+
+data ChargebackRequest
+
+type instance CircleRequest ChargebackRequest = CircleResponseBody ChargebackData
+
+data MockChargebackRequest
+
+type instance CircleRequest MockChargebackRequest = CircleResponseBody ChargebackData
+
+data ChargebackData = ChargebackData
+  { chargebackDataId :: !UUID,
+    chargebackDataPaymentId :: !UUID,
+    chargebackDataMerchantId :: !UUID,
+    chargebackDataReasonCode :: !Text, -- it's open-ended, no type will save this
+    chargebackDataCategory :: !(Maybe ChargebackCategory),
+    chargebackDataHistory :: [ChargebackHistory]
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ChargebackData)
+
+instance HasCodec ChargebackData where
+  codec =
+    object "ChargebackData" $
+      ChargebackData
+        <$> requiredField' "id" .= chargebackDataId
+        <*> requiredField' "paymentId" .= chargebackDataPaymentId
+        <*> requiredField' "merchantId" .= chargebackDataMerchantId
+        <*> requiredField' "reasonCode" .= chargebackDataReasonCode
+        <*> optionalField' "category" .= chargebackDataCategory
+        <*> requiredField' "history" .= chargebackDataHistory
+
+data ChargebackCategory
+  = CanceledRecurringPayment
+  | CustomerDispute
+  | Fraudulent
+  | General
+  | ProcessingError
+  | NotDefined
+  deriving (Eq, Show, Enum, Bounded)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ChargebackCategory)
+
+instance HasCodec ChargebackCategory where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (CanceledRecurringPayment, "Canceled Recurring Payment"),
+          (CustomerDispute, "Customer Dispute"),
+          (Fraudulent, "Fraudulent"),
+          (General, "General"),
+          (ProcessingError, "Processing Error"),
+          (NotDefined, "Not Defined")
+        ]
+
+data ChargebackHistory = ChargebackHistory
+  { chargebackHistoryType :: !ChargebackHistoryType,
+    chargebackHistoryAmount :: !MoneyAmount,
+    chargebackHistoryFee :: !(Maybe MoneyAmount),
+    chargebackHistoryDescription :: !Text,
+    chargebackHistorySettlementId :: !(Maybe UUID),
+    chargebackHistoryCreateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ChargebackHistory)
+
+instance HasCodec ChargebackHistory where
+  codec =
+    object "ChargebackHistory" $
+      ChargebackHistory
+        <$> requiredField' "type" .= chargebackHistoryType
+        <*> requiredField' "amount" .= chargebackHistoryAmount
+        <*> requiredField' "fee" .= chargebackHistoryFee
+        <*> requiredField' "description" .= chargebackHistoryDescription
+        <*> optionalField' "settlementId" .= chargebackHistorySettlementId
+        <*> requiredField' "createDate" .= chargebackHistoryCreateDate
+
+data ChargebackHistoryType
+  = FirstChargeback
+  | SecondChargeback
+  | ChargebackReversal
+  | Representment
+  | ChargebackSettlement
+  deriving (Eq, Show, Enum, Bounded)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ChargebackHistoryType)
+
+instance HasCodec ChargebackHistoryType where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (FirstChargeback, "First Chargeback"),
+          (SecondChargeback, "Second Chargeback"),
+          (ChargebackReversal, "Chargeback Reversal"),
+          (Representment, "Representment"),
+          (ChargebackSettlement, "Chargeback Settlement")
+        ]
+
+---------------------------------------------------------------
+-- Reversals Endpoint
+---------------------------------------------------------------
+
+data ReversalsRequest
+
+type instance CircleRequest ReversalsRequest = CircleResponseBody [ReversalData]
+
+instance CircleHasParam ReversalsRequest PaginationQueryParams
+
+instance CircleHasParam ReversalsRequest FromQueryParam
+
+instance CircleHasParam ReversalsRequest ToQueryParam
+
+instance CircleHasParam ReversalsRequest PageSizeQueryParam
+
+instance CircleHasParam ReversalsRequest PaymentStatusQueryParams
+
+data ReversalData = ReversalData
+  { reversalDataId :: !UUID,
+    reversalDataPaymentId :: !UUID,
+    reversalDataAmount :: !MoneyAmount,
+    reversalDataDescription :: !Text,
+    reversalDataStatus :: !Status,
+    reversalDataReason :: !ReversalReason,
+    reversalDataFees :: !MoneyAmount,
+    reversalDataCreateDate :: !UTCTime,
+    reversalDataUpdateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ReversalData)
+
+instance HasCodec ReversalData where
+  codec =
+    object "ReversalData" $
+      ReversalData
+        <$> requiredField' "id" .= reversalDataId
+        <*> requiredField' "paymentId" .= reversalDataPaymentId
+        <*> requiredField' "amount" .= reversalDataAmount
+        <*> requiredField' "description" .= reversalDataDescription
+        <*> requiredField' "status" .= reversalDataStatus
+        <*> requiredField' "reason" .= reversalDataReason
+        <*> requiredField' "fees" .= reversalDataFees
+        <*> requiredField' "createDate" .= reversalDataCreateDate
+        <*> requiredField' "updateDate" .= reversalDataUpdateDate
+
+data ReversalReason
+  = ReversalDuplicate
+  | ReversalFraudulent
+  | ReversalRequestedByCustomer
+  | ReversalBankTransactionError
+  | ReversalInvalidAccountNumber
+  | ReversalInsufficientFunds
+  | ReversalPaymentStoppedByIssuer
+  | ReversalPaymentReturned
+  | ReversalBankAccountIneligible
+  | ReversalInvalidACHRTN
+  | ReversalUnauthorizedTransaction
+  | ReversalPaymentFailed
+  deriving (Eq, Show, Enum, Bounded)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec ReversalReason)
+
+instance HasCodec ReversalReason where
+  codec =
+    stringConstCodec $
+      NE.fromList
+        [ (ReversalDuplicate, "duplicate"),
+          (ReversalFraudulent, "fraudulent"),
+          (ReversalRequestedByCustomer, "requested_by_customer"),
+          (ReversalBankTransactionError, "bank_transaction_error"),
+          (ReversalInvalidAccountNumber, "invalid_account_number"),
+          (ReversalInsufficientFunds, "insufficient_funds"),
+          (ReversalPaymentStoppedByIssuer, "payment_stopped_by_issuer"),
+          (ReversalPaymentReturned, "payment_returned"),
+          (ReversalBankAccountIneligible, "bank_account_ineligible"),
+          (ReversalInvalidACHRTN, "invalid_ach_rtn"),
+          (ReversalUnauthorizedTransaction, "unauthorized_transaction"),
+          (ReversalPaymentFailed, "payment_failed")
+        ]
+
+---------------------------------------------------------------
+-- Payment Intents Endpoint
+---------------------------------------------------------------
+
+data PaymentIntentRequest
+
+type instance CircleRequest PaymentIntentRequest = CircleResponseBody PaymentIntentData
+
+data PaymentIntentsRequest
+
+type instance CircleRequest PaymentIntentsRequest = CircleResponseBody [PaymentIntentData]
+
+instance CircleHasParam PaymentIntentsRequest PaginationQueryParams
+
+instance CircleHasParam PaymentIntentsRequest FromQueryParam
+
+instance CircleHasParam PaymentIntentsRequest ToQueryParam
+
+instance CircleHasParam PaymentIntentsRequest PageSizeQueryParam
+
+instance CircleHasParam PaymentIntentsRequest PaymentStatusQueryParams
+
+instance CircleHasParam PaymentIntentsRequest PaymentIntentContextQueryParams
+
+data CreatePaymentIntentBody = CreatePaymentIntentBody
+  { createPaymentIntentIdempotencyKey :: !UUID,
+    createPaymentIntentAmount :: !MoneyAmount,
+    createPaymentIntentSettlementCurrency :: !SupportedCurrencies,
+    createPaymentIntentPaymentMethods :: [PaymentMethodData]
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CreatePaymentIntentBody)
+
+instance HasCodec CreatePaymentIntentBody where
+  codec =
+    object "CreatePaymentIntentBody" $
+      CreatePaymentIntentBody
+        <$> requiredField' "idempotencyKey" .= createPaymentIntentIdempotencyKey
+        <*> requiredField' "amount" .= createPaymentIntentAmount
+        <*> requiredField' "settlementCurrency" .= createPaymentIntentSettlementCurrency
+        <*> requiredField' "paymentMethods" .= createPaymentIntentPaymentMethods
+
+data PaymentIntentData = PaymentIntentData
+  { paymentIntentDataIdempotencyKey :: !UUID,
+    paymentIntentDataId :: !UUID,
+    paymentIntentDataAmount :: !MoneyAmount,
+    paymentIntentDataAmountPaid :: !MoneyAmount,
+    paymentIntentDataSettlementCurrency :: !SupportedCurrencies,
+    paymentIntentDataPaymentMethods :: ![PaymentMethodData],
+    paymentIntentDataFees :: ![BlockchainFeeMoneyAmount],
+    paymentIntentDataPaymentIds :: ![UUID],
+    paymentIntentDataTimeline :: ![TimelineData],
+    paymentIntentDataExpiresOn :: !UTCTime,
+    paymentIntentDataUpdateDate :: !UTCTime,
+    paymentIntentDataCreateDate :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec PaymentIntentData)
+
+instance HasCodec PaymentIntentData where
+  codec =
+    object "PaymentIntentData" $
+      PaymentIntentData
+        <$> requiredField' "idempotencyKey" .= paymentIntentDataIdempotencyKey
+        <*> requiredField' "id" .= paymentIntentDataId
+        <*> requiredField' "amount" .= paymentIntentDataAmount
+        <*> requiredField' "amountPaid" .= paymentIntentDataAmountPaid
+        <*> requiredField' "settlementCurrency" .= paymentIntentDataSettlementCurrency
+        <*> requiredField' "paymentMethods" .= paymentIntentDataPaymentMethods
+        <*> requiredField' "fees" .= paymentIntentDataFees
+        <*> requiredField' "paymentIds" .= paymentIntentDataPaymentIds
+        <*> requiredField' "timeline" .= paymentIntentDataTimeline
+        <*> requiredField' "expiresOn" .= paymentIntentDataExpiresOn
+        <*> requiredField' "updateDate" .= paymentIntentDataUpdateDate
+        <*> requiredField' "createDate" .= paymentIntentDataCreateDate
+
+data PaymentMethodData = PaymentMethodData
+  { paymentMethodType :: !Text, -- just "blockchain"
+    paymentMethodDataChain :: !Chain,
+    paymentMethodDataAddress :: !(Maybe HexString)
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec PaymentMethodData)
+
+instance HasCodec PaymentMethodData where
+  codec =
+    object "PaymentMethodData" $
+      PaymentMethodData
+        <$> requiredField' "type" .= paymentMethodType
+        <*> requiredField' "chain" .= paymentMethodDataChain
+        <*> optionalField' "address" .= paymentMethodDataAddress
+
+data TimelineData = TimelineData
+  { timelineDataStatus :: !PaymentIntentStatus,
+    timelineDataContext :: !PaymentIntentContext,
+    timelineDataTime :: !UTCTime
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec TimelineData)
+
+instance HasCodec TimelineData where
+  codec =
+    object "TimelineData" $
+      TimelineData
+        <$> requiredField' "status" .= timelineDataStatus
+        <*> requiredField' "context" .= timelineDataContext
+        <*> requiredField' "time" .= timelineDataTime
+
+---------------------------------------------------------------
+-- Returns Endpoint
+---------------------------------------------------------------
+
+data ReturnsRequest
+
+type instance CircleRequest ReturnsRequest = CircleResponseBody [PayoutReturn]
+
+instance CircleHasParam ReturnsRequest PaginationQueryParams
+
+instance CircleHasParam ReturnsRequest FromQueryParam
+
+instance CircleHasParam ReturnsRequest ToQueryParam
+
+instance CircleHasParam ReturnsRequest PageSizeQueryParam
+
+---------------------------------------------------------------
+-- Wallets Endpoint
+---------------------------------------------------------------
+
+data WalletRequest
+
+type instance CircleRequest WalletRequest = CircleResponseBody WalletData
+
+data WalletsRequest
+
+type instance CircleRequest WalletsRequest = CircleResponseBody [WalletData]
+
+instance CircleHasParam WalletsRequest PaginationQueryParams
+
+instance CircleHasParam WalletsRequest FromQueryParam
+
+instance CircleHasParam WalletsRequest ToQueryParam
+
+instance CircleHasParam WalletsRequest PageSizeQueryParam
+
+data WalletData = WalletData
+  { walletDataWalletId :: !WalletId,
+    walletDataEntityId :: !UUID,
+    walletDataType :: !Text, -- TODO just "end_user_wallet"
+    walletDataDescription :: !(Maybe Text),
+    walletDataBalances :: [MoneyAmount]
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec WalletData)
+
+instance HasCodec WalletData where
+  codec =
+    object "WalletData" $
+      WalletData
+        <$> requiredField' "walletId" .= walletDataWalletId
+        <*> requiredField' "entityId" .= walletDataEntityId
+        <*> requiredField' "type" .= walletDataType
+        <*> optionalField' "description" .= walletDataDescription
+        <*> requiredField' "balances" .= walletDataBalances
+
+data CreateWalletBodyParams = CreateWalletBodyParams
+  { createWalletBodyParamsIdempotencyKey :: !UUID,
+    createWalletBodyParamsDescription :: !(Maybe Text)
+  }
+  deriving (Eq, Show)
+  deriving
+    ( FromJSON,
+      ToJSON
+    )
+    via (Autodocodec CreateWalletBodyParams)
+
+instance HasCodec CreateWalletBodyParams where
+  codec =
+    object "CreateWalletBodyParams" $
+      CreateWalletBodyParams
+        <$> requiredField' "idempotencyKey" .= createWalletBodyParamsIdempotencyKey
+        <*> optionalField' "description" .= createWalletBodyParamsDescription

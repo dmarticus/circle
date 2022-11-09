@@ -73,13 +73,13 @@ getBusinessWireAccountInstructions wireAccountId = do
     params = Params Nothing []
 
 ---------------------------------------------------------------
--- Balance endpoints
+-- Business balances endpoint
 ---------------------------------------------------------------
 
--- | List all balances
+-- | List all business balances
 -- https://developers.circle.com/reference/listbusinesspayouts
-listAllBalances :: CircleAPIRequest BalanceRequest TupleBS8 BSL.ByteString
-listAllBalances = do
+listAllBusinessBalances :: CircleAPIRequest BalanceRequest TupleBS8 BSL.ByteString
+listAllBusinessBalances = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/balances"
@@ -169,38 +169,38 @@ deleteSubscription resourceId = do
     params = Params Nothing []
 
 ---------------------------------------------------------------
--- Payout endpoints
+-- Business Account Payouts endpoint
 ---------------------------------------------------------------
 
--- | Lists all payouts made from a given business accounts
+-- | Lists all payouts made from a given business account
 -- https://developers.circle.com/reference/listbusinesspayouts
-listAllPayouts :: CircleAPIRequest PayoutsRequest TupleBS8 BSL.ByteString
-listAllPayouts = do
+listAllBusinessAccountPayouts :: CircleAPIRequest PayoutsRequest TupleBS8 BSL.ByteString
+listAllBusinessAccountPayouts = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/payouts"
     params = Params Nothing []
 
--- | Gets a specific payout based on Id
+-- | Gets a specific business account payout based on an ID
 -- https://developers.circle.com/reference/getbusinesspayout
-getPayout :: T.Text -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
-getPayout payoutId = do
+getBusinessAccountPayout :: T.Text -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+getBusinessAccountPayout payoutId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/payouts" <> payoutId
     params = Params Nothing []
 
--- | Creates a payout
+-- | Creates a business account payout
 -- https://developers.circle.com/reference/createbusinesspayout
-createPayout :: PayoutBodyParams -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
-createPayout payoutBody = do
+createBusinessAccountPayout :: BusinessPayoutBodyParams -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+createBusinessAccountPayout payoutBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
     url = "businessAccount/payouts"
     params = Params (Just $ Body (encode payoutBody)) []
 
 ---------------------------------------------------------------
--- Transfer endpoints
+-- Business Account Transfers endpoint
 ---------------------------------------------------------------
 
 -- | Searches for transfers from your business account.
@@ -225,7 +225,7 @@ getBusinessAccountTransfer transferId = do
 
 -- | Create a new transfer
 -- https://developers.circle.com/reference/createbusinesstransfer
-createBusinessAccountTransfer :: TransferBodyParams -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
+createBusinessAccountTransfer :: BusinessTransferBodyParams -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
 createBusinessAccountTransfer transferBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
@@ -420,7 +420,7 @@ createMockSEPAPayment sepaBody = do
 -- TODO add capture payment??
 
 ---------------------------------------------------------------
--- On-chain payments
+-- On-chain transfers
 ---------------------------------------------------------------
 
 -- | Searches for transfers.
@@ -452,30 +452,6 @@ createOnChainTransfer onChainTransferBody = do
   where
     url = "transfers"
     params = Params (Just $ Body (encode onChainTransferBody)) []
-
--- | Create new deposit address
--- Generates a new blockchain address for a wallet for a given currency/chain pair.
--- Circle may reuse addresses on blockchains that support reuse.
--- For example, if you're requesting two addresses for depositing USD and ETH, both on Ethereum,
--- you may see the same Ethereum address returned.
--- Depositing cryptocurrency to a generated address will credit the associated wallet with the value of the deposit.
--- https://developers.circle.com/developer/reference/payments-on-chain-addresses-create
-createDepositAddress :: UUID -> DepositAddressBodyParams -> CircleAPIRequest DepositAddressRequest TupleBS8 BSL.ByteString
-createDepositAddress walletId depositAddressBody = do
-  mkCircleAPIRequest NHTM.methodPost url params
-  where
-    url = "wallets/" <> unUUID walletId <> "/addresses"
-    params = Params (Just $ Body (encode depositAddressBody)) []
-
--- | List all recipient addresses associated with a wallet Id
--- Retrieves a list of addresses associated with a wallet.
--- https://developers.circle.com/developer/reference/listaddresses
-listAllAddresses :: UUID -> CircleAPIRequest RecipientAddressesRequest TupleBS8 BSL.ByteString
-listAllAddresses walletId = do
-  mkCircleAPIRequest NHTM.methodGet url params
-  where
-    url = "wallets/" <> unUUID walletId <> "/addresses"
-    params = Params Nothing []
 
 ---------------------------------------------------------------
 -- Card endpoints
@@ -514,7 +490,7 @@ updateCard cardId updateCardBody = do
 ---------------------------------------------------------------
 
 -- | Create a bank account for a wire
--- https://developers.circle.com/developer/reference/createwireaccount-1
+-- https://developers.circle.com/developer/reference/createwireaccount
 createWireAccount :: WireAccountBodyParams -> CircleAPIRequest WireAccountRequest TupleBS8 BSL.ByteString
 createWireAccount wireAccountBody = do
   mkCircleAPIRequest NHTM.methodPost url params
@@ -586,6 +562,219 @@ getSettlement settlementId = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "settlements/" <> unUUID settlementId
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Chargebacks Endpoint
+---------------------------------------------------------------
+
+listAllChargebacks :: CircleAPIRequest ChargebacksRequest TupleBS8 BSL.ByteString
+listAllChargebacks = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "chargebacks"
+    params = Params Nothing []
+
+getChargeback :: UUID -> CircleAPIRequest ChargebackRequest TupleBS8 BSL.ByteString
+getChargeback chargebackId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "chargebacks/" <> unUUID chargebackId
+    params = Params Nothing []
+
+createMockChargeback :: UUID -> CircleAPIRequest ChargebackRequest TupleBS8 BSL.ByteString
+createMockChargeback paymentId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "mocks/cards/chargebacks"
+    params = Params (Just $ Body (encode paymentId)) []
+
+---------------------------------------------------------------
+-- Reversals Endpoint
+---------------------------------------------------------------
+
+listAllACHReversals :: CircleAPIRequest ReversalsRequest TupleBS8 BSL.ByteString
+listAllACHReversals = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "reversals"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Balance endpoints
+---------------------------------------------------------------
+
+-- | List all balances
+-- https://developers.circle.com/developer/reference/listbalances
+listAllBalances :: CircleAPIRequest BalanceRequest TupleBS8 BSL.ByteString
+listAllBalances = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "balances"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Payment Intents Endpoint
+---------------------------------------------------------------
+
+-- | List all payment intents
+-- https://developers.circle.com/developer/reference/listpaymentintents
+listAllPaymentIntents :: CircleAPIRequest PaymentIntentsRequest TupleBS8 BSL.ByteString
+listAllPaymentIntents = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "paymentIntents"
+    params = Params Nothing []
+
+-- | Create a payment intent
+-- https://developers.circle.com/developer/reference/createpaymentintent
+createPaymentIntent :: CreatePaymentIntentBody -> CircleAPIRequest PaymentIntentRequest TupleBS8 BSL.ByteString
+createPaymentIntent createPaymentBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "paymentIntents"
+    params = Params (Just $ Body (encode createPaymentBody)) []
+
+-- | Get a payment intent
+-- https://developers.circle.com/developer/reference/getpaymentintent
+getPaymentIntent :: UUID -> CircleAPIRequest PaymentIntentRequest TupleBS8 BSL.ByteString
+getPaymentIntent paymentIntentId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "paymentIntents/" <> unUUID paymentIntentId
+    params = Params Nothing []
+
+-- | Expire a payment intent
+-- https://developers.circle.com/developer/reference/expirepaymentintent
+expirePaymentIntent :: UUID -> CircleAPIRequest PaymentIntentRequest TupleBS8 BSL.ByteString
+expirePaymentIntent paymentIntentId = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "paymentIntents/" <> unUUID paymentIntentId <> "/expire"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Payouts endpoint
+---------------------------------------------------------------
+
+-- | Lists all payouts made from a given account
+-- https://developers.circle.com/reference/listbusinesspayouts
+listAllPayouts :: CircleAPIRequest PayoutsRequest TupleBS8 BSL.ByteString
+listAllPayouts = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "payouts"
+    params = Params Nothing []
+
+-- | Gets a specific payout based on an ID
+-- https://developers.circle.com/reference/getbusinesspayout
+getPayout :: T.Text -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+getPayout payoutId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "payouts" <> payoutId
+    params = Params Nothing []
+
+-- | Creates a payout
+-- https://developers.circle.com/reference/createbusinesspayout
+createPayout :: PayoutBodyParams -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
+createPayout payoutBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "payouts"
+    params = Params (Just $ Body (encode payoutBody)) []
+
+---------------------------------------------------------------
+-- On-chain Transfers endpoint
+---------------------------------------------------------------
+
+-- | Searches for transfers from your account.
+-- If the date parameters are omitted, returns the most recent transfers.
+-- This endpoint returns up to 50 transfers in descending chronological order or pageSize, if provided.
+-- https://developers.circle.com/developer/reference/listtransfers
+listAllTransfers :: CircleAPIRequest TransfersRequest TupleBS8 BSL.ByteString
+listAllTransfers = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "transfers"
+    params = Params Nothing []
+
+-- | Get a transfer based on a transfer ID
+-- https://developers.circle.com/reference/getbusinesstransfer
+getTransfer :: UUID -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
+getTransfer transferId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "transfers/" <> unUUID transferId
+    params = Params Nothing []
+
+-- | Create a new transfer
+-- https://developers.circle.com/developer/reference/payouts-transfers-create
+createTransfer :: TransferBodyParams -> CircleAPIRequest TransferRequest TupleBS8 BSL.ByteString
+createTransfer transferBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "/transfers"
+    params = Params (Just $ Body (encode transferBody)) []
+
+---------------------------------------------------------------
+-- Returns Endpoint
+---------------------------------------------------------------
+
+listAllReturns :: CircleAPIRequest ReturnsRequest TupleBS8 BSL.ByteString
+listAllReturns = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "returns"
+    params = Params Nothing []
+
+---------------------------------------------------------------
+-- Wallets Endpoint
+---------------------------------------------------------------
+
+listAllWallets :: CircleAPIRequest WalletsRequest TupleBS8 BSL.ByteString
+listAllWallets = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "wallets"
+    params = Params Nothing []
+
+getWallet :: T.Text -> CircleAPIRequest WalletRequest TupleBS8 BSL.ByteString
+getWallet walletId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "wallets/" <> walletId
+    params = Params Nothing []
+
+createWallet :: CreateWalletBodyParams -> CircleAPIRequest WalletRequest TupleBS8 BSL.ByteString
+createWallet walletBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "wallets"
+    params = Params (Just $ Body (encode walletBody)) []
+
+-- | Create new blockchain deposit address
+-- Generates a new blockchain address for a wallet for a given currency/chain pair.
+-- Circle may reuse addresses on blockchains that support reuse.
+-- For example, if you're requesting two addresses for depositing USD and ETH, both on Ethereum,
+-- you may see the same Ethereum address returned.
+-- Depositing cryptocurrency to a generated address will credit the associated wallet with the value of the deposit.
+-- https://developers.circle.com/developer/reference/payments-on-chain-addresses-create
+createDepositAddress :: T.Text -> DepositAddressBodyParams -> CircleAPIRequest DepositAddressRequest TupleBS8 BSL.ByteString
+createDepositAddress walletId depositAddressBody = do
+  mkCircleAPIRequest NHTM.methodPost url params
+  where
+    url = "wallets/" <> walletId <> "/addresses"
+    params = Params (Just $ Body (encode depositAddressBody)) []
+
+-- | List all recipient addresses associated with a wallet Id
+-- Retrieves a list of addresses associated with a wallet.
+-- https://developers.circle.com/developer/reference/listaddresses
+listAllAddresses :: T.Text -> CircleAPIRequest RecipientAddressesRequest TupleBS8 BSL.ByteString
+listAllAddresses walletId = do
+  mkCircleAPIRequest NHTM.methodGet url params
+  where
+    url = "wallets/" <> walletId <> "/addresses"
     params = Params Nothing []
 
 ---------------------------------------------------------------
