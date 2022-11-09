@@ -249,7 +249,7 @@ main = do
         describe "create transfer" $ do
           it "will attempt to create a new transfer" $ do
             let transferBody =
-                  TransferBodyParams
+                  BusinessTransferBodyParams
                     [compileUUID|c14bf1a2-74fe-4cd5-8e74-c8c67903d849|]
                     ( TransferBodyDestination
                         VerifiedBlockchain
@@ -319,20 +319,20 @@ main = do
         describe "list payouts" $ do
           -- TODO This test fails without money in the account.  I need to actually seed balances, I'll do that when I wrap that API endpoint
           xit " should list a subset of payouts for a given business account given the query params" $ do
-            payoutsBeforeFoo <- circleTest config manager $ listAllPayouts -&- PaginationQueryParams (PageBefore (CircleId "a8899b8e-782a-4526-b674-0efe1e04526d"))
+            payoutsBeforeFoo <- circleTest config manager $ listAllBusinessAccountPayouts -&- PaginationQueryParams (PageBefore (CircleId "a8899b8e-782a-4526-b674-0efe1e04526d"))
             payoutsBeforeFoo `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payoutsBeforeFoo
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
           it "should list all payouts for a given business account" $ do
-            payouts <- circleTest config manager listAllPayouts
+            payouts <- circleTest config manager listAllBusinessAccountPayouts
             payouts `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payouts
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "get payout" $ do
           it "will attempt to return the payout data for the payout Id provided" $ do
-            payout <- circleTest config manager (getPayout "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
+            payout <- circleTest config manager (getBusinessAccountPayout "e553417d-fe7a-4b7a-8d06-ff4de80a0d65")
             payout `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payout
             circleResponseCode `shouldBe` Nothing
@@ -341,7 +341,7 @@ main = do
         describe "create payout" $ do
           it "fails to create a new payout because no such account exists" $ do
             let payoutWithFakeWireAccount =
-                  PayoutBodyParams
+                  BusinessPayoutBodyParams
                     [compileUUID|e81b86e4-c4ba-4337-97ff-08486301b618|]
                     ( DestinationBankAccount
                         Wire
@@ -353,7 +353,7 @@ main = do
                         USD
                     )
             -- this request will always fail if there's no money in the account
-            failedPayoutResultsNoAccount <- circleTest config manager $ createPayout payoutWithFakeWireAccount
+            failedPayoutResultsNoAccount <- circleTest config manager $ createBusinessAccountPayout payoutWithFakeWireAccount
             failedPayoutResultsNoAccount `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = failedPayoutResultsNoAccount
             circleResponseCode `shouldBe` Nothing
@@ -366,7 +366,7 @@ main = do
             for_ circleResponseData $ \WireAccountData {..} -> do
               -- then, we create a payout
               let payoutWithRealWireAccount =
-                    PayoutBodyParams
+                    BusinessPayoutBodyParams
                       [compileUUID|e81b86e4-c4ba-4337-97ff-08486301b618|]
                       ( DestinationBankAccount
                           Wire
@@ -377,7 +377,7 @@ main = do
                           (Amount "100.00")
                           USD
                       )
-              failedPayoutResultInsufficientFunds <- circleTest config manager $ createPayout payoutWithRealWireAccount
+              failedPayoutResultInsufficientFunds <- circleTest config manager $ createBusinessAccountPayout payoutWithRealWireAccount
               failedPayoutResultInsufficientFunds `shouldSatisfy` isRight
               let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = failedPayoutResultInsufficientFunds
               circleResponseCode `shouldBe` Nothing
