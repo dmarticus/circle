@@ -71,7 +71,7 @@ testRecipientAddressRequestBody :: UUID -> RecipientAddressRequestBody
 testRecipientAddressRequestBody recipientAddressIdempotencyKey =
   RecipientAddressRequestBody
     recipientAddressIdempotencyKey
-    -- todo will need to make this random each time
+    -- TODO will need to make this random each time
     (HexString "0x8381470ED67C3802402dbbFa0058E8871F017A6K")
     Nothing
     ChainETH
@@ -99,10 +99,10 @@ testSubscriptionBody =
 testPaymentMetadata :: RequestMetadata
 testPaymentMetadata =
   RequestMetadata
-    "dylan@test.com"
+    [compileEmail|dylan@test.com|]
     Nothing
-    "DE6FA86F60BB47B379307F851E238617"
-    "244.28.239.130"
+    ( SessionId "DE6FA86F60BB47B379307F851E238617" )
+    ( IPAddress "244.28.239.130" )
 
 testCreateCardRequestBody :: UUID -> RequestMetadata -> CreateCardRequestBody
 testCreateCardRequestBody cardIdempotencyKeyUUID = CreateCardRequestBody
@@ -384,7 +384,7 @@ main = do
         describe "list payouts" $ do
           -- TODO This test fails without money in the account.  I need to actually seed balances, I'll do that when I wrap that API endpoint
           xit " should list a subset of payouts for a given business account given the query params" $ do
-            payoutsBeforeFoo <- circleTest config manager $ listAllBusinessAccountPayouts -&- PaginationQueryParams (PageBefore (CircleId "a8899b8e-782a-4526-b674-0efe1e04526d"))
+            payoutsBeforeFoo <- circleTest config manager $ listAllBusinessAccountPayouts -&- PaginationQueryParams (PageBefore "a8899b8e-782a-4526-b674-0efe1e04526d")
             payoutsBeforeFoo `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = payoutsBeforeFoo
             circleResponseCode `shouldBe` Nothing
