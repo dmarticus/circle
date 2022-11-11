@@ -15,226 +15,226 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Unknot.Types
-  ( -- Types for connecting to and wrapping Circle's API
-    ApiToken (..),
-    Reply,
-    Method,
-    CircleAPIRequest (..),
-    CircleError (..),
-    CircleResponseBody (..),
-    CircleRequest,
-    Host,
-    CircleHost (..),
-    CircleConfig (..),
-    Params (..),
-    Body (..),
-    Query (..),
-    TupleBS8,
-    (-&-),
-    mkCircleAPIRequest,
-    hostUri,
-    prodEnvConfig,
-    sandboxEnvConfig,
-    joinQueryParams,
-    -- Query Params
-    PaginationQueryParams (..),
-    PaginationQueryParam (..),
-    -- Wires Endpoint
-    WireAccountRequestBody (..),
-    USBankAccountRequestBody (..),
-    IBANBankAccountRequestBody (..),
-    NonIBANBankAccountRequestBody (..),
-    WireAccountResponseBody (..),
-    WireInstructionsResponseData (..),
-    WireAccountRequest,
-    WireAccountsRequest,
-    WireInstructionsRequest,
-    -- Signet Bank Endpoints,
-    SignetBankAccountRequest,
-    SignetBankAccountsRequest,
-    SignetBankAccountRequestBody (..),
-    SignetBankAccountResponseData (..),
-    SignetBankInstructionsResponseData (..),
-    -- Balance Endpoint
-    BalanceRequest,
-    BalanceResponseBody (..),
-    -- Management Endpoint
-    ConfigurationRequest,
-    ConfigurationResponseBody (..),
-    -- Encryption Endpoint
-    EncryptionRequest,
-    EncryptionResponseBody (..),
-    -- Channels Endpoint
-    ChannelsRequest,
-    -- Stablecoins Endpoint
-    StablecoinsRequest,
-    -- Subscriptions Endpoint
-    SubscriptionsRequest,
-    SubscriptionRequest,
-    SubscriptionRequestBody (..),
-    -- Payouts Endpoint
-    PayoutsRequest,
-    PayoutRequest,
-    PayoutResponseBody (..),
-    PayoutRequestBody (..),
-    BusinessPayoutRequestBody (..),
-    -- Transfers Endpoint
-    TransfersRequest,
-    TransferRequest,
-    BusinessTransferRequestBody (..),
-    TransferRequestBody (..),
-    TransferDestination (..),
-    TransferType (..),
-    TransferResponseBody (..),
-    DestinationType (..),
-    -- Addresses Endpoint
-    DepositAddressesRequest,
-    DepositAddressRequest,
-    DepositAddressResponseBody (..),
-    DepositAddressRequestBody (..),
-    RecipientAddressesRequest,
-    RecipientAddressRequest,
-    RecipientAddressResponseBody (..),
-    RecipientAddressRequestBody (..),
-    -- Deposits Endpoints
-    DepositsRequest,
-    DepositResponseBody (..),
-    -- Silvergate SEN Endpoints
-    SENAccountRequestBody (..),
-    SENAccountResponseBody (..),
-    SENInstructionsResponseData (..),
-    SENAccountRequest,
-    SENAccountsRequest,
-    SENInstructionsRequest,
-    -- Shared types across different endpoints
-    DestinationBankAccount (..),
-    HexString (..),
-    CircleId (..),
-    MoneyAmount (..),
-    BankAccountType (..),
-    SupportedCurrencies (..),
-    Chain (..),
-    Amount (..),
-    AddressLine (..),
-    AccountNumber (..),
-    accountNumberLastFour,
-    accountNumberRegex,
-    accountNumberToByteString,
-    accountNumberToText,
-    compileAccountNumber,
-    mkAccountNumber,
-    RoutingNumber (..),
-    mkRoutingNumber,
-    compileRoutingNumber,
-    routingNumberToText,
-    routingNumberToByteString,
-    City (..),
-    PostalCode (..),
-    District (..),
-    ISO3166Alpha2 (..),
-    americanSamoa,
-    guam,
-    northernMarianaIslands,
-    puertoRico,
-    unitedStatesMinorOutlyingIslands,
-    unitedStatesOfAmerica,
-    virginIslandsUs,
-    BankAddress (..),
-    BillingDetails (..),
-    BeneficiaryBankDetails (..),
-    BeneficiaryDetails,
-    SwiftCode (..),
-    mkSwiftCode,
-    swiftCodeRegex,
-    compileSwiftCode,
-    swiftCodeToText,
-    getCountryFromSwiftCode,
-    get8DigitSwiftCode,
-    getBranchCodeFromSwiftCode,
-    ResponseStatus (..),
-    ResponseMessage (..),
-    PayoutErrorCode (..),
-    UUID (..),
-    compileUUID,
-    TrackingReference (..),
-    catThats,
-    catThises,
-    thisOrThat,
-    thisOrThatToEither,
-    ThisOrThat (..),
-    -- Payments API --
-    -- Payments endpoints
-    PaymentRequest,
-    PaymentsRequest,
-    CreatePaymentRequestBody (..),
-    -- CryptoPayment (..),
-    FiatOrCryptoPaymentResponseBody (..),
-    RequestMetadata (..),
-    PaymentErrorCode (..),
-    ResponseMetadata (..),
-    FiatCancelOrRefundResponseBody (..),
-    -- FiatCancel (..),
-    VerificationType (..),
-    PaymentSource (..),
-    PaymentSourceType (..),
-    CancelPaymentBody (..),
-    CancelPaymentReason (..),
-    RefundPaymentBody (..),
-    MockPaymentRequest,
-    MockAccountRequest,
-    MockSenOrWirePaymentRequestBody (..),
-    MockBeneficiaryBankDetails (..),
-    MockSEPAPaymentRequestBody (..),
-    MockPaymentResponseBody (..),
-    -- On-chain Payments Endpoint
-    OnChainTransferRequest,
-    OnChainTransfersRequest,
-    OnChainTransferRequestBody (..),
-    -- Cards Endpoint
-    CardsRequest,
-    CardRequest,
-    CardResponseBody (..),
-    ListCardResponseBody (..),
-    CreateCardRequestBody (..),
-    UpdateCardRequestBody (..),
-    -- ACH Endpoint
-    ACHBankAccountRequest,
-    ACHBankAccountResponseBody (..),
-    CreateACHBankAccountRequestBody (..),
-    CreateMockACHBankAccountRequestBody (..),
-    -- SEPA Endpoint
-    SEPAAccountResponseBody (..),
-    SEPAAccountRequest,
-    SEPAAccountRequestBody (..),
-    SEPAInstructionsRequest,
-    -- Settlements Endpoint
-    SettlementsRequest,
-    SettlementRequest,
-    -- Chargebacks Endpoint
-    ChargebacksRequest,
-    ChargebackRequest,
-    MockChargebackRequest,
-    -- Reversals Endpoint
-    ReversalsRequest,
-    -- Payment Intents Endpoints
-    PaymentIntentRequest,
-    PaymentIntentsRequest,
-    CreatePaymentIntentRequestBody (..),
-    -- Returns endpoint
-    ReturnsRequest,
-    -- Wallets endpoint
-    WalletRequest,
-    WalletsRequest,
-    CreateWalletRequestBody (..),
-  )
+  -- ( -- Types for connecting to and wrapping Circle's API
+  --   ApiToken (..),
+  --   Reply,
+  --   Method,
+  --   CircleAPIRequest (..),
+  --   CircleError (..),
+  --   CircleResponseBody (..),
+  --   CircleRequest,
+  --   Host,
+  --   CircleHost (..),
+  --   CircleConfig (..),
+  --   Params (..),
+  --   Body (..),
+  --   Query (..),
+  --   TupleBS8,
+  --   (-&-),
+  --   mkCircleAPIRequest,
+  --   hostUri,
+  --   prodEnvConfig,
+  --   sandboxEnvConfig,
+  --   joinQueryParams,
+  --   -- Query Params
+  --   PaginationQueryParams (..),
+  --   PaginationQueryParam (..),
+  --   -- Wires Endpoint
+  --   WireAccountRequestBody (..),
+  --   USBankAccountRequestBody (..),
+  --   IBANBankAccountRequestBody (..),
+  --   NonIBANBankAccountRequestBody (..),
+  --   WireAccountResponseBody (..),
+  --   WireInstructionsResponseData (..),
+  --   WireAccountRequest,
+  --   WireAccountsRequest,
+  --   WireInstructionsRequest,
+  --   -- Signet Bank Endpoints,
+  --   SignetBankAccountRequest,
+  --   SignetBankAccountsRequest,
+  --   SignetBankAccountRequestBody (..),
+  --   SignetBankAccountResponseData (..),
+  --   SignetBankInstructionsResponseData (..),
+  --   -- Balance Endpoint
+  --   BalanceRequest,
+  --   BalanceResponseBody (..),
+  --   -- Management Endpoint
+  --   ConfigurationRequest,
+  --   ConfigurationResponseBody (..),
+  --   -- Encryption Endpoint
+  --   EncryptionRequest,
+  --   EncryptionResponseBody (..),
+  --   -- Channels Endpoint
+  --   ChannelsRequest,
+  --   -- Stablecoins Endpoint
+  --   StablecoinsRequest,
+  --   -- Subscriptions Endpoint
+  --   SubscriptionsRequest,
+  --   SubscriptionRequest,
+  --   SubscriptionRequestBody (..),
+  --   -- Payouts Endpoint
+  --   PayoutsRequest,
+  --   PayoutRequest,
+  --   PayoutResponseBody (..),
+  --   PayoutRequestBody (..),
+  --   BusinessPayoutRequestBody (..),
+  --   -- Transfers Endpoint
+  --   TransfersRequest,
+  --   TransferRequest,
+  --   BusinessTransferRequestBody (..),
+  --   TransferRequestBody (..),
+  --   TransferDestination (..),
+  --   TransferType (..),
+  --   TransferResponseBody (..),
+  --   DestinationType (..),
+  --   -- Addresses Endpoint
+  --   DepositAddressesRequest,
+  --   DepositAddressRequest,
+  --   DepositAddressResponseBody (..),
+  --   DepositAddressRequestBody (..),
+  --   RecipientAddressesRequest,
+  --   RecipientAddressRequest,
+  --   RecipientAddressResponseBody (..),
+  --   RecipientAddressRequestBody (..),
+  --   -- Deposits Endpoints
+  --   DepositsRequest,
+  --   DepositResponseBody (..),
+  --   -- Silvergate SEN Endpoints
+  --   SENAccountRequestBody (..),
+  --   SENAccountResponseBody (..),
+  --   SENInstructionsResponseData (..),
+  --   SENAccountRequest,
+  --   SENAccountsRequest,
+  --   SENInstructionsRequest,
+  --   -- Shared types across different endpoints
+  --   DestinationBankAccount (..),
+  --   HexString (..),
+  --   CircleId (..),
+  --   MoneyAmount (..),
+  --   BankAccountType (..),
+  --   SupportedCurrencies (..),
+  --   Chain (..),
+  --   Amount (..),
+  --   AddressLine (..),
+  --   AccountNumber (..),
+  --   accountNumberLastFour,
+  --   accountNumberRegex,
+  --   accountNumberToByteString,
+  --   accountNumberToText,
+  --   compileAccountNumber,
+  --   mkAccountNumber,
+  --   RoutingNumber (..),
+  --   mkRoutingNumber,
+  --   compileRoutingNumber,
+  --   routingNumberToText,
+  --   routingNumberToByteString,
+  --   City (..),
+  --   PostalCode (..),
+  --   District (..),
+  --   ISO3166Alpha2 (..),
+  --   americanSamoa,
+  --   guam,
+  --   northernMarianaIslands,
+  --   puertoRico,
+  --   unitedStatesMinorOutlyingIslands,
+  --   unitedStatesOfAmerica,
+  --   virginIslandsUs,
+  --   BankAddress (..),
+  --   BillingDetails (..),
+  --   BeneficiaryBankDetails (..),
+  --   BeneficiaryDetails,
+  --   SwiftCode (..),
+  --   mkSwiftCode,
+  --   swiftCodeRegex,
+  --   compileSwiftCode,
+  --   swiftCodeToText,
+  --   getCountryFromSwiftCode,
+  --   get8DigitSwiftCode,
+  --   getBranchCodeFromSwiftCode,
+  --   ResponseStatus (..),
+  --   ResponseMessage (..),
+  --   PayoutErrorCode (..),
+  --   UUID (..),
+  --   compileUUID,
+  --   TrackingReference (..),
+  --   catThats,
+  --   catThises,
+  --   thisOrThat,
+  --   thisOrThatToEither,
+  --   ThisOrThat (..),
+  --   -- Payments API --
+  --   -- Payments endpoints
+  --   PaymentRequest,
+  --   PaymentsRequest,
+  --   CreatePaymentRequestBody (..),
+  --   -- CryptoPayment (..),
+  --   FiatOrCryptoPaymentResponseBody (..),
+  --   RequestMetadata (..),
+  --   PaymentErrorCode (..),
+  --   ResponseMetadata (..),
+  --   FiatCancelOrRefundResponseBody (..),
+  --   -- FiatCancel (..),
+  --   VerificationType (..),
+  --   PaymentSource (..),
+  --   PaymentSourceType (..),
+  --   CancelPaymentRequestBody (..),
+  --   CancelPaymentReason (..),
+  --   RefundPaymentRequestBody (..),
+  --   MockPaymentRequest,
+  --   MockAccountRequest,
+  --   MockSenOrWirePaymentRequestBody (..),
+  --   MockBeneficiaryBankDetails (..),
+  --   MockSEPAPaymentRequestBody (..),
+  --   MockPaymentResponseBody (..),
+  --   -- On-chain Payments Endpoint
+  --   OnChainTransferRequest,
+  --   OnChainTransfersRequest,
+  --   OnChainTransferRequestBody (..),
+  --   -- Cards Endpoint
+  --   CardsRequest,
+  --   CardRequest,
+  --   CardResponseBody (..),
+  --   ListCardResponseBody (..),
+  --   CreateCardRequestBody (..),
+  --   UpdateCardRequestBody (..),
+  --   -- ACH Endpoint
+  --   ACHBankAccountRequest,
+  --   ACHBankAccountResponseBody (..),
+  --   CreateACHBankAccountRequestBody (..),
+  --   CreateMockACHBankAccountRequestBody (..),
+  --   -- SEPA Endpoint
+  --   SEPAAccountResponseBody (..),
+  --   SEPAAccountRequest,
+  --   SEPAAccountRequestBody (..),
+  --   SEPAInstructionsRequest,
+  --   -- Settlements Endpoint
+  --   SettlementsRequest,
+  --   SettlementRequest,
+  --   -- Chargebacks Endpoint
+  --   ChargebacksRequest,
+  --   ChargebackRequest,
+  --   MockChargebackRequest,
+  --   -- Reversals Endpoint
+  --   ReversalsRequest,
+  --   -- Payment Intents Endpoints
+  --   PaymentIntentRequest,
+  --   PaymentIntentsRequest,
+  --   CreatePaymentIntentRequestBody (..),
+  --   -- Returns endpoint
+  --   ReturnsRequest,
+  --   -- Wallets endpoint
+  --   WalletRequest,
+  --   WalletsRequest,
+  --   CreateWalletRequestBody (..),
+  -- )
 where
 
 import Autodocodec
   ( Autodocodec (Autodocodec),
     HasCodec (codec),
-    JSONCodec,
     dimapCodec,
     object,
     optionalField',
@@ -242,14 +242,14 @@ import Autodocodec
     requiredField',
     shownBoundedEnumCodec,
     stringConstCodec,
-    (.=),
+    (.=), bimapCodec,
   )
 import Control.Monad (guard)
 import Country
   ( Country,
     alphaTwoUpper,
   )
-import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRico, unitedStatesMinorOutlyingIslands, unitedStatesOfAmerica, virginIslandsUs)
+-- import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRico, unitedStatesMinorOutlyingIslands, unitedStatesOfAmerica, virginIslandsUs)
 import Data.Aeson
   ( FromJSON (parseJSON),
     Result (Error, Success),
@@ -267,13 +267,13 @@ import Data.ByteString.Lazy.Char8 qualified as BSL
 import Data.Coerce (coerce)
 import Data.Foldable
 import Data.List.NonEmpty qualified as NE
-import Data.Maybe (isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time
-import Data.Validity
+import Data.UUID
+import Data.UUID qualified as UUID
 import GHC.Generics (Generic)
 import Language.Haskell.TH (Exp, Q)
 import Language.Haskell.TH.Quote (QuasiQuoter (..))
@@ -504,7 +504,7 @@ newtype DestinationQueryParam = DestinationQueryParam
 
 instance ToCircleParam DestinationQueryParam where
   toCircleParam (DestinationQueryParam i) =
-    joinQueryParams $ Params Nothing [Query ("destination", TE.encodeUtf8 (unUUID i))]
+    joinQueryParams $ Params Nothing [Query ("destination", TE.encodeUtf8 (tshow i))]
 
 newtype TypeQueryParam = TypeQueryParam
   { typeQueryParam :: BankAccountType -- TODO not sure if all of the types should be included.  Should definitely be Wire, but maybe not Sen
@@ -541,7 +541,7 @@ newtype SourceQueryParam = SourceQueryParam
 
 instance ToCircleParam SourceQueryParam where
   toCircleParam (SourceQueryParam i) =
-    joinQueryParams $ Params Nothing [Query ("source", TE.encodeUtf8 (unUUID i))]
+    joinQueryParams $ Params Nothing [Query ("source", TE.encodeUtf8 (tshow i))]
 
 newtype SettlementIdQueryParam = SettlementIdQueryParam
   { settlementIdQueryParam :: UUID
@@ -550,7 +550,7 @@ newtype SettlementIdQueryParam = SettlementIdQueryParam
 
 instance ToCircleParam SettlementIdQueryParam where
   toCircleParam (SettlementIdQueryParam i) =
-    joinQueryParams $ Params Nothing [Query ("settlementId", TE.encodeUtf8 (unUUID i))]
+    joinQueryParams $ Params Nothing [Query ("settlementId", TE.encodeUtf8 (tshow i))]
 
 newtype PaymentIntentIdQueryParam = PaymentIntentIdQueryParam
   { paymentIntentIdQueryParam :: UUID
@@ -559,7 +559,7 @@ newtype PaymentIntentIdQueryParam = PaymentIntentIdQueryParam
 
 instance ToCircleParam PaymentIntentIdQueryParam where
   toCircleParam (PaymentIntentIdQueryParam i) =
-    joinQueryParams $ Params Nothing [Query ("paymentIntentId", TE.encodeUtf8 (unUUID i))]
+    joinQueryParams $ Params Nothing [Query ("paymentIntentId", TE.encodeUtf8 (tshow i))]
 
 newtype PaymentIdQueryParam = PaymentIdQueryParam
   { paymentIdQueryParam :: UUID
@@ -568,7 +568,7 @@ newtype PaymentIdQueryParam = PaymentIdQueryParam
 
 instance ToCircleParam PaymentIdQueryParam where
   toCircleParam (PaymentIdQueryParam i) =
-    joinQueryParams $ Params Nothing [Query ("paymentId", TE.encodeUtf8 (unUUID i))]
+    joinQueryParams $ Params Nothing [Query ("paymentId", TE.encodeUtf8 (tshow i))]
 
 newtype PaymentStatusQueryParams = PaymentStatusQueryParams
   { paymentStatusQueryParams :: [PaymentStatus]
@@ -1944,7 +1944,6 @@ instance HasCodec WireAccountResponseBody where
         <*> requiredField' "createDate" .= wireAccountResponseBodyCreateDate
         <*> requiredField' "updateDate" .= wireAccountResponseBodyUpdateDate
 
-
 -- Payments API
 -- this could maybe be a new module?  IDK.
 
@@ -2242,7 +2241,7 @@ instance HasCodec VerificationData where
         <$> requiredField "avs" "Represents the raw AVS response, expressed as an upper-case letter." .= verificationAVS
         <*> requiredField "cvv" "Represents the CVV response" .= verificationCVV
 
-data AVS = AVSNotRequested | AVSPending
+data AVS = AVSNotRequested | AVSPending | Y | N
   deriving (Eq, Show)
   deriving
     ( FromJSON,
@@ -2251,7 +2250,7 @@ data AVS = AVSNotRequested | AVSPending
     via (Autodocodec AVS)
 
 instance HasCodec AVS where
-  codec = stringConstCodec $ NE.fromList [(AVSNotRequested, "not_requested"), (AVSPending, "pending")]
+  codec = stringConstCodec $ NE.fromList [(AVSNotRequested, "not_requested"), (AVSPending, "pending"), (Y, "Y"), (N, "N")]
 
 data CVV = CVVNotRequested | CVVPass | CVVFail | CVVUnavailable | CVVPending
   deriving (Eq, Show)
@@ -2449,7 +2448,7 @@ data PaymentSourceType = Card | ACH | WireSource | SEPA
 instance HasCodec PaymentSourceType where
   codec = stringConstCodec $ NE.fromList [(Card, "card"), (ACH, "ach"), (WireSource, "wire"), (SEPA, "sepa")]
 
-data CancelPaymentBody = CancelPaymentBody
+data CancelPaymentRequestBody = CancelPaymentRequestBody
   { cancelPaymentIdempotencyKey :: !UUID,
     cancelPaymentReason :: !(Maybe CancelPaymentReason)
   }
@@ -2458,12 +2457,12 @@ data CancelPaymentBody = CancelPaymentBody
     ( ToJSON,
       FromJSON
     )
-    via (Autodocodec CancelPaymentBody)
+    via (Autodocodec CancelPaymentRequestBody)
 
-instance HasCodec CancelPaymentBody where
+instance HasCodec CancelPaymentRequestBody where
   codec =
-    object "CancelPaymentBody" $
-      CancelPaymentBody
+    object "CancelPaymentRequestBody" $
+      CancelPaymentRequestBody
         <$> requiredField' "idempotencyKey" .= cancelPaymentIdempotencyKey
         <*> optionalField' "reason" .= cancelPaymentReason
 
@@ -2495,9 +2494,9 @@ instance HasCodec CancelPaymentReason where
           (CancelPaymentReasonPaymentStoppedByIssuer, "payment_stopped_by_issuer")
         ]
 
-data RefundPaymentBody = RefundPaymentBody
+data RefundPaymentRequestBody = RefundPaymentRequestBody
   { refundPaymentIdempotencyKey :: !UUID,
-    refundPaymentAmount :: MoneyAmount,
+    refundPaymentAmount :: !MoneyAmount,
     refundPaymentReason :: !(Maybe CancelPaymentReason)
   }
   deriving (Eq, Show)
@@ -2505,12 +2504,12 @@ data RefundPaymentBody = RefundPaymentBody
     ( ToJSON,
       FromJSON
     )
-    via (Autodocodec RefundPaymentBody)
+    via (Autodocodec RefundPaymentRequestBody)
 
-instance HasCodec RefundPaymentBody where
+instance HasCodec RefundPaymentRequestBody where
   codec =
-    object "RefundPaymentBody" $
-      RefundPaymentBody
+    object "RefundPaymentRequestBody" $
+      RefundPaymentRequestBody
         <$> requiredField' "idempotencyKey" .= refundPaymentIdempotencyKey
         <*> requiredField' "amount" .= refundPaymentAmount
         <*> optionalField' "reason" .= refundPaymentReason
@@ -2573,7 +2572,7 @@ instance ToJSON OnChainTransferRequestBody where
 
 data CardsRequest
 
-type instance CircleRequest CardsRequest = CircleResponseBody [CardResponseBody]
+type instance CircleRequest CardsRequest = CircleResponseBody [ListCardResponseBody]
 
 instance CircleHasParam CardsRequest PaginationQueryParams
 
@@ -2594,7 +2593,7 @@ data ListCardResponseBody = ListCardResponseBody
     listCardIssuerCountry :: !(Maybe ISO3166Alpha2),
     listCardFingerprint :: !UUID,
     listCardVerification :: !VerificationData,
-    listCardRiskEvaluation :: !RiskEvaluation,
+    listCardRiskEvaluation :: !(Maybe RiskEvaluation),
     listCardCreateDate :: !UTCTime,
     listCardUpdateDate :: !UTCTime
   }
@@ -2619,7 +2618,7 @@ instance HasCodec ListCardResponseBody where
         <*> optionalField' "issuerCountry" .= listCardIssuerCountry
         <*> requiredField' "fingerprint" .= listCardFingerprint
         <*> requiredField' "verification" .= listCardVerification
-        <*> requiredField' "riskEvaluation" .= listCardRiskEvaluation
+        <*> optionalField' "riskEvaluation" .= listCardRiskEvaluation
         <*> requiredField' "createDate" .= listCardCreateDate
         <*> requiredField' "updateDate" .= listCardUpdateDate
 
@@ -2637,7 +2636,7 @@ data CardResponseBody = CardResponseBody
     cardFingerprint :: !UUID,
     cardErrorCode :: !(Maybe VerificationErrorCode),
     cardVerification :: !VerificationData,
-    cardRiskEvaluation :: !RiskEvaluation,
+    cardRiskEvaluation :: !(Maybe RiskEvaluation),
     cardMetadata :: !ResponseMetadata,
     cardCreateDate :: !UTCTime,
     cardUpdateDate :: !UTCTime
@@ -2666,7 +2665,7 @@ instance HasCodec CardResponseBody where
         <*> requiredField' "fingerprint" .= cardFingerprint
         <*> optionalField' "errorCode" .= cardErrorCode
         <*> requiredField' "verification" .= cardVerification
-        <*> requiredField' "riskEvaluation" .= cardRiskEvaluation
+        <*> optionalField' "riskEvaluation" .= cardRiskEvaluation
         <*> requiredField' "metadata" .= cardMetadata
         <*> requiredField' "createDate" .= cardCreateDate
         <*> requiredField' "updateDate" .= cardUpdateDate
@@ -2901,12 +2900,12 @@ instance HasCodec ACHBankAccountErrorCode where
         ]
 
 data CreateACHBankAccountRequestBody = CreateACHBankAccountRequestBody
-   { achBankAccountBodyIdempotencyKey :: !UUID,
-     achBankAccountBodyPlaidProcessorToken :: !Text, -- TODO newtype
-     achBankAccountBodyBillingDetails :: !BillingDetails,
-     achBankAccountBodyBankAccountType :: !(Maybe ACHBankAccountType),
-     achBankAccountBodyMetadata :: !RequestMetadata
-   }
+  { achBankAccountBodyIdempotencyKey :: !UUID,
+    achBankAccountBodyPlaidProcessorToken :: !Text, -- TODO newtype
+    achBankAccountBodyBillingDetails :: !BillingDetails,
+    achBankAccountBodyBankAccountType :: !(Maybe ACHBankAccountType),
+    achBankAccountBodyMetadata :: !RequestMetadata
+  }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
@@ -3539,9 +3538,9 @@ instance HasCodec WalletResponseBody where
         <*> requiredField' "balances" .= walletResponseBodyBalances
 
 data CreateWalletRequestBody = CreateWalletRequestBody
-   { createWalletRequestBodyIdempotencyKey :: !UUID,
-     createWalletRequestBodyDescription :: !(Maybe Text)
-   }
+  { createWalletRequestBodyIdempotencyKey :: !UUID,
+    createWalletRequestBodyDescription :: !(Maybe Text)
+  }
   deriving (Eq, Show)
   deriving
     ( FromJSON,
@@ -3564,8 +3563,6 @@ utcToCircle :: UTCTime -> Text
 utcToCircle ut =
   tshow day <> "T" <> clockTime <> "-00:00"
   where
-    tshow :: Show a => a -> Text
-    tshow = T.pack . show
     day = utctDay ut
     time = utctDayTime ut
     tod = snd $ utcToLocalTimeOfDay utc (timeToTimeOfDay time)
@@ -3579,6 +3576,9 @@ utcToCircle ut =
         <> atLeastTwo "0" (todMin tod)
         <> ":"
         <> atLeastTwo "0" (floor $ todSec tod)
+
+tshow :: Show a => a -> Text
+tshow = T.pack . show
 
 -- | Similar to 'Either' but with different 'ToJSON' and 'FromJSON' instances.
 -- 'ToJSON' will serialize the payload without adding any kind of tag.
@@ -4312,53 +4312,54 @@ newtype WalletId = WalletId
 instance HasCodec WalletId where
   codec = dimapCodec WalletId unWalletId codec
 
--- TODO, consider replacing this hand-rolled validation with the Data.UUID library if you really care about accurate UUIDs.
--- This is fine for now, though.
-newtype UUID = UUID
-  { unUUID :: Text
-  }
-  deriving (Eq, Show, Lift, Generic)
-  deriving newtype (ToJSON)
-
--- TODO this doesn't appear to work
-instance Validity UUID where
-  validate (UUID n) = check (isNothing $ mkUUID n) "The UUID has a valid format."
-
--- instance IsString UUID where
---   fromString = mkUUID . fromString
-
 instance HasCodec UUID where
-  -- TODO how do we apply the smart constructor here?
-  -- could options here: we could still derive ToJSON and FromJSON normally and just have a HasCodec instance here
-  -- or, we could try and build the smart constructor into the codec
-  codec :: JSONCodec UUID
-  codec = dimapCodec UUID unUUID codec
+  codec = bimapCodec f UUID.toText codec
+    where
+      f t =
+        case UUID.fromText t of
+          Nothing -> Left "Invalid Text when parsing UUID"
+          Just u -> Right u
 
-instance FromJSON UUID where
-  parseJSON = withText "UUID" $ \t ->
-    case mkUUID t of
-      Nothing -> fail $ "Invalid UUID: " ++ T.unpack t
-      Just uuid -> pure uuid
+-- -- TODO, consider replacing this hand-rolled validation with the Data.UUID library if you really care about accurate UUIDs.
+-- -- This is fine for now, though.
+-- newtype UUID = UUID
+--   { tshow :: Text
+--   }
+--   deriving (Eq, Show, Lift, Generic)
+--   deriving newtype (ToJSON)
 
-uuidRegex :: Regex
-uuidRegex = [re|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|]
+-- -- TODO this doesn't appear to work
+-- instance Validity UUID where
+--   validate (UUID n) = check (isNothing $ mkUUID n) "The UUID has a valid format."
 
-mkUUID :: Text -> Maybe UUID
-mkUUID t =
-  if t =~ uuidRegex
-    then Just (UUID t)
-    else Nothing
+-- -- instance IsString UUID where
+-- --   fromString = mkUUID . fromString
 
-compileUUID :: QuasiQuoter
-compileUUID =
-  QuasiQuoter
-    { quoteExp = compileUUID',
-      quotePat = error "UUID is not a pattern; use uuidToText instead",
-      quoteDec = error "UUID is not supported at top-level",
-      quoteType = error "UUID is not supported as a type"
-    }
-  where
-    compileUUID' :: String -> Q Exp
-    compileUUID' s = case mkUUID (T.pack s) of
-      Nothing -> fail ("Invalid UUID: " ++ s ++ ". Must match the UUID spec, with no other characters.")
-      Just uuid -> [|uuid|]
+-- instance FromJSON UUID where
+--   parseJSON = withText "UUID" $ \t ->
+--     case mkUUID t of
+--       Nothing -> fail $ "Invalid UUID: " ++ T.unpack t
+--       Just uuid -> pure uuid
+
+-- uuidRegex :: Regex
+-- uuidRegex = [re|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|]
+
+-- mkUUID :: Text -> Maybe UUID
+-- mkUUID t =
+--   if t =~ uuidRegex
+--     then Just (UUID t)
+--     else Nothing
+
+-- compileUUID :: QuasiQuoter
+-- compileUUID =
+--   QuasiQuoter
+--     { quoteExp = compileUUID',
+--       quotePat = error "UUID is not a pattern; use uuidToText instead",
+--       quoteDec = error "UUID is not supported at top-level",
+--       quoteType = error "UUID is not supported as a type"
+--     }
+--   where
+--     compileUUID' :: String -> Q Exp
+--     compileUUID' s = case mkUUID (T.pack s) of
+--       Nothing -> fail ("Invalid UUID: " ++ s ++ ". Must match the UUID spec, with no other characters.")
+--       Just uuid -> [|uuid|]
