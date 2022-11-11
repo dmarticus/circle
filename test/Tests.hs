@@ -99,10 +99,10 @@ testSubscriptionBody =
 testPaymentMetadata :: RequestMetadata
 testPaymentMetadata =
   RequestMetadata
-    "dylan@test.com"
+    [compileEmail|dylan@test.com|]
     Nothing
-    "DE6FA86F60BB47B379307F851E238617"
-    "244.28.239.130"
+    ( SessionId "DE6FA86F60BB47B379307F851E238617" )
+    ( IPAddress "244.28.239.130" )
 
 testCreateCardRequestBody :: UUID -> RequestMetadata -> CreateCardRequestBody
 testCreateCardRequestBody cardIdempotencyKeyUUID = CreateCardRequestBody
