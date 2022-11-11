@@ -445,7 +445,7 @@ createMockWirePayment wireBody = do
     url = "mocks/payments/wire"
     params = Params (Just $ Body (encode wireBody)) []
 
--- | Create mock SEPA payment SANDBOX ONLY
+-- | Create mock SEPA payment SANDBOX ONLY (in Beta)
 -- In the sandbox environment, initiate a mock SEPA payment that mimics the behavior of funds sent through the bank (SEPA) account linked to master wallet.
 -- https://developers.circle.com/developer/reference/createmocksepapayment
 createMockSEPAPayment :: MockSEPAPaymentRequestBody -> CircleAPIRequest MockPaymentRequest TupleBS8 BSL.ByteString
@@ -634,7 +634,7 @@ getACHAccount achAccountId = do
 -- /banks/sepa endpoint
 ---------------------------------------------------------------
 
--- TODO some way to mark this stuff as being in beta?
+-- TODO some way to mark this stuff as being in beta?  Is it even worth it?
 
 -- | Create a SEPA account (in beta)
 -- https://developers.circle.com/developer/reference/createsepaaccount-1
@@ -654,7 +654,7 @@ getSEPAAccount sepaAccountId = do
     url = "banks/sepa/" <> UUID.toText sepaAccountId
     params = Params Nothing []
 
--- | Get instructions for a SEPA transfer
+-- | Get instructions for a SEPA transfer (in beta)
 -- https://developers.circle.com/developer/reference/getsepaaccountinstructions
 getSEPAAccountInstructions :: UUID -> CircleAPIRequest SEPAInstructionsRequest TupleBS8 BSL.ByteString
 getSEPAAccountInstructions sepaAccountId = do
@@ -943,7 +943,7 @@ circle config request = do
   -- liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
-    Left s -> return (Left (CircleError s response))
+    Left s -> return (Left (CircleError (T.pack s) response))
     Right r -> return (Right r)
 
 -- | This function is only used internally to speed up the test suite.
@@ -960,7 +960,7 @@ circleTest config tlsManager request = do
   liftIO $ print response
   let result = eitherDecode $ responseBody response
   case result of
-    Left s -> return (Left (CircleError s response))
+    Left s -> return (Left (CircleError (T.pack s) response))
     Right r -> return (Right r)
 
 circleTest' ::

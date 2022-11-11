@@ -13,228 +13,230 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Unknot.Types
-  -- ( -- Types for connecting to and wrapping Circle's API
-  --   ApiToken (..),
-  --   Reply,
-  --   Method,
-  --   CircleAPIRequest (..),
-  --   CircleError (..),
-  --   CircleResponseBody (..),
-  --   CircleRequest,
-  --   Host,
-  --   CircleHost (..),
-  --   CircleConfig (..),
-  --   Params (..),
-  --   Body (..),
-  --   Query (..),
-  --   TupleBS8,
-  --   (-&-),
-  --   mkCircleAPIRequest,
-  --   hostUri,
-  --   prodEnvConfig,
-  --   sandboxEnvConfig,
-  --   joinQueryParams,
-  --   -- Query Params
-  --   PaginationQueryParams (..),
-  --   PaginationQueryParam (..),
-  --   -- Wires Endpoint
-  --   WireAccountRequestBody (..),
-  --   USBankAccountRequestBody (..),
-  --   IBANBankAccountRequestBody (..),
-  --   NonIBANBankAccountRequestBody (..),
-  --   WireAccountResponseBody (..),
-  --   WireInstructionsResponseData (..),
-  --   WireAccountRequest,
-  --   WireAccountsRequest,
-  --   WireInstructionsRequest,
-  --   -- Signet Bank Endpoints,
-  --   SignetBankAccountRequest,
-  --   SignetBankAccountsRequest,
-  --   SignetBankAccountRequestBody (..),
-  --   SignetBankAccountResponseData (..),
-  --   SignetBankInstructionsResponseData (..),
-  --   -- Balance Endpoint
-  --   BalanceRequest,
-  --   BalanceResponseBody (..),
-  --   -- Management Endpoint
-  --   ConfigurationRequest,
-  --   ConfigurationResponseBody (..),
-  --   -- Encryption Endpoint
-  --   EncryptionRequest,
-  --   EncryptionResponseBody (..),
-  --   -- Channels Endpoint
-  --   ChannelsRequest,
-  --   -- Stablecoins Endpoint
-  --   StablecoinsRequest,
-  --   -- Subscriptions Endpoint
-  --   SubscriptionsRequest,
-  --   SubscriptionRequest,
-  --   SubscriptionRequestBody (..),
-  --   -- Payouts Endpoint
-  --   PayoutsRequest,
-  --   PayoutRequest,
-  --   PayoutResponseBody (..),
-  --   PayoutRequestBody (..),
-  --   BusinessPayoutRequestBody (..),
-  --   -- Transfers Endpoint
-  --   TransfersRequest,
-  --   TransferRequest,
-  --   BusinessTransferRequestBody (..),
-  --   TransferRequestBody (..),
-  --   TransferDestination (..),
-  --   TransferType (..),
-  --   TransferResponseBody (..),
-  --   DestinationType (..),
-  --   -- Addresses Endpoint
-  --   DepositAddressesRequest,
-  --   DepositAddressRequest,
-  --   DepositAddressResponseBody (..),
-  --   DepositAddressRequestBody (..),
-  --   RecipientAddressesRequest,
-  --   RecipientAddressRequest,
-  --   RecipientAddressResponseBody (..),
-  --   RecipientAddressRequestBody (..),
-  --   -- Deposits Endpoints
-  --   DepositsRequest,
-  --   DepositResponseBody (..),
-  --   -- Silvergate SEN Endpoints
-  --   SENAccountRequestBody (..),
-  --   SENAccountResponseBody (..),
-  --   SENInstructionsResponseData (..),
-  --   SENAccountRequest,
-  --   SENAccountsRequest,
-  --   SENInstructionsRequest,
-  --   -- Shared types across different endpoints
-  --   DestinationBankAccount (..),
-  --   HexString (..),
-  --   CircleId (..),
-  --   MoneyAmount (..),
-  --   BankAccountType (..),
-  --   SupportedCurrencies (..),
-  --   Chain (..),
-  --   Amount (..),
-  --   AddressLine (..),
-  --   AccountNumber (..),
-  --   accountNumberLastFour,
-  --   accountNumberRegex,
-  --   accountNumberToByteString,
-  --   accountNumberToText,
-  --   compileAccountNumber,
-  --   mkAccountNumber,
-  --   RoutingNumber (..),
-  --   mkRoutingNumber,
-  --   compileRoutingNumber,
-  --   routingNumberToText,
-  --   routingNumberToByteString,
-  --   City (..),
-  --   PostalCode (..),
-  --   District (..),
-  --   ISO3166Alpha2 (..),
-  --   americanSamoa,
-  --   guam,
-  --   northernMarianaIslands,
-  --   puertoRico,
-  --   unitedStatesMinorOutlyingIslands,
-  --   unitedStatesOfAmerica,
-  --   virginIslandsUs,
-  --   BankAddress (..),
-  --   BillingDetails (..),
-  --   BeneficiaryBankDetails (..),
-  --   BeneficiaryDetails,
-  --   SwiftCode (..),
-  --   mkSwiftCode,
-  --   swiftCodeRegex,
-  --   compileSwiftCode,
-  --   swiftCodeToText,
-  --   getCountryFromSwiftCode,
-  --   get8DigitSwiftCode,
-  --   getBranchCodeFromSwiftCode,
-  --   ResponseStatus (..),
-  --   ResponseMessage (..),
-  --   PayoutErrorCode (..),
-  --   UUID (..),
-  --   compileUUID,
-  --   TrackingReference (..),
-  --   catThats,
-  --   catThises,
-  --   thisOrThat,
-  --   thisOrThatToEither,
-  --   ThisOrThat (..),
-  --   -- Payments API --
-  --   -- Payments endpoints
-  --   PaymentRequest,
-  --   PaymentsRequest,
-  --   CreatePaymentRequestBody (..),
-  --   -- CryptoPayment (..),
-  --   FiatOrCryptoPaymentResponseBody (..),
-  --   RequestMetadata (..),
-  --   PaymentErrorCode (..),
-  --   ResponseMetadata (..),
-  --   FiatCancelOrRefundResponseBody (..),
-  --   -- FiatCancel (..),
-  --   VerificationType (..),
-  --   PaymentSource (..),
-  --   PaymentSourceType (..),
-  --   CancelPaymentRequestBody (..),
-  --   CancelPaymentReason (..),
-  --   RefundPaymentRequestBody (..),
-  --   MockPaymentRequest,
-  --   MockAccountRequest,
-  --   MockSenOrWirePaymentRequestBody (..),
-  --   MockBeneficiaryBankDetails (..),
-  --   MockSEPAPaymentRequestBody (..),
-  --   MockPaymentResponseBody (..),
-  --   -- On-chain Payments Endpoint
-  --   OnChainTransferRequest,
-  --   OnChainTransfersRequest,
-  --   OnChainTransferRequestBody (..),
-  --   -- Cards Endpoint
-  --   CardsRequest,
-  --   CardRequest,
-  --   CardResponseBody (..),
-  --   ListCardResponseBody (..),
-  --   CreateCardRequestBody (..),
-  --   UpdateCardRequestBody (..),
-  --   -- ACH Endpoint
-  --   ACHBankAccountRequest,
-  --   ACHBankAccountResponseBody (..),
-  --   CreateACHBankAccountRequestBody (..),
-  --   CreateMockACHBankAccountRequestBody (..),
-  --   -- SEPA Endpoint
-  --   SEPAAccountResponseBody (..),
-  --   SEPAAccountRequest,
-  --   SEPAAccountRequestBody (..),
-  --   SEPAInstructionsRequest,
-  --   -- Settlements Endpoint
-  --   SettlementsRequest,
-  --   SettlementRequest,
-  --   -- Chargebacks Endpoint
-  --   ChargebacksRequest,
-  --   ChargebackRequest,
-  --   MockChargebackRequest,
-  --   -- Reversals Endpoint
-  --   ReversalsRequest,
-  --   -- Payment Intents Endpoints
-  --   PaymentIntentRequest,
-  --   PaymentIntentsRequest,
-  --   CreatePaymentIntentRequestBody (..),
-  --   -- Returns endpoint
-  --   ReturnsRequest,
-  --   -- Wallets endpoint
-  --   WalletRequest,
-  --   WalletsRequest,
-  --   CreateWalletRequestBody (..),
-  -- )
-where
+module Unknot.Types where
+
+-- ( -- Types for connecting to and wrapping Circle's API
+--   ApiToken (..),
+--   Reply,
+--   Method,
+--   CircleAPIRequest (..),
+--   CircleError (..),
+--   CircleResponseBody (..),
+--   CircleRequest,
+--   Host,
+--   CircleHost (..),
+--   CircleConfig (..),
+--   Params (..),
+--   Body (..),
+--   Query (..),
+--   TupleBS8,
+--   (-&-),
+--   mkCircleAPIRequest,
+--   hostUri,
+--   prodEnvConfig,
+--   sandboxEnvConfig,
+--   joinQueryParams,
+--   -- Query Params
+--   QueryParams (..),
+--   PaginationQueryParam (..),
+--   -- Wires Endpoint
+--   WireAccountRequestBody (..),
+--   USBankAccountRequestBody (..),
+--   IBANBankAccountRequestBody (..),
+--   NonIBANBankAccountRequestBody (..),
+--   WireAccountResponseBody (..),
+--   WireInstructionsResponseData (..),
+--   WireAccountRequest,
+--   WireAccountsRequest,
+--   WireInstructionsRequest,
+--   -- Signet Bank Endpoints,
+--   SignetBankAccountRequest,
+--   SignetBankAccountsRequest,
+--   SignetBankAccountRequestBody (..),
+--   SignetBankAccountResponseData (..),
+--   SignetBankInstructionsResponseData (..),
+--   -- Balance Endpoint
+--   BalanceRequest,
+--   BalanceResponseBody (..),
+--   -- Management Endpoint
+--   ConfigurationRequest,
+--   ConfigurationResponseBody (..),
+--   -- Encryption Endpoint
+--   EncryptionRequest,
+--   EncryptionResponseBody (..),
+--   -- Channels Endpoint
+--   ChannelsRequest,
+--   -- Stablecoins Endpoint
+--   StablecoinsRequest,
+--   -- Subscriptions Endpoint
+--   SubscriptionsRequest,
+--   SubscriptionRequest,
+--   SubscriptionRequestBody (..),
+--   -- Payouts Endpoint
+--   PayoutsRequest,
+--   PayoutRequest,
+--   PayoutResponseBody (..),
+--   PayoutRequestBody (..),
+--   BusinessPayoutRequestBody (..),
+--   -- Transfers Endpoint
+--   TransfersRequest,
+--   TransferRequest,
+--   BusinessTransferRequestBody (..),
+--   TransferRequestBody (..),
+--   TransferDestination (..),
+--   TransferType (..),
+--   TransferResponseBody (..),
+--   DestinationType (..),
+--   -- Addresses Endpoint
+--   DepositAddressesRequest,
+--   DepositAddressRequest,
+--   DepositAddressResponseBody (..),
+--   DepositAddressRequestBody (..),
+--   RecipientAddressesRequest,
+--   RecipientAddressRequest,
+--   RecipientAddressResponseBody (..),
+--   RecipientAddressRequestBody (..),
+--   -- Deposits Endpoints
+--   DepositsRequest,
+--   DepositResponseBody (..),
+--   -- Silvergate SEN Endpoints
+--   SENAccountRequestBody (..),
+--   SENAccountResponseBody (..),
+--   SENInstructionsResponseData (..),
+--   SENAccountRequest,
+--   SENAccountsRequest,
+--   SENInstructionsRequest,
+--   -- Shared types across different endpoints
+--   DestinationBankAccount (..),
+--   HexString (..),
+--   CircleId (..),
+--   MoneyAmount (..),
+--   BankAccountType (..),
+--   SupportedCurrencies (..),
+--   Chain (..),
+--   Amount (..),
+--   AddressLine (..),
+--   AccountNumber (..),
+--   accountNumberLastFour,
+--   accountNumberRegex,
+--   accountNumberToByteString,
+--   accountNumberToText,
+--   compileAccountNumber,
+--   mkAccountNumber,
+--   RoutingNumber (..),
+--   mkRoutingNumber,
+--   compileRoutingNumber,
+--   routingNumberToText,
+--   routingNumberToByteString,
+--   City (..),
+--   PostalCode (..),
+--   District (..),
+--   ISO3166Alpha2 (..),
+--   americanSamoa,
+--   guam,
+--   northernMarianaIslands,
+--   puertoRico,
+--   unitedStatesMinorOutlyingIslands,
+--   unitedStatesOfAmerica,
+--   virginIslandsUs,
+--   BankAddress (..),
+--   BillingDetails (..),
+--   BeneficiaryBankDetails (..),
+--   BeneficiaryDetails,
+--   SwiftCode (..),
+--   mkSwiftCode,
+--   swiftCodeRegex,
+--   compileSwiftCode,
+--   swiftCodeToText,
+--   getCountryFromSwiftCode,
+--   get8DigitSwiftCode,
+--   getBranchCodeFromSwiftCode,
+--   ResponseStatus (..),
+--   ResponseMessage (..),
+--   PayoutErrorCode (..),
+--   UUID (..),
+--   compileUUID,
+--   TrackingReference (..),
+--   catThats,
+--   catThises,
+--   thisOrThat,
+--   thisOrThatToEither,
+--   ThisOrThat (..),
+--   -- Payments API --
+--   -- Payments endpoints
+--   PaymentRequest,
+--   PaymentsRequest,
+--   CreatePaymentRequestBody (..),
+--   -- CryptoPayment (..),
+--   FiatOrCryptoPaymentResponseBody (..),
+--   RequestMetadata (..),
+--   PaymentErrorCode (..),
+--   ResponseMetadata (..),
+--   FiatCancelOrRefundResponseBody (..),
+--   -- FiatCancel (..),
+--   VerificationType (..),
+--   PaymentSource (..),
+--   PaymentSourceType (..),
+--   CancelPaymentRequestBody (..),
+--   CancelPaymentReason (..),
+--   RefundPaymentRequestBody (..),
+--   MockPaymentRequest,
+--   MockAccountRequest,
+--   MockSenOrWirePaymentRequestBody (..),
+--   MockBeneficiaryBankDetails (..),
+--   MockSEPAPaymentRequestBody (..),
+--   MockPaymentResponseBody (..),
+--   -- On-chain Payments Endpoint
+--   OnChainTransferRequest,
+--   OnChainTransfersRequest,
+--   OnChainTransferRequestBody (..),
+--   -- Cards Endpoint
+--   CardsRequest,
+--   CardRequest,
+--   CardResponseBody (..),
+--   ListCardResponseBody (..),
+--   CreateCardRequestBody (..),
+--   UpdateCardRequestBody (..),
+--   -- ACH Endpoint
+--   ACHBankAccountRequest,
+--   ACHBankAccountResponseBody (..),
+--   CreateACHBankAccountRequestBody (..),
+--   CreateMockACHBankAccountRequestBody (..),
+--   -- SEPA Endpoint
+--   SEPAAccountResponseBody (..),
+--   SEPAAccountRequest,
+--   SEPAAccountRequestBody (..),
+--   SEPAInstructionsRequest,
+--   -- Settlements Endpoint
+--   SettlementsRequest,
+--   SettlementRequest,
+--   -- Chargebacks Endpoint
+--   ChargebacksRequest,
+--   ChargebackRequest,
+--   MockChargebackRequest,
+--   -- Reversals Endpoint
+--   ReversalsRequest,
+--   -- Payment Intents Endpoints
+--   PaymentIntentRequest,
+--   PaymentIntentsRequest,
+--   CreatePaymentIntentRequestBody (..),
+--   -- Returns endpoint
+--   ReturnsRequest,
+--   -- Wallets endpoint
+--   WalletRequest,
+--   WalletsRequest,
+--   CreateWalletRequestBody (..),
+-- )
 
 import Autodocodec
   ( Autodocodec (Autodocodec),
     HasCodec (codec),
+    bimapCodec,
     dimapCodec,
     object,
     optionalField',
@@ -242,7 +244,7 @@ import Autodocodec
     requiredField',
     shownBoundedEnumCodec,
     stringConstCodec,
-    (.=), bimapCodec,
+    (.=),
   )
 import Control.Monad (guard)
 import Country
@@ -315,7 +317,7 @@ mkCircleAPIRequest = CircleAPIRequest
 type family CircleRequest a :: *
 
 data CircleError = CircleError
-  { parseError :: !String, -- TODO should this be Text?
+  { parseError :: !Text,
     errorResponseBody :: !Reply
   }
   deriving (Show)
@@ -443,7 +445,9 @@ newtype PaginationQueryParams = PaginationQueryParams
   }
   deriving (Eq, Show)
 
-data PaginationQueryParam = PageBefore !CircleId | PageAfter !CircleId deriving (Show, Eq) -- TODO these will be IDs, but not UUIDs.  No type until we figure out what they are.
+-- Depending on which endpoint is being called, the IDs after the `PageBefore` and `PageAfter` params could either be UUIDs or non-UUIDs. Let's just keep them as text for now.
+-- TODO maybe improve this one day.
+data PaginationQueryParam = PageBefore !Text | PageAfter !Text deriving (Show, Eq)
 
 instance ToCircleParam PaginationQueryParams where
   toCircleParam (PaginationQueryParams p) =
@@ -452,9 +456,9 @@ instance ToCircleParam PaginationQueryParams where
     -- where `n` is controlled by the pageSize param.  This type exists to prevent callers from providing both params, which would error out
     case p of
       PageBefore a ->
-        joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 (unCircleId a))]
+        joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 a)]
       PageAfter a ->
-        joinQueryParams $ Params Nothing [Query ("pageAfter", TE.encodeUtf8 (unCircleId a))]
+        joinQueryParams $ Params Nothing [Query ("pageAfter", TE.encodeUtf8 a)]
 
 newtype FromQueryParam = FromQueryParam
   { fromQueryParam :: UTCTime
@@ -481,7 +485,7 @@ newtype PageSizeQueryParam = PageSizeQueryParam
 
 instance ToCircleParam PageSizeQueryParam where
   toCircleParam (PageSizeQueryParam i) =
-    joinQueryParams $ Params Nothing [Query ("pageSize", TE.encodeUtf8 $ (T.pack . show) i)] -- TODO showing seems like a hack.  Better to derive a Display instance.
+    joinQueryParams $ Params Nothing [Query ("pageSize", TE.encodeUtf8 $ (T.pack . show) i)]
 
 newtype StatusQueryParams = StatusQueryParams
   { statusQueryParams :: [Status]
@@ -507,7 +511,7 @@ instance ToCircleParam DestinationQueryParam where
     joinQueryParams $ Params Nothing [Query ("destination", TE.encodeUtf8 (tshow i))]
 
 newtype TypeQueryParam = TypeQueryParam
-  { typeQueryParam :: BankAccountType -- TODO not sure if all of the types should be included.  Should definitely be Wire, but maybe not Sen
+  { typeQueryParam :: BankAccountType
   }
   deriving (Eq, Show)
 
@@ -694,7 +698,7 @@ data PayoutResponseBody = PayoutResponseBody
     payoutResponseBodyAmount :: !MoneyAmount,
     payoutResponseBodyFees :: !MoneyAmount,
     payoutResponseBodyStatus :: !Status,
-    payoutResponseBodyTrackingRef :: !TrackingReference, -- TODO maybe this needs a custom type, although text is probably fine
+    payoutResponseBodyTrackingRef :: !TrackingReference,
     payoutResponseBodyPayoutErrorCode :: !PayoutErrorCode,
     payoutResponseBodyRiskEvaluation :: !RiskEvaluation,
     payoutResponseBodyAdjustments :: !Adjustments,
@@ -891,11 +895,18 @@ type instance CircleRequest EncryptionRequest = CircleResponseBody EncryptionRes
 
 data EncryptionResponseBody = EncryptionResponseBody
   { encryptionResponseBodyKeyId :: !Text, -- TODO this should actually be a UUID, but for the tests to work it needs to be relaxed a bit
-    encryptionResponseBodyPublicKey :: !Text -- TODO is there a PGP key type in Haskell?
+    encryptionResponseBodyPublicKey :: !PGPKey
   }
   deriving (Eq, Show)
   deriving (ToJSON, FromJSON) via (Autodocodec EncryptionResponseBody)
 
+newtype PGPKey = PGPKey
+  { unPGPKey :: Text
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+instance HasCodec PGPKey where
+  codec = dimapCodec PGPKey unPGPKey codec
 instance HasCodec EncryptionResponseBody where
   codec =
     object "EncryptionResponseBody" $
@@ -958,7 +969,7 @@ type instance CircleRequest StablecoinsRequest = CircleResponseBody [StablecoinR
 data StablecoinResponseBody = StablecoinResponseBody
   { stablecoinResponseBodyName :: !Text,
     stablecoinResponseBodySymbol :: !Stablecoin,
-    stablecoinResponseBodyTotalAmount :: !Text, --TODO need an amount field that supports crypto depth.  Many of these coins go past a fixed integer depth
+    stablecoinResponseBodyTotalAmount :: !Text, --TODO need an amount field that supports crypto depth.  Many of these coins go past a fixed integer depth.
     stablecoinResponseBodyChains :: ![ChainAmount]
   }
   deriving (Eq, Show)
@@ -1053,7 +1064,7 @@ type instance CircleRequest SubscriptionRequest = CircleResponseBody Subscriptio
 
 data SubscriptionResponseBody = SubscriptionResponseBody
   { subscriptionResponseBodyId :: !UUID,
-    subscriptionResponseBodyEndpoint :: !Text, -- TODO needs URL type
+    subscriptionResponseBodyEndpoint :: !URL,
     subscriptionResponseBodySubscriptionDetails :: ![SubscriptionDetails]
   }
   deriving (Eq, Show)
@@ -1072,7 +1083,7 @@ instance HasCodec SubscriptionResponseBody where
         <*> requiredField' "subscriptionDetails" .= subscriptionResponseBodySubscriptionDetails
 
 data SubscriptionDetails = SubscriptionDetails
-  { subscriptionDetailsUrl :: !Text, -- TODO need url type
+  { subscriptionDetailsUrl :: !URL,
     subscriptionDetailsStatus :: !Status
   }
   deriving (Eq, Show)
@@ -1211,7 +1222,7 @@ instance HasCodec DestinationType where
         ]
 
 data TransferResponseBody = TransferResponseBody
-  { transferResponseBodyId :: !CircleId,
+  { transferResponseBodyId :: !UUID,
     transferResponseBodySource :: !(ThisOrThat SourceWallet SourceBlockchain),
     transferResponseBodyDestination :: !(ThisOrThat DestinationWallet DestinationBlockchain),
     transferResponseBodyAmount :: !MoneyAmount,
@@ -1404,7 +1415,7 @@ type instance CircleRequest DepositAddressRequest = CircleResponseBody DepositAd
 
 data DepositAddressResponseBody = DepositAddressResponseBody
   { depositAddressResponseBodyAddress :: !HexString,
-    depositAddressResponseBodyAddressTag :: !(Maybe CircleId), -- The docs say it's on the response, but the sandbox API doesn't return in. Make it a `Maybe` for now.
+    depositAddressResponseBodyAddressTag :: !(Maybe Text), -- The docs say it's on the response, but the sandbox API doesn't return in. Make it a `Maybe` for now.
     depositAddressResponseBodyCurrency :: !SupportedCurrencies,
     depositAddressResponseBodyChain :: !Chain
   }
@@ -1463,7 +1474,7 @@ type instance CircleRequest RecipientAddressRequest = CircleResponseBody Recipie
 data RecipientAddressResponseBody = RecipientAddressResponseBody
   { recipientAddressResponseBodyId :: !UUID,
     recipientAddressResponseBodyAddress :: !HexString,
-    recipientAddressResponseBodyAddressTag :: !(Maybe CircleId),
+    recipientAddressResponseBodyAddressTag :: !(Maybe Text),
     recipientAddressResponseBodyChain :: !Chain,
     recipientAddressResponseBodyCurrency :: !SupportedCurrencies,
     recipientAddressResponseBodyDescription :: !Text
@@ -1489,7 +1500,7 @@ instance HasCodec RecipientAddressResponseBody where
 data RecipientAddressRequestBody = RecipientAddressRequestBody
   { recipientAddressRequestBodyIdempotencyKey :: !UUID,
     recipientAddressRequestBodyAddress :: !HexString,
-    recipientAddressRequestBodyAddressTag :: !(Maybe CircleId),
+    recipientAddressRequestBodyAddressTag :: !(Maybe Text),
     recipientAddressRequestBodyChain :: !Chain,
     recipientAddressRequestBodyCurrency :: !SupportedCurrencies,
     recipientAddressRequestBodyDescription :: !Text
@@ -1701,7 +1712,7 @@ instance HasCodec SENAccountResponseBody where
         <*> optionalField' "currency" .= senAccountResponseBodyCurrency
 
 data SENInstructionsResponseData = SENInstructionsResponseData
-  { senInstructionsResponseDataTrackingRef :: !TrackingReference, -- TODO need to figure out how to have clean ways to write Autodocodec instances for newtypes that are already deriving ToJSON and FromJSON.
+  { senInstructionsResponseDataTrackingRef :: !TrackingReference,
     senInstructionsResponseDataAccountNumber :: !AccountNumber,
     senInstructionsResponseDataCurrency :: !SupportedCurrencies
   }
@@ -1782,7 +1793,7 @@ instance HasCodec SignetBankAccountResponseData where
 
 data SignetBankInstructionsResponseData = SignetBankInstructionsResponseData
   { signetBankInstructionsTrackingRef :: !(Maybe TrackingReference),
-    signetBankInstructionsWalletAddress :: !(Maybe HexString) -- TODO this should have a type, looks like this 0xcac04f0069e4ac9314ac4e608e99278a3bebabcd
+    signetBankInstructionsWalletAddress :: !(Maybe HexString)
   }
   deriving (Eq, Show)
   deriving
@@ -1848,7 +1859,7 @@ instance HasCodec USBankAccountRequestBody where
 
 data IBANBankAccountRequestBody = IBANBankAccountRequestBody
   { ibanBankAccountIdempotencyKey :: !UUID,
-    ibanBankAccountIBAN :: !Text, -- TODO needs IBAN newtype
+    ibanBankAccountIBAN :: !Iban,
     ibanBankAccountBillingDetails :: !BillingDetails,
     ibanBankAccountBankAddress :: !BankAddress
   }
@@ -1986,12 +1997,14 @@ data CreatePaymentRequestBody = CreatePaymentRequestBody
     createPaymentAmount :: !MoneyAmount,
     createPaymentAutoCapture :: !(Maybe Bool),
     createPaymentVerification :: !VerificationType,
-    createPaymentVerificationSuccessUrl :: !(Maybe Text), -- TODO depends on if VerificationType = ThreeDSecure
-    createPaymentVerificationFailureUrl :: !(Maybe Text), -- TODO depends on if VerificationType = ThreeDSecure
+    -- | The following two fields are only present if VerificationType = ThreeDSecure
+    createPaymentVerificationSuccessUrl :: !(Maybe URL), 
+    createPaymentVerificationFailureUrl :: !(Maybe URL),
     createPaymentSource :: !PaymentSource,
     createPaymentDescription :: !(Maybe Text),
-    createPaymentEncryptedData :: !(Maybe Text), -- TODO check that it contains the CVV somehow
-    createPaymentChannel :: !(Maybe Text)
+    -- | This encrypted data needs to encrypt the card CVV
+    createPaymentEncryptedData :: !(Maybe Text),
+    createPaymentChannel :: !(Maybe UUID)
   }
   deriving (Eq, Show)
   deriving
@@ -2018,10 +2031,10 @@ instance HasCodec CreatePaymentRequestBody where
         <*> optionalField' "channel" .= createPaymentChannel
 
 data RequestMetadata = RequestMetadata
-  { requestMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
-    requestMetadataPhoneNumber :: !(Maybe Text), -- TODO this screams newtype w/ smart constructor
-    requestMetadataSessionId :: !Text, -- TODO hash newtype or something
-    requestMetadataIpAddress :: !Text -- TODO should be a newtype
+  { requestMetadataEmail :: !Email,
+    requestMetadataPhoneNumber :: !(Maybe PhoneNumber),
+    requestMetadataSessionId :: !SessionId,
+    requestMetadataIpAddress :: !IPAddress
   }
   deriving (Eq, Show)
   deriving
@@ -2029,6 +2042,30 @@ data RequestMetadata = RequestMetadata
       ToJSON
     )
     via (Autodocodec RequestMetadata)
+
+newtype SessionId = SessionId
+  { unSessionId :: Text -- TODO consider validating if necessary
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+instance HasCodec SessionId where
+  codec = dimapCodec SessionId unSessionId codec
+
+newtype IPAddress = IPAddress
+  { unIPAddress :: Text -- TODO consider validating if necessary
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+instance HasCodec IPAddress where
+  codec = dimapCodec IPAddress unIPAddress codec
+
+newtype PhoneNumber = PhoneNumber
+  { unPhoneNumber :: Text -- TODO consider validating if necessary
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+instance HasCodec PhoneNumber where
+  codec = dimapCodec PhoneNumber unPhoneNumber codec
 
 instance HasCodec RequestMetadata where
   codec =
@@ -2127,7 +2164,7 @@ instance HasCodec PaymentErrorCode where
           (PaymentVendorInactive, "vendor_inactive")
         ]
 
--- TODO could likely make a better abstraction here
+-- TODO could likely make a better abstraction here.
 
 -- | A FiatOrCryptoPaymentResponseBody object represents a fiat or crypto payment.  These payments look identical
 -- except for the "Description" field, and the fact that a FiatPayment could have response verification data, whereas
@@ -2142,13 +2179,13 @@ data FiatOrCryptoPaymentResponseBody = FiatOrCryptoPaymentResponseBody
     fiatOrCryptoPaymentMerchantWalletId :: !WalletId,
     fiatOrCryptoPaymentAmount :: !MoneyAmount,
     fiatOrCryptoPaymentSource :: !PaymentSource,
-    fiatOrCryptoPaymentDescription :: !Text, -- TODO this should be an enum that just says "Payment"
+    fiatOrCryptoPaymentDescription :: !Text,
     fiatOrCryptoPaymentStatus :: !PaymentStatus,
     -- the following fields will only be present on Crypto payments
     fiatOrCryptoPaymentPaymentIntentId :: !(Maybe UUID),
-    fiatOrCryptoPaymentSettlementAmount :: !(Maybe MoneyAmount), -- TODO this will probably change to not use Centi
+    fiatOrCryptoPaymentSettlementAmount :: !(Maybe MoneyAmount),
     fiatOrCryptoPaymentDepositAddress :: !(Maybe PaymentDepositAddress),
-    fiatOrCryptoPaymentTransactionHash :: !(Maybe Text), -- TODO this is probably a HexString too
+    fiatOrCryptoPaymentTransactionHash :: !(Maybe HexString),
     -- the following fields will only be present on fiat payments
     fiatOrCryptoPaymentVerification :: !(Maybe VerificationData),
     fiatOrCryptoPaymentCaptured :: !(Maybe Bool),
@@ -2158,7 +2195,7 @@ data FiatOrCryptoPaymentResponseBody = FiatOrCryptoPaymentResponseBody
     fiatOrCryptoPaymentCancel :: !(Maybe FiatCancelOrRefundResponseBody),
     fiatOrCryptoPaymentRefunds :: !(Maybe [FiatCancelOrRefundResponseBody]),
     fiatOrCryptoPaymentFees :: !(Maybe MoneyAmount),
-    fiatOrCryptoPaymentChannel :: !(Maybe Text), -- TODO this needs a type
+    fiatOrCryptoPaymentChannel :: !(Maybe UUID),
     fiatOrCryptoPaymentCreateDate :: !(Maybe UTCTime),
     fiatOrCryptoPaymentUpdateDate :: !(Maybe UTCTime),
     fiatOrCryptoPaymentTrackingRef :: !(Maybe TrackingReference),
@@ -2206,8 +2243,8 @@ instance HasCodec FiatOrCryptoPaymentResponseBody where
         <*> optionalField' "channel" .= fiatOrCryptoPaymentRiskEvaluation
 
 data ResponseMetadata = ResponseMetadata
-  { responseMetadataEmail :: !Text, -- TODO this screams newtype w/ smart constructor
-    responseMetadataPhoneNumber :: !(Maybe Text) -- TODO this screams newtype w/ smart constructor
+  { responseMetadataEmail :: !Email,
+    responseMetadataPhoneNumber :: !(Maybe PhoneNumber)
   }
   deriving (Eq, Show)
   deriving
@@ -2265,7 +2302,7 @@ instance HasCodec CVV where
 
 data PaymentDepositAddress = PaymentDepositAddress
   { paymentDepositAddressChain :: !Chain,
-    paymentDepositAddressAddress :: !HexString -- TODO this may be a hex string
+    paymentDepositAddressAddress :: !HexString
   }
   deriving (Eq, Show)
   deriving
@@ -2284,23 +2321,24 @@ instance HasCodec PaymentDepositAddress where
 -- | A FiatCancelOrRefundResponseBody object represents an attempt at canceling or refunding a payment.
 -- Cancellations apply only to card payments, and its presence doesn't necessarily mean that the cancellation was successful.
 -- A successful cancellation has a status of paid, a successful refund has a status of confirmed.
--- TODO I could likely do some better data modeling here, there's a ton of shared fields between these
--- types so I kinda cheated and just made one mega type with maybes, but it'll be more ergonomic for devs
--- to have a specific type that's generated from the parsing.  The tricky part is the differentiator is the
--- field `type`, so I think I'll need to be clever about this.
 data FiatCancelOrRefundResponseBody = FiatCancelOrRefundResponseBody
-  { fiatCancelOrRefundResponseBodyId :: !UUID,
+  { 
+    -- TODO I could likely do some better data modeling here, there's a ton of shared fields between these
+    -- types so I kinda cheated and just made one mega type with maybes, but it'll be more ergonomic for devs
+    -- to have a specific type that's generated from the parsing.  The tricky part is the differentiator is the
+    -- field `type`, so I think I'll need to be clever about this.
+    fiatCancelOrRefundResponseBodyId :: !UUID,
     fiatCancelOrRefundResponseBodyType :: !PaymentType,
     fiatCancelOrRefundResponseBodyMerchantId :: !UUID,
     fiatCancelOrRefundResponseBodyMerchantWalletId :: !WalletId,
     fiatCancelOrRefundResponseBodyAmount :: !MoneyAmount,
     fiatCancelOrRefundResponseBodySource :: !PaymentSource,
-    fiatCancelOrRefundResponseBodyDescription :: !Text, -- TODO description enum
+    fiatCancelOrRefundResponseBodyDescription :: !Text,
     fiatCancelOrRefundResponseBodyStatus :: !PaymentStatus,
     fiatCancelOrRefundResponseBodyOriginalPayment :: !OriginalFiatPayment,
     fiatCancelOrRefundResponseBodyFees :: !(Maybe MoneyAmount),
     fiatCancelOrRefundResponseBodyChannel :: !(Maybe Text),
-    fiatCancelOrRefundResponseBodyReason :: !(Maybe CancelPaymentReason), -- TODO feels like something that could have an enum
+    fiatCancelOrRefundResponseBodyReason :: !(Maybe CancelPaymentReason),
     fiatCancelOrRefundResponseBodyCreateDate :: !UTCTime,
     fiatCancelOrRefundResponseBodyUpdateDate :: !UTCTime
   }
@@ -2388,7 +2426,7 @@ instance HasCodec PaymentSource where
 
 data PaymentActionRequired = PaymentActionRequired
   { paymentActionRequiredType :: !ActionRequiredType,
-    paymentActionRequiredRedirectUrl :: !Text -- TODO URL type
+    paymentActionRequiredRedirectUrl :: !URL
   }
   deriving (Eq, Show)
   deriving
@@ -2673,7 +2711,7 @@ instance HasCodec CardResponseBody where
 data CreateCardRequestBody = CreateCardRequestBody
   { createCardIdempotencyKey :: !UUID,
     createCardKeyId :: !(Maybe Text), -- key1 in sandbox
-    createCardEncryptedData :: !(Maybe Text), -- TODO check that it contains the CVV AND the card number somehow
+    createCardEncryptedData :: !(Maybe Text), -- NB: this encrypted data contains the CVV AND the card number somehow
     createCardBillingDetails :: !BillingDetails,
     createCardExpiryMonth :: !Int,
     createCardExpiryYear :: !Int,
@@ -2700,7 +2738,7 @@ instance HasCodec CreateCardRequestBody where
 
 data UpdateCardRequestBody = UpdateCardRequestBody
   { updateCardKeyId :: !(Maybe Text), -- key1 in sandbox
-    updateCardEncryptedData :: !(Maybe Text), -- TODO check that it contains the CVV AND the card number somehow
+    updateCardEncryptedData :: !(Maybe Text), -- NB: this encrypted data contains the CVV AND the card number somehow
     updateCardExpiryMonth :: !Int,
     updateCardExpiryYear :: !Int
   }
@@ -2901,7 +2939,7 @@ instance HasCodec ACHBankAccountErrorCode where
 
 data CreateACHBankAccountRequestBody = CreateACHBankAccountRequestBody
   { achBankAccountBodyIdempotencyKey :: !UUID,
-    achBankAccountBodyPlaidProcessorToken :: !Text, -- TODO newtype
+    achBankAccountBodyPlaidProcessorToken :: !ProcessorToken,
     achBankAccountBodyBillingDetails :: !BillingDetails,
     achBankAccountBodyBankAccountType :: !(Maybe ACHBankAccountType),
     achBankAccountBodyMetadata :: !RequestMetadata
@@ -2952,7 +2990,8 @@ instance HasCodec CreateMockACHBankAccountRequestBody where
 data MockACHBankAccountResponseBody = MockACHBankAccountResponseBody
   { mockACHBankAccountResponseBodyAccount :: !MockACHBankAccount,
     mockACHBankAccountResponseBodyBalance :: !MoneyAmount,
-    mockACHBankAccountResponseBodyProcessorToken :: !Text -- TODO newtype
+    -- in sandbox, the value of this token is processor-sandbox-circle-82cf95bb-43f8-4191-8d30-2c9f42853621
+    mockACHBankAccountResponseBodyProcessorToken :: !ProcessorToken
   }
   deriving (Eq, Show)
   deriving
@@ -3035,7 +3074,7 @@ type instance CircleRequest SEPAInstructionsRequest = CircleResponseBody WireIns
 
 data SEPAAccountRequestBody = SEPAAccountRequestBody
   { sepaAccountRequestBodyIdempotencyKey :: !UUID,
-    sepaAccountRequestBodyIBAN :: !Text, -- TODO newtype IBAN
+    sepaAccountRequestBodyIBAN :: !Iban,
     sepaAccountRequestBodyBillingDetails :: !BillingDetails
   }
   deriving (Eq, Show)
@@ -3058,7 +3097,7 @@ data SEPAAccountResponseBody = SEPAAccountResponseBody
     sepaAccountResponseBodyStatus :: !Status,
     sepaAccountResponseBodyDescription :: !Text, -- TODO better type: Bank name plus last four digits of the bank account number or IBAN.  Make a custom type for this
     sepaAccountResponseBodyTrackingRef :: !TrackingReference,
-    sepaAccountResponseBodyFingerprint :: !UUID, -- TODO newtype this
+    sepaAccountResponseBodyFingerprint :: !UUID,
     sepaAccountResponseBodyRiskEvaluation :: !(Maybe RiskEvaluation),
     sepaAccountResponseBodyBillingDetails :: !BillingDetails,
     sepaAccountResponseBodyCreateDate :: !UTCTime,
@@ -3516,7 +3555,7 @@ instance CircleHasParam WalletsRequest PageSizeQueryParam
 data WalletResponseBody = WalletResponseBody
   { walletResponseBodyWalletId :: !WalletId,
     walletResponseBodyEntityId :: !UUID,
-    walletResponseBodyType :: !Text, -- TODO just "end_user_wallet"
+    walletResponseBodyType :: !Text, -- This value will always be "end_user_wallet"
     walletResponseBodyDescription :: !(Maybe Text),
     walletResponseBodyBalances :: [MoneyAmount]
   }
@@ -3801,8 +3840,8 @@ instance HasCodec DestinationBankAccount where
         <*> requiredField' "id" .= destinationBankAccountId
         <*> optionalField' "name" .= destinationBankAccountName
 
--- TODO can we do type narrowing to have other types that represent subsets of this one without have to write
--- custom constructors?
+-- TODO can we do type narrowing to have other types that represent subsets of 
+-- this one without have to write custom constructors?
 data SupportedCurrencies = USD | EUR | BTC | ETH
   deriving (Eq, Show, Enum, Bounded)
   deriving
@@ -3815,7 +3854,7 @@ instance HasCodec SupportedCurrencies where
   codec = shownBoundedEnumCodec
 
 newtype Amount = Amount
-  -- TODO this should be a numeric type, maybe?
+  -- TODO consider making this a numeric type, maybe?
   { unAmount :: Text
   }
   deriving (Eq, Show, ToJSON, FromJSON)
@@ -3835,7 +3874,7 @@ instance HasCodec BlockchainFeeType where
   codec = stringConstCodec $ NE.fromList [(BlockchainLeaseFee, "blockChainLeaseFee"), (TotalPaymentFees, "totalPaymentFees")]
 
 data BlockchainFeeMoneyAmount = BlockchainFeeMoneyAmount
-  { blockchainFeeMoneyAmountType :: !BlockchainFeeType, -- TODO sum type
+  { blockchainFeeMoneyAmountType :: !BlockchainFeeType,
     blockchainFeeMoneyAmountAmount :: !Amount,
     blockchainFeeMoneyAmountCurrency :: !SupportedCurrencies
   }
@@ -3905,7 +3944,9 @@ instance HasCodec Decision where
 
 data RiskEvaluation = RiskEvaluation
   { riskEvaluationDecision :: !Decision,
-    riskEvaluationReason :: !Text -- TODO probably fine, but maybe just give it a custom type to avoid too much text?
+    -- Parsing riskEvaluationReason as a text because it's pretty open-ended: https://developers.circle.com/developer/docs/cards-banks-and-payments-risk-evaluation
+    -- TODO maybe eventually add type constraints around these potential fields (unlikely though, there are a lot)
+    riskEvaluationReason :: !Text
   }
   deriving (Eq, Show, Generic)
   deriving
@@ -4046,6 +4087,14 @@ instance HasCodec BeneficiaryBankDetails where
         <*> requiredField' "postalCode" .= beneficiaryBankDetailsPostalCode
         <*> requiredField' "country" .= beneficiaryBankDetailsCountry
 
+newtype ProcessorToken = ProcessorToken
+  { unProcessorToken :: Text
+  }
+  deriving (Eq, Show, ToJSON, FromJSON)
+
+instance HasCodec ProcessorToken where
+  codec = dimapCodec ProcessorToken unProcessorToken codec
+
 newtype AddressLine = AddressLine
   { unAddressLine :: Text
   }
@@ -4054,16 +4103,36 @@ newtype AddressLine = AddressLine
 instance HasCodec AddressLine where
   codec = dimapCodec AddressLine unAddressLine codec
 
--- See 'accountNumberRegex' for where these numeric constraints come from
---
--- We're using greater than, less than without equality assertions in order
--- to better support 'Refined.weaken'
--- type AccountNumberConstraints =
---   SizeGreaterThan 3
---     && SizeLessThan 18
--- TODO may need to derive a HasCodec instance for this to let me use constraints
+newtype URL = URL {unURL :: Text}
+  deriving stock (Eq, Show, Lift)
+  deriving newtype (ToJSON)
 
--- newtype AccountNumber = AccountNumber {unAccountNumber :: Refined AccountNumberConstraints Text}
+-- From https://daringfireball.net/2010/07/improved_regex_for_matching_urls
+urlRegex :: Regex
+urlRegex =
+  [re|(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))|]
+
+mkURL :: Text -> Maybe URL
+mkURL t =
+  if t =~ urlRegex
+    then Just (URL t)
+    else Nothing
+
+urlToText :: URL -> Text
+urlToText (URL t) = t
+
+urlToByteString :: URL -> BS8.ByteString
+urlToByteString url = TE.encodeUtf8 $ urlToText url
+
+instance FromJSON URL where
+  parseJSON = withText "URL" $ \t ->
+    case mkURL t of
+      Nothing -> fail $ "Invalid URL: " ++ T.unpack t
+      Just url -> pure url
+
+instance HasCodec URL where
+  codec = dimapCodec URL unURL codec
+
 newtype AccountNumber = AccountNumber {unAccountNumber :: Text}
   deriving stock (Eq, Show, Lift)
   deriving newtype (ToJSON)
@@ -4075,8 +4144,7 @@ accountNumberRegex = [re|^[A-Z0-9]{4,17}$|]
 mkAccountNumber :: Text -> Maybe AccountNumber
 mkAccountNumber t =
   if t =~ accountNumberRegex
-    then -- then AccountNumber <$> refineFail t
-      Just (AccountNumber t)
+    then Just (AccountNumber t)
     else Nothing
 
 accountNumberToText :: AccountNumber -> Text
@@ -4099,16 +4167,8 @@ instance FromJSON AccountNumber where
       Nothing -> fail $ "Invalid AccountNumber: " ++ T.unpack t
       Just accountNumber -> pure accountNumber
 
--- TODO get this working with refined types
 instance HasCodec AccountNumber where
   codec = dimapCodec AccountNumber unAccountNumber codec
-
--- where
---   accountNumberCodec =
---     bimapCodec
---       (mapLeft ("Invalid AccountNumber: " ++) . mkAccountNumber)
---       accountNumberToText
---       codec
 
 compileAccountNumber :: QuasiQuoter
 compileAccountNumber =
@@ -4166,6 +4226,89 @@ compileRoutingNumber =
       Nothing -> fail ("Invalid RoutingNumber: " ++ s ++ ". Must be nine digits, with no other characters.")
       Just routingNumber -> [|routingNumber|]
 
+newtype Iban = Iban {unIban :: Text}
+  deriving stock (Show, Read, Lift)
+  deriving newtype (Eq, ToJSON)
+
+mkIban :: Text -> Maybe Iban
+mkIban t = if T.length t <= 34 then Just (Iban t) else Nothing
+
+instance FromJSON Iban where
+  parseJSON = withText "Iban" $ \t -> case mkIban t of
+    Nothing -> fail $ "Invalid Iban: " ++ T.unpack t
+    Just iban -> pure iban
+
+instance HasCodec Iban where
+  codec = dimapCodec Iban unIban codec
+
+compileIban :: QuasiQuoter
+compileIban =
+  QuasiQuoter
+    { quoteExp = compileIban',
+      quotePat = error "Iban is not a pattern - use `ibanToText` instead",
+      quoteDec = error "Iban is not supported at top-level",
+      quoteType = error "Iban is not supported as a type"
+    }
+  where
+    compileIban' :: String -> Q Exp
+    compileIban' s = case mkIban (T.pack s) of
+      Nothing -> fail $ "Invalid Iban: " ++ s
+      Just txt -> [|txt|]
+
+ibanToText :: Iban -> Text
+ibanToText (Iban t) = t
+
+-- | A newtype around email text.
+-- This newtype verifies the email is formatted correctly using HTML5's email regexp https://www.w3.org/TR/html5/forms.html#valid-e-mail-address
+newtype Email = Email {getEmailText :: Text}
+  deriving stock (Show, Lift)
+  deriving newtype (Eq, Ord, ToJSON)
+
+emailRegex :: Regex
+emailRegex = [re|^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$|]
+
+-- | Attempt to create an email from text, returning 'Nothing' if it doesn't
+-- match our email regular expression.
+mkEmail :: Text -> Maybe Email
+mkEmail t =
+  if t =~ emailRegex
+    then Just (Email t)
+    else Nothing
+
+-- | Convenience function for APIs that take emails as 'Text'
+emailToText :: Email -> Text
+emailToText = getEmailText
+
+-- | Convenience function for APIs that take emails as 'ByteString'
+emailToByteString :: Email -> BS8.ByteString
+emailToByteString email = TE.encodeUtf8 $ emailToText email
+
+instance HasCodec Email where
+  codec = dimapCodec Email getEmailText codec
+
+instance FromJSON Email where
+  parseJSON (Aeson.String t) = case mkEmail t of
+    Nothing -> fail $ "Invalid email address: " ++ show t
+    Just email -> pure email
+  parseJSON v = fail $ "When trying to parse an Email, expected String, encountered " ++ show v
+
+-- | Create an email at compile time
+-- Usage:
+-- > [compileEmail|dmarticus@gmail.com|]
+compileEmail :: QuasiQuoter
+compileEmail =
+  QuasiQuoter
+    { quoteExp = compileEmail'
+    , quotePat = error "Email is not a pattern; use `emailToText` instead"
+    , quoteDec = error "email is not supported at top-level"
+    , quoteType = error "email is not supported as a type"
+    }
+  where
+    compileEmail' :: String -> Q Exp
+    compileEmail' s = case mkEmail (T.pack s) of
+      Nothing -> fail ("Invalid Email: " ++ s ++ ". Make sure you aren't wrapping the email in quotes.")
+      Just email -> [|email|]
+
 newtype City = City
   { unCity :: Text
   }
@@ -4174,7 +4317,7 @@ newtype City = City
 instance HasCodec City where
   codec = dimapCodec City unCity codec
 
--- TODO add constraints maybe?  Risk here is that I block valid codes.
+-- TODO consider adding validation.  Risk here is that I block valid codes.
 newtype PostalCode = PostalCode
   { unPostalCode :: Text
   }
@@ -4245,7 +4388,7 @@ getBranchCodeFromSwiftCode swiftCode = do
   guard (T.length swiftCodeText == 11)
   pure (T.drop 8 swiftCodeText)
 
--- TODO add constraints (should district be state?  Can I just use an enum?)
+-- TODO consider adding validation (should district be state?  Can I just use an enum?)
 -- District will be a state only if it's US or Canada... will need to be clever here I think.
 -- Maybe can have those two fields be modeled with a sum type?
 newtype District = District
@@ -4275,7 +4418,6 @@ newtype ISO3166Alpha2 = ISO3166Alpha2
 instance HasCodec ISO3166Alpha2 where
   codec = dimapCodec ISO3166Alpha2 unISO3166Alpha2 codec
 
--- TODO maybe constrain this?  Not sure what it looks like yet so that can happen later
 newtype TrackingReference = TrackingReference
   { unTrackingReference :: Text
   }
@@ -4284,7 +4426,8 @@ newtype TrackingReference = TrackingReference
 instance HasCodec TrackingReference where
   codec = dimapCodec TrackingReference unTrackingReference codec
 
--- TODO maybe add validation?  I don't know enough about it yet.
+-- TODO consider adding validation to this type if necessary.  
+-- The string looks like this 0xcac04f0069e4ac9314ac4e608e99278a3bebabcd
 newtype HexString = HexString
   { unHexString :: Text
   }
@@ -4293,16 +4436,7 @@ newtype HexString = HexString
 instance HasCodec HexString where
   codec = dimapCodec HexString unHexString codec
 
--- TODO add validation if necessary
-newtype CircleId = CircleId
-  { unCircleId :: Text
-  }
-  deriving (Eq, Show, ToJSON, FromJSON)
-
-instance HasCodec CircleId where
-  codec = dimapCodec CircleId unCircleId codec
-
--- TODO add validation if necessary
+-- TODO consider adding validation if necessary
 -- From Circle's docs: "A walletId is a numeric value but should be treated as a string as format may change in the future"
 newtype WalletId = WalletId
   { unWalletId :: Text
@@ -4312,6 +4446,7 @@ newtype WalletId = WalletId
 instance HasCodec WalletId where
   codec = dimapCodec WalletId unWalletId codec
 
+-- TODO what to do about this orphan instance?
 instance HasCodec UUID where
   codec = bimapCodec f UUID.toText codec
     where
@@ -4319,47 +4454,3 @@ instance HasCodec UUID where
         case UUID.fromText t of
           Nothing -> Left "Invalid Text when parsing UUID"
           Just u -> Right u
-
--- -- TODO, consider replacing this hand-rolled validation with the Data.UUID library if you really care about accurate UUIDs.
--- -- This is fine for now, though.
--- newtype UUID = UUID
---   { tshow :: Text
---   }
---   deriving (Eq, Show, Lift, Generic)
---   deriving newtype (ToJSON)
-
--- -- TODO this doesn't appear to work
--- instance Validity UUID where
---   validate (UUID n) = check (isNothing $ mkUUID n) "The UUID has a valid format."
-
--- -- instance IsString UUID where
--- --   fromString = mkUUID . fromString
-
--- instance FromJSON UUID where
---   parseJSON = withText "UUID" $ \t ->
---     case mkUUID t of
---       Nothing -> fail $ "Invalid UUID: " ++ T.unpack t
---       Just uuid -> pure uuid
-
--- uuidRegex :: Regex
--- uuidRegex = [re|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|]
-
--- mkUUID :: Text -> Maybe UUID
--- mkUUID t =
---   if t =~ uuidRegex
---     then Just (UUID t)
---     else Nothing
-
--- compileUUID :: QuasiQuoter
--- compileUUID =
---   QuasiQuoter
---     { quoteExp = compileUUID',
---       quotePat = error "UUID is not a pattern; use uuidToText instead",
---       quoteDec = error "UUID is not supported at top-level",
---       quoteType = error "UUID is not supported as a type"
---     }
---   where
---     compileUUID' :: String -> Q Exp
---     compileUUID' s = case mkUUID (T.pack s) of
---       Nothing -> fail ("Invalid UUID: " ++ s ++ ". Must match the UUID spec, with no other characters.")
---       Just uuid -> [|uuid|]
