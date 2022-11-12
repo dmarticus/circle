@@ -6,16 +6,19 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad
 import Data.Foldable (for_)
+import Data.Maybe (fromJust)
+import Data.Text as T
 import Data.UUID as UUID
 import Data.UUID.V4 as UUID
 import Network.HTTP.Client (newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
+import System.Random
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib (isRight)
 import Unknot.Client
 import Unknot.Types
-import Data.Maybe (fromJust)
 
 testUSWireAccountDetails :: UUID -> WireAccountRequestBody
 testUSWireAccountDetails wireAccountIdempotencyKey =
@@ -67,12 +70,12 @@ testOnChainTransferRequestBody onChainTransferIdempotencyKey sourceWallet destin
         USD
     )
 
-testRecipientAddressRequestBody :: UUID -> RecipientAddressRequestBody
-testRecipientAddressRequestBody recipientAddressIdempotencyKey =
+testRecipientAddressRequestBody :: UUID -> HexString -> RecipientAddressRequestBody
+testRecipientAddressRequestBody recipientAddressIdempotencyKey blockchainAddress =
   RecipientAddressRequestBody
     recipientAddressIdempotencyKey
     -- TODO will need to make this random each time
-    (HexString "0x8381470ED67C3802402dbbFa0058E8871F017A6K")
+    blockchainAddress
     Nothing
     ChainETH
     USD
@@ -172,6 +175,24 @@ testBusinessPayoutRequestBody payoutIdempotencyKey wireAccountId =
         (Amount "100.00")
         USD
     )
+
+testPaymentIntentRequestBody :: UUID -> CreatePaymentIntentRequestBody
+testPaymentIntentRequestBody createPaymentIntentIdempotencyKey =
+  CreatePaymentIntentRequestBody
+    createPaymentIntentIdempotencyKey
+    ( MoneyAmount
+        (Amount "100.00")
+        USD
+    )
+    USD
+    [testPaymentMethod]
+
+testPaymentMethod :: PaymentMethodData
+testPaymentMethod =
+  PaymentMethodData
+    "blockchain"
+    ChainETH
+    Nothing
 
 main :: IO ()
 main = do
@@ -352,7 +373,8 @@ main = do
         describe "create recipient address" $ do
           it "will attempt to create a recipient address" $ do
             recipientAddressIdempotencyKey <- liftIO $ UUID.nextRandom
-            recipientAddress <- circleTest config manager $ createBusinessAccountRecipientAddress (testRecipientAddressRequestBody recipientAddressIdempotencyKey)
+            randomHexString <- replicateM 20 (randomRIO ('a', 'z'))
+            recipientAddress <- circleTest config manager $ createBusinessAccountRecipientAddress (testRecipientAddressRequestBody recipientAddressIdempotencyKey (HexString (T.pack randomHexString)))
             recipientAddress `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddress
             circleResponseCode `shouldBe` Nothing
@@ -585,13 +607,6 @@ main = do
       -- circleResponseCode `shouldBe` Nothing
       -- circleResponseMessage `shouldBe` Nothing
       describe "/cards endpoint" $ do
-        describe "list cards" $ do
-          it "should list all cards" $ do
-            cards <- circleTest config manager listAllCards
-            cards `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = cards
-            circleResponseCode `shouldBe` Nothing
-            circleResponseMessage `shouldBe` Nothing
         describe "create card" $ do
           it "should create a new card, get it, and then update it" $ do
             cardIdempotencyKeyUUID <- liftIO $ UUID.nextRandom
@@ -613,3 +628,50 @@ main = do
               -- update the card
               updatedCard <- circleTest config manager $ updateCard cardId testUpdateCardBody
               updatedCard `shouldSatisfy` isRight
+        describe "list cards" $ do
+          it "should list all cards" $ do
+            cards <- circleTest config manager listAllCards
+            cards `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = cards
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+      describe "/settlements endpoint" $ do
+        describe "list all settlements" $ do
+          it "should list all settlements" $ do
+            settlements <- circleTest config manager listAllSettlements
+            settlements `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = settlements
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+      describe "/reversals endpoint" $ do
+        describe "list all reversals" $ do
+          it "should list all reversals" $ do
+            reversals <- circleTest config manager listAllACHReversals
+            reversals `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = reversals
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+      describe "/balances endpoint" $ do
+        describe "list all balances" $ do
+          it "should list all balances" $ do
+            balances <- circleTest config manager listAllBalances
+            balances `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = balances
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+      describe "/paymentIntents endpoint" $ do
+        describe "list all paymentIntents" $ do
+          it "should list all paymentIntents" $ do
+            paymentIntents <- circleTest config manager listAllPaymentIntents
+            paymentIntents `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = paymentIntents
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "list all paymentIntents" $ do
+          it "should create a new paymentIntent" $ do
+            createPaymentIntentIdempotencyKey <- liftIO $ UUID.nextRandom
+            paymentIntent <- circleTest config manager $ createPaymentIntent (testPaymentIntentRequestBody createPaymentIntentIdempotencyKey)
+            paymentIntent `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = paymentIntent
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing

@@ -55,6 +55,7 @@ test-suite test
     , hspec-expectations
     , http-client         >=0.7.6 && <0.7.9
     , http-client-tls     >=0.3   && <0.3.6
+    , random
     , safe                >=0.3   && <0.4
     , text
     , time
