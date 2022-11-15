@@ -11,8 +11,6 @@ on:
     - cron: '0 0 * * 0'
 
 env:
-  # This is a sandbox key, so there's no real danger to leaving it unsecured, but it's probably not a best practice.
-  # I'll see if I can bring this in from some sort of secret store.
   CIRCLE_API_KEY: ${{ secrets.CIRCLE_API_KEY }}
 
 jobs:
