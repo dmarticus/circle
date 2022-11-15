@@ -16,6 +16,13 @@ on:
   push:
 
 jobs:
+
+  hack:
+    name:  'https://github.com/mstksg/setup-stack/issues/13'
+    runs-on: ubuntu-latest
+    steps: 
+    - run: 'echo "ACTIONS_ALLOW_UNSECURE_COMMANDS=true" >> $GITHUB_ENV'
+    
   xrefcheck:
     name: Verify cross references
     runs-on: ubuntu-latest
@@ -25,12 +32,12 @@ jobs:
       with:
         xrefcheck-version: 0.2.2
 
-  reuse:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: REUSE Compliance Check
-      uses: fsfe/reuse-action@v1
+  # reuse:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - name: REUSE Compliance Check
+  #     uses: fsfe/reuse-action@v1
 
   hlint:
     runs-on: ubuntu-latest
@@ -48,30 +55,31 @@ jobs:
         path: .
         fail-on: status
 
-  stylish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Cache binaries
-        id: cache-stylish
-        uses: actions/cache@v3
-        with:
-          path: ~/.local/bin
-          key: bin-stylish
-      - name: Setup
-        if: steps.cache-stylish.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          wget https://github.com/haskell/stylish-haskell/releases/download/v0.14.2.0/stylish-haskell-v0.14.2.0-linux-x86_64.tar.gz
-          tar -zxf stylish-haskell-v0.14.2.0-linux-x86_64.tar.gz \
-            --strip-components 1 \
-            -C "$HOME/.local/bin" \
-            stylish-haskell-v0.14.2.0-linux-x86_64/stylish-haskell
-          chmod +x "$HOME/.local/bin"/stylish-haskell
-      - name: Stylish Haskell
-        run: |
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          ./scripts/validate-stylish.sh
+  # stylish:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Cache binaries
+  #       id: cache-stylish
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: ~/.local/bin
+  #         key: bin-stylish
+  #     - name: Setup
+  #       if: steps.cache-stylish.outputs.cache-hit != 'true'
+  #       run: |
+  #         mkdir -p "$HOME/.local/bin"
+  #         wget https://github.com/haskell/stylish-haskell/releases/download/v0.14.2.0/stylish-haskell-v0.14.2.0-linux-x86_64.tar.gz
+  #         tar -zxf stylish-haskell-v0.14.2.0-linux-x86_64.tar.gz \
+  #           --strip-components 1 \
+  #           -C "$HOME/.local/bin" \
+  #           stylish-haskell-v0.14.2.0-linux-x86_64/stylish-haskell
+  #         chmod +x "$HOME/.local/bin"/stylish-haskell
+  #     - name: Stylish Haskell
+  #       run: |
+  #         echo "$HOME/.local/bin" >> $GITHUB_PATH
+  #         ./scripts/validate-stylish.sh
+
   whitespace:
     name: Find Trailing Whitespace
     runs-on: ubuntu-latest
