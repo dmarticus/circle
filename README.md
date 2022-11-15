@@ -24,12 +24,12 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [ ] Figure out how to model the `FiatOrCryptoPaymentResponse` and `FiatCancelOrRefund` types a bit better.  There's enough overlap that I can parse them pretty easily but I feel like I could make it more ergonomic to parse more intentionally.
 
 ### Infrastructure
+
 - [ ] Add CI pipeline to run tests
 - [ ] Add some aeson utilities to reduce boilerplate + code reuse
 - [ ] Maybe add TemplateHaskell and do some `deriveJSON` to get rid of all those hand-rolled derivations
 - [ ] Look into sharing some request/response types if there's enough in common
-* [x] Investigate [autocodec](https://github.com/NorfairKing/autodocodec#readme) and see if it would help you reduce some boilerplate for your aeson derivations
-
+- [x] Investigate [autocodec](https://github.com/NorfairKing/autodocodec#readme) and see if it would help you reduce some boilerplate for your aeson derivations
 
 ### README and Documentation
 
@@ -46,19 +46,19 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 - [x] Wrap Addresses endpoint (medium)
 - [x] Wrap Deposits endpoint (small/medium)
 - [x] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
-- [ ] Wrap On-chain payments endpoint (medium/large.  Probably can reuse some work from payments but might be hard to get working)
-- [ ] Wrap Cards endpoint (large)
-- [ ] Wrap Wires endpoint (may be medium or small depending on if it's the same as the other wire work but with a different route)
-- [ ] Wrap ACH endpoint (medium/large)
-- [ ] Wrap settlements endpoints (small/medium)
-- [ ] Wrap chargebacks endpoint (medium)
-- [ ] Wrap reversals endpoint (small)
-- [ ] Wrap crypto payment intents API (medium)
-- [ ] Wrap crypto payments API (small/medium)
-- [ ] Wrap on-chain transfer API (medium)
-- [ ] Wrap wallets endpoint (large)
-- [ ] Differentiate between business account and bank account endpoints.  There's the same calls for different endpoints.  Will be able to reuse all the types and just switch the path, though, so this can be done last.
-- [ ] BETA Wrap SEPA endpoint (medium)
+- [x] Wrap On-chain payments endpoint (medium/large.  Probably can reuse some work from payments but might be hard to get working)
+- [x] Wrap Cards endpoint (large)
+- [x] Wrap Wires endpoint (may be medium or small depending on if it's the same as the other wire work but with a different route)
+- [x] Wrap ACH endpoint (medium/large)
+- [x] Wrap settlements endpoints (small/medium)
+- [x] Wrap chargebacks endpoint (medium)
+- [x] Wrap reversals endpoint (small)
+- [x] Wrap crypto payment intents API (medium)
+- [x] Wrap crypto payments API (small/medium)
+- [x] Wrap on-chain transfer API (medium)
+- [x] Wrap wallets endpoint (large)
+- [x] Differentiate between business account and bank account endpoints.  There's the same calls for different endpoints.  Will be able to reuse all the types and just switch the path, though, so this can be done last.
+- [x] BETA Wrap SEPA endpoint (medium)
 - [x] Wrap Signet endpoints (this will be challenging to test bc they only work in prod)
 - [x] BETA Wrap SEN endpoints (medium)
 - [ ] Figure out a way to create balances for accounts via API to test payouts.  Right now all tests for payments/payouts/balances only test that the sad paths work when there's no money.
