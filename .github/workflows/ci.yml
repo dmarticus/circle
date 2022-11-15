@@ -157,6 +157,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
+    - name: Nuke local stack
+      run: 'rm -rf ~/.local/bin/stack'
+
     - name: Setup stack
       uses: mstksg/setup-stack@v1
 
