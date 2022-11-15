@@ -238,8 +238,8 @@ createBusinessAccountTransfer transferBody = do
 
 -- | List all deposit addresses
 -- https://developers.circle.com/developer/reference/getbusinessdepositaddress
-listAllDepositAddresses :: CircleAPIRequest DepositAddressesRequest TupleBS8 BSL.ByteString
-listAllDepositAddresses = do
+listAllBusinessAccountDepositAddresses :: CircleAPIRequest DepositAddressesRequest TupleBS8 BSL.ByteString
+listAllBusinessAccountDepositAddresses = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/wallets/addresses/deposit"
@@ -288,8 +288,8 @@ createBusinessAccountRecipientAddress recipientAddressBody = do
 -- Searches for deposits sent to your business account. If the date parameters are omitted, returns the most recent deposits.
 -- This endpoint returns up to 50 deposits in descending chronological order or pageSize, if provided.
 -- https://developers.circle.com/developer/reference/listbusinessdeposits
-listAllDeposits :: CircleAPIRequest DepositsRequest TupleBS8 BSL.ByteString
-listAllDeposits = do
+listAllBusinessAccountDeposits :: CircleAPIRequest DepositsRequest TupleBS8 BSL.ByteString
+listAllBusinessAccountDeposits = do
   mkCircleAPIRequest NHTM.methodGet url params
   where
     url = "businessAccount/deposits"
@@ -778,7 +778,7 @@ expirePaymentIntent paymentIntentId = do
 ---------------------------------------------------------------
 
 -- | Lists all payouts made from a given account
--- https://developers.circle.com/reference/listbusinesspayouts
+-- https://developers.circle.com/developer/reference/listpayouts
 listAllPayouts :: CircleAPIRequest PayoutsRequest TupleBS8 BSL.ByteString
 listAllPayouts = do
   mkCircleAPIRequest NHTM.methodGet url params
@@ -787,7 +787,7 @@ listAllPayouts = do
     params = Params Nothing []
 
 -- | Gets a specific payout based on an ID
--- https://developers.circle.com/reference/getbusinesspayout
+-- https://developers.circle.com/developer/reference/payouts-payouts-get-id
 getPayout :: UUID -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
 getPayout payoutId = do
   mkCircleAPIRequest NHTM.methodGet url params
@@ -796,7 +796,7 @@ getPayout payoutId = do
     params = Params Nothing []
 
 -- | Creates a payout
--- https://developers.circle.com/reference/createbusinesspayout
+-- https://developers.circle.com/developer/reference/payouts-payouts-create
 createPayout :: PayoutRequestBody -> CircleAPIRequest PayoutRequest TupleBS8 BSL.ByteString
 createPayout payoutBody = do
   mkCircleAPIRequest NHTM.methodPost url params
@@ -834,7 +834,7 @@ createTransfer :: TransferRequestBody -> CircleAPIRequest TransferRequest TupleB
 createTransfer transferBody = do
   mkCircleAPIRequest NHTM.methodPost url params
   where
-    url = "/transfers"
+    url = "transfers"
     params = Params (Just $ Body (encode transferBody)) []
 
 ---------------------------------------------------------------

@@ -751,7 +751,7 @@ instance HasCodec BusinessPayoutRequestBody where
         <*> requiredField' "destination" .= businessPayoutDestination
         <*> requiredField' "amount" .= businessPayoutAmount
 
-newtype PayoutMetadata = PayoutMetadata {payoutMetadataBeneficiaryEmail :: Text}
+newtype PayoutMetadata = PayoutMetadata {payoutMetadataBeneficiaryEmail :: Email}
   deriving (Eq, Show)
   deriving (ToJSON, FromJSON) via (Autodocodec PayoutMetadata)
 
