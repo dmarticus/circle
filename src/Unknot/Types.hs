@@ -1008,7 +1008,7 @@ instance HasCodec ChainAmount where
         <*> requiredField' "chain" .= chainAmountChain
         <*> requiredField' "updateDate" .= chainAmountUpdateDate
 
-data Chain = ALGO | ARB | AVAX | ChainBTC | ChainETH | FLOW | HBAR | MATIC | SOL | TRX | XLM
+data Chain = ALGO | ARB | AVAX | ChainBTC | ChainETH | FLOW | HBAR | MATIC | NEAR | SOL | TRX | XLM
   deriving (Eq, Show)
   deriving
     ( FromJSON,
@@ -1028,6 +1028,7 @@ instance HasCodec Chain where
           (FLOW, "FLOW"),
           (HBAR, "HBAR"),
           (MATIC, "MATIC"),
+          (NEAR, "NEAR"),
           (SOL, "SOL"),
           (TRX, "TRX"),
           (XLM, "XLM")
