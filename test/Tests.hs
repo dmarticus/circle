@@ -6,16 +6,19 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad
 import Data.Foldable (for_)
+import Data.Maybe (fromJust)
+import Data.Text as T
 import Data.UUID as UUID
 import Data.UUID.V4 as UUID
 import Network.HTTP.Client (newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
+import System.Random
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib (isRight)
 import Unknot.Client
 import Unknot.Types
-import Data.Maybe (fromJust)
 
 testUSWireAccountDetails :: UUID -> WireAccountRequestBody
 testUSWireAccountDetails wireAccountIdempotencyKey =
@@ -67,12 +70,12 @@ testOnChainTransferRequestBody onChainTransferIdempotencyKey sourceWallet destin
         USD
     )
 
-testRecipientAddressRequestBody :: UUID -> RecipientAddressRequestBody
-testRecipientAddressRequestBody recipientAddressIdempotencyKey =
+testRecipientAddressRequestBody :: UUID -> HexString -> RecipientAddressRequestBody
+testRecipientAddressRequestBody recipientAddressIdempotencyKey blockchainAddress =
   RecipientAddressRequestBody
     recipientAddressIdempotencyKey
     -- TODO will need to make this random each time
-    (HexString "0x8381470ED67C3802402dbbFa0058E8871F017A6K")
+    blockchainAddress
     Nothing
     ChainETH
     USD
@@ -103,6 +106,11 @@ testPaymentMetadata =
     Nothing
     ( SessionId "DE6FA86F60BB47B379307F851E238617" )
     ( IPAddress "244.28.239.130" )
+
+testPayoutMetadata :: PayoutMetadata
+testPayoutMetadata =
+  PayoutMetadata
+    [compileEmail|dylan@test.com|]
 
 testCreateCardRequestBody :: UUID -> RequestMetadata -> CreateCardRequestBody
 testCreateCardRequestBody cardIdempotencyKeyUUID = CreateCardRequestBody
@@ -172,6 +180,47 @@ testBusinessPayoutRequestBody payoutIdempotencyKey wireAccountId =
         (Amount "100.00")
         USD
     )
+
+testPayoutRequestBody :: UUID -> UUID -> PayoutRequestBody
+testPayoutRequestBody payoutIdempotencyKey wireAccountId =
+  PayoutRequestBody
+    payoutIdempotencyKey
+    Nothing
+    ( DestinationBankAccount
+        Wire
+        wireAccountId
+        Nothing
+    )
+    ( MoneyAmount
+        (Amount "100.00")
+        USD
+    )
+    testPayoutMetadata
+
+testCreateWalletRequestBody :: UUID -> CreateWalletRequestBody
+testCreateWalletRequestBody idempotencyKey =
+  CreateWalletRequestBody
+    idempotencyKey
+    (Just "test wallet")
+  
+
+testPaymentIntentRequestBody :: UUID -> CreatePaymentIntentRequestBody
+testPaymentIntentRequestBody createPaymentIntentIdempotencyKey =
+  CreatePaymentIntentRequestBody
+    createPaymentIntentIdempotencyKey
+    ( MoneyAmount
+        (Amount "100.00")
+        USD
+    )
+    USD
+    [testPaymentMethod]
+
+testPaymentMethod :: PaymentMethodData
+testPaymentMethod =
+  PaymentMethodData
+    "blockchain"
+    ChainETH
+    Nothing
 
 main :: IO ()
 main = do
@@ -266,6 +315,15 @@ main = do
               let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = wireAccountInstructions
               circleResponseCode `shouldBe` Nothing
               circleResponseMessage `shouldBe` Nothing
+      describe "/businessAccount/balances endpoint" $ do
+        -- TODO need to actually seed balances, I'll do that when I wrap that API endpoint
+        describe "list business account balances balances" $ do
+          it "should list all balances for all business wire accounts" $ do
+            businessBalances <- circleTest config manager listAllBusinessBalances
+            businessBalances `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = businessBalances
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
       describe "/businessAccount/banks/sen endpoint" $ do
         describe "create SEN account" $ do
           it "creates a new SEN account" $ do
@@ -324,8 +382,8 @@ main = do
             circleResponseMessage `shouldBe` Nothing
         describe "get transfer" $ do
           it "will attempt to return transfer data for a single transfer" $ do
-            uuid <- liftIO UUID.nextRandom
-            transfer <- circleTest config manager (getBusinessAccountTransfer uuid)
+            testTransferId <- liftIO UUID.nextRandom
+            transfer <- circleTest config manager (getBusinessAccountTransfer testTransferId)
             transfer `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = transfer
             circleResponseCode `shouldBe` Nothing
@@ -342,40 +400,41 @@ main = do
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Just (ResponseMessage "Address not found")
       describe "/businessAccount/wallets/addresses endpoint" $ do
-        describe "list recipient addresses" $ do
-          it "should list all recipient addresses for a given business account" $ do
-            recipientAddresses <- circleTest config manager listAllBusinessAccountRecipientAddresses
-            recipientAddresses `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddresses
+        describe "list business account deposit addresses" $ do
+          it "should list all business account deposit addresses for a given business account" $ do
+            businessAccountRecipientAddresses <- circleTest config manager listAllBusinessAccountRecipientAddresses
+            businessAccountRecipientAddresses `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = businessAccountRecipientAddresses
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
         describe "create recipient address" $ do
           it "will attempt to create a recipient address" $ do
             recipientAddressIdempotencyKey <- liftIO $ UUID.nextRandom
-            recipientAddress <- circleTest config manager $ createBusinessAccountRecipientAddress (testRecipientAddressRequestBody recipientAddressIdempotencyKey)
+            randomHexString <- replicateM 20 (randomRIO ('a', 'z'))
+            recipientAddress <- circleTest config manager $ createBusinessAccountRecipientAddress (testRecipientAddressRequestBody recipientAddressIdempotencyKey (HexString (T.pack randomHexString)))
             recipientAddress `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddress
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-        describe "list deposit addresses" $ do
+        describe "list business account deposit addresses" $ do
           it "should list all deposit addresses for a given business account" $ do
-            depositAddresses <- circleTest config manager listAllDepositAddresses
-            depositAddresses `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = depositAddresses
+            businessAccountDepositAddresses <- circleTest config manager listAllBusinessAccountDepositAddresses
+            businessAccountDepositAddresses `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = businessAccountDepositAddresses
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
-        describe "create deposit address" $ do
-          it "will attempt to create a new deposit address" $ do
+        describe "create business account deposit address" $ do
+          it "will attempt to create a new business account deposit address" $ do
             let depositAddressIdempotencyKey = fromJust $ UUID.fromText "ba943ff1-ca16-49b2-ba55-1057e70ca5c7"
-            depositAddress <- circleTest config manager $ createBusinessAccountDepositAddress (testDepositAddressRequestBody depositAddressIdempotencyKey)
-            depositAddress `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = depositAddress
+            businessAccountDepositAddress <- circleTest config manager $ createBusinessAccountDepositAddress (testDepositAddressRequestBody depositAddressIdempotencyKey)
+            businessAccountDepositAddress `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = businessAccountDepositAddress
             circleResponseCode `shouldBe` Nothing
             circleResponseMessage `shouldBe` Nothing
       describe "/businessAccount/deposits endpoint" $ do
         describe "list deposits" $ do
           it "should list all deposits" $ do
-            deposits <- circleTest config manager listAllDeposits
+            deposits <- circleTest config manager listAllBusinessAccountDeposits
             deposits `shouldSatisfy` isRight
             let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = deposits
             circleResponseCode `shouldBe` Nothing
@@ -543,13 +602,12 @@ main = do
                   Identity
                     Individual
                     "Mario"
-                    [ ( Address
+                    [ Address
                           (Just (City "Snoqualmie"))
                           (Just (ISO3166Alpha2 "US"))
                           (Just (AddressLine "6501 Railroad Avenue SE"))
                           (Just (AddressLine "Room 315"))
                           (Just (District "WA"))
-                      )
                     ]
                 sourceWallet =
                   SourceWallet
@@ -585,13 +643,6 @@ main = do
       -- circleResponseCode `shouldBe` Nothing
       -- circleResponseMessage `shouldBe` Nothing
       describe "/cards endpoint" $ do
-        describe "list cards" $ do
-          it "should list all cards" $ do
-            cards <- circleTest config manager listAllCards
-            cards `shouldSatisfy` isRight
-            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = cards
-            circleResponseCode `shouldBe` Nothing
-            circleResponseMessage `shouldBe` Nothing
         describe "create card" $ do
           it "should create a new card, get it, and then update it" $ do
             cardIdempotencyKeyUUID <- liftIO $ UUID.nextRandom
@@ -613,3 +664,125 @@ main = do
               -- update the card
               updatedCard <- circleTest config manager $ updateCard cardId testUpdateCardBody
               updatedCard `shouldSatisfy` isRight
+        describe "list cards" $ do
+          it "should list all cards" $ do
+            cards <- circleTest config manager listAllCards
+            cards `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = cards
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+-- TODO add bank/wires endpoint
+        describe "banks/wires endpoint" $ do
+          describe "create wire account" $ do
+            it "creates a new wire account" $ do
+              wireAccountIdempotencyKey <- liftIO $ UUID.nextRandom
+              newWireAccount <- circleTest config manager $ createWireAccount (testUSWireAccountDetails wireAccountIdempotencyKey)
+              newWireAccount `shouldSatisfy` isRight
+              let Right CircleResponseBody {..} = newWireAccount
+              circleResponseCode `shouldBe` Nothing
+              circleResponseMessage `shouldBe` Nothing
+          describe "get wire account" $ do
+            it "gets a single wire account" $ do
+              wireAccountIdempotencyKey <- liftIO $ UUID.nextRandom
+              wireAccount1 <- circleTest config manager $ createWireAccount (testUSWireAccountDetails wireAccountIdempotencyKey)
+              wireAccount1 `shouldSatisfy` isRight
+              let Right CircleResponseBody {circleResponseData} = wireAccount1
+              for_ circleResponseData $ \WireAccountResponseBody {..} -> do
+                wireAccount <- circleTest config manager $ getWireAccount wireAccountResponseBodyId
+                wireAccount `shouldSatisfy` isRight
+                let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = wireAccount
+                circleResponseCode `shouldBe` Nothing
+                circleResponseMessage `shouldBe` Nothing
+            it "gets wire instructions for a wire account" $ do
+              wireAccountIdempotencyKey <- liftIO $ UUID.nextRandom
+              wireAccount2 <- circleTest config manager $ createWireAccount (testUSWireAccountDetails wireAccountIdempotencyKey)
+              wireAccount2 `shouldSatisfy` isRight
+              let Right CircleResponseBody {circleResponseData} = wireAccount2
+              for_ circleResponseData $ \WireAccountResponseBody {..} -> do
+                wireAccountInstructions <- circleTest config manager $ getWireAccountInstructions wireAccountResponseBodyId
+                wireAccountInstructions `shouldSatisfy` isRight
+                let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = wireAccountInstructions
+                circleResponseCode `shouldBe` Nothing
+                circleResponseMessage `shouldBe` Nothing
+      describe "/settlements endpoint" $ do
+        describe "list all settlements" $ do
+          it "should list all settlements" $ do
+            settlements <- circleTest config manager listAllSettlements
+            settlements `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = settlements
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+      describe "/reversals endpoint" $ do
+        describe "list all reversals" $ do
+          it "should list all reversals" $ do
+            reversals <- circleTest config manager listAllACHReversals
+            reversals `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = reversals
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+      describe "/paymentIntents endpoint" $ do
+        -- NB: these all 403 in the sandbox.  L L L.
+        describe "list all paymentIntents" $ do
+          it "should list all paymentIntents" $ do
+            paymentIntents <- circleTest config manager listAllPaymentIntents
+            paymentIntents `shouldSatisfy` isRight
+        describe "create new paymentIntent" $ do
+          it "should create a new paymentIntent" $ do
+            createPaymentIntentIdempotencyKey <- liftIO $ UUID.nextRandom
+            paymentIntent <- circleTest config manager $ createPaymentIntent (testPaymentIntentRequestBody createPaymentIntentIdempotencyKey)
+            paymentIntent `shouldSatisfy` isRight
+      describe "/payouts endpoint" $ do
+        describe "list all payouts from a non-business account" $ do
+          it "should list all payouts" $ do
+            payouts <- circleTest config manager listAllPayouts
+            payouts `shouldSatisfy` isRight
+        describe "create a new payout from a non-business account" $ do
+          it "should create a new payout" $ do
+            createPayoutIdempotencyKey <- liftIO $ UUID.nextRandom
+            destinationAccountId <- liftIO $ UUID.nextRandom
+            payout <- circleTest config manager $ createPayout (testPayoutRequestBody createPayoutIdempotencyKey destinationAccountId)
+            payout `shouldSatisfy` isRight
+        describe "get an existing payout from a non-business account" $ do
+          it "should get a payout" $ do
+            testPayoutId <- liftIO $ UUID.nextRandom
+            payout <- circleTest config manager $ getPayout testPayoutId
+            payout `shouldSatisfy` isRight
+      describe "/returns endpoint" $ do
+        describe "list all returns" $ do
+          it "should list all wire and ACH payout returns" $ do
+            payouts <- circleTest config manager listAllReturns
+            payouts `shouldSatisfy` isRight
+      describe "/wallets endpoint" $ do
+        describe "list all wallets" $ do
+          it "should retrieve a list of a user's wallets" $ do
+            wallets <- circleTest config manager listAllWallets
+            wallets `shouldSatisfy` isRight
+        describe "get an existing wallet" $ do
+          it "should get a wallet" $ do
+            testWalletId <- liftIO $ UUID.nextRandom
+            wallet <- circleTest config manager $ getWallet testWalletId
+            wallet `shouldSatisfy` isRight
+        describe "create a new end user wallet" $ do
+          it "should create a new wallet" $ do
+            testWalletIdempotencyKey <- liftIO $ UUID.nextRandom
+            newWallet <- circleTest config manager $ createWallet (testCreateWalletRequestBody testWalletIdempotencyKey)
+            newWallet `shouldSatisfy` isRight
+        describe "create deposit address" $ do
+          -- TODO: this tests 404s bc no wallet Id
+          xit "will attempt to create a new deposit address for a given wallet" $ do
+            testRandomWalletId <- liftIO $ UUID.nextRandom
+            depositAddressIdempotencyKey <- liftIO $ UUID.nextRandom
+            depositAddress <- circleTest config manager $ createDepositAddress testRandomWalletId (testDepositAddressRequestBody depositAddressIdempotencyKey)
+            depositAddress `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = depositAddress
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
+        describe "list recipient addresses associated with a wallet ID" $ do
+          -- TODO: this tests 404s bc no wallet Id
+          xit "should list all deposit addresses for a given account" $ do
+            testRandomWalletId <- liftIO $ UUID.nextRandom
+            recipientAddresses <- circleTest config manager $ listAllAddresses testRandomWalletId
+            recipientAddresses `shouldSatisfy` isRight
+            let Right CircleResponseBody {circleResponseCode, circleResponseMessage} = recipientAddresses
+            circleResponseCode `shouldBe` Nothing
+            circleResponseMessage `shouldBe` Nothing
