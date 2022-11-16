@@ -25,10 +25,10 @@ Since this project is still in dev, I'm including a todo list for the remaining 
 
 ### Infrastructure
 
-- [ ] Add CI pipeline to run tests
-- [ ] Add some aeson utilities to reduce boilerplate + code reuse
-- [ ] Maybe add TemplateHaskell and do some `deriveJSON` to get rid of all those hand-rolled derivations
-- [ ] Look into sharing some request/response types if there's enough in common
+- [x] Add CI pipeline to run tests
+- [x] Add some aeson utilities to reduce boilerplate + code reuse
+- [x] Maybe add TemplateHaskell and do some `deriveJSON` to get rid of all those hand-rolled derivations
+- [x] Look into sharing some request/response types if there's enough in common
 - [x] Investigate [autocodec](https://github.com/NorfairKing/autodocodec#readme) and see if it would help you reduce some boilerplate for your aeson derivations
 
 ### README and Documentation
