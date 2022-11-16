@@ -1,7 +1,7 @@
 cradle:
   stack:
     - path: "./src"
-      component: "unknot:lib"
+      component: "circle:lib"
 
     - path: "./test"
-      component: "unknot:test:test"
+      component: "circle:test:test"

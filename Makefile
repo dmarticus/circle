@@ -5,7 +5,7 @@ repl:
 	stack repl
 
 test-repl:
-	stack repl unknot:test
+	stack repl circle:test
 
 watch:
 	stack build --file-watch --fast

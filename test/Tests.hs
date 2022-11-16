@@ -5,6 +5,8 @@
 
 module Main where
 
+import Circle.Client
+import Circle.Types
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad
 import Data.Foldable (for_)
@@ -17,8 +19,6 @@ import Network.HTTP.Client.TLS (tlsManagerSettings)
 import System.Random
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib (isRight)
-import Unknot.Client
-import Unknot.Types
 
 testUSWireAccountDetails :: UUID -> WireAccountRequestBody
 testUSWireAccountDetails wireAccountIdempotencyKey =
