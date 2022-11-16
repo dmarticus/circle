@@ -1,68 +1,43 @@
-# unknot
+# Circle
 
-> In the mathematical theory of knots, the unknot, or trivial knot, is the least knotted of all knots. Intuitively, the unknot is a closed loop of rope without a knot tied into it, unknotted. To a knot theorist, an unknot is any embedded topological circle in the 3-sphere that is ambient isotopic (that is, deformable) to a geometrically round circle, the standard unknot.
+[![MIT LICENSE](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/dmarticus/circle/master/blob/LICENSE)
 
-[source](https://en.wikipedia.org/wiki/Unknot)
+## [Circle API](https://developers.circle.com/developer/docs) Coverage for Haskell
 
-I'm no knot theorist, but it seemed like as good a name as any for this library, which is an API Client for [Circle](https://developers.circle.com/)
+This library provides Haskell bindings for [Circle's V1 API](https://developers.circle.com/developer/v1/reference/).  The supported operations include but aren't limited to:
 
-Inspiration:
+* Fiat Payouts (for both personal and business accounts)
+* Blockchain Transfers (for both personal and business accounts)
+* Fiat Payments
+* Fiat Payment cancellation and refunds
+* Card issuing
+* Chargebacks
+* Subscriptions
+* Settlements
+* Wires
+* ACHs
+* Balances
+* Crypto Payments
+* Crypto Payouts
+* Wallets
 
-* Alexey Zabelin's [shipwire](https://www.shipwire.com/) API wrapper: [ballast](https://github.com/alexeyzab/ballast)
-* David Johnson's [stripe](https://github.com/dmjio/stripe) API wrapper.
+**NOTE:** This library does not currently support Circle V1.1 (which was released on 11/15/22).  It will soon, though!
+
+## Usage
+
+
+
+## Local Development
 
 You'll need to set the environment variable `CIRCLE_API_KEY` to test this library locally.  Get your keys [here](https://developers.circle.com/docs/api-keys).
 
-## TODO
+## Inspiration
 
-Since this project is still in dev, I'm including a todo list for the remaining things I want to finish.  I'll include completion of these items in commits + PR descriptions.
+This project came out of tinkering with writing a Haskell client for a USDC API at my old job, [Mercury](https://mercury.com/).  We often had to hand-write our API clients before integrating them into our business logic (since most APIs don't have existing open-source wrappers in Haskell), and even though we never ended up implementing the project at work, and I figured it would be a fun project to write a first-class Haskell client that wraps Circle's API.  I've since quit my job there, but maybe down the line folks might find this project useful!
 
-### Refactors + Ergonomic Changes
+In terms of implementation, I was heavily inspired by the following libraries
 
-- [x] Use custom types as much as possible.  Use smart constructors to give better type-safety.
-- [x] Split the code into more modules so it's easier to navigate around the various different bits.  Seems like better organization than one mega module.  Or, if you don't split it up, at _least_ put some comments breaking up different sections.
-- [ ] Figure out how to model the `FiatOrCryptoPaymentResponse` and `FiatCancelOrRefund` types a bit better.  There's enough overlap that I can parse them pretty easily but I feel like I could make it more ergonomic to parse more intentionally.
+- (my old coworker) Alexey Zabelin's [shipwire](https://www.shipwire.com/) API wrapper: [ballast](https://github.com/alexeyzab/ballast)
+- David Johnson's [stripe](https://github.com/dmjio/stripe) API wrapper (from which I'm pretty sure Alexey drew his inspiration).
 
-### Infrastructure
-
-- [x] Add CI pipeline to run tests
-- [x] Add some aeson utilities to reduce boilerplate + code reuse
-- [x] Maybe add TemplateHaskell and do some `deriveJSON` to get rid of all those hand-rolled derivations
-- [x] Look into sharing some request/response types if there's enough in common
-- [x] Investigate [autocodec](https://github.com/NorfairKing/autodocodec#readme) and see if it would help you reduce some boilerplate for your aeson derivations
-
-### README and Documentation
-
-- [ ] everything exported has a doc.  Include types!  I've been good about the functions.
-- [ ] figure out how haddock works, see if I can make something nice.
-- [ ] add some usage examples to the README.
-- [ ] Add PR template and contribution guide
-
-### Core Functionality
-
-- [x] differentiate between query params and the request body.  Right now I don't think I do that.
-- [x] Wrap API Overview endpoints (small)
-- [x] Wrap Transfers endpoint (small/medium [lots of new data being returned from the wallet info, but once it's done the endpoints will be easy])
-- [x] Wrap Addresses endpoint (medium)
-- [x] Wrap Deposits endpoint (small/medium)
-- [x] Wrap Payments endpoint (large, complex.  Probably the most complex endpoint to wrap.  Also likely the most useful)
-- [x] Wrap On-chain payments endpoint (medium/large.  Probably can reuse some work from payments but might be hard to get working)
-- [x] Wrap Cards endpoint (large)
-- [x] Wrap Wires endpoint (may be medium or small depending on if it's the same as the other wire work but with a different route)
-- [x] Wrap ACH endpoint (medium/large)
-- [x] Wrap settlements endpoints (small/medium)
-- [x] Wrap chargebacks endpoint (medium)
-- [x] Wrap reversals endpoint (small)
-- [x] Wrap crypto payment intents API (medium)
-- [x] Wrap crypto payments API (small/medium)
-- [x] Wrap on-chain transfer API (medium)
-- [x] Wrap wallets endpoint (large)
-- [x] Differentiate between business account and bank account endpoints.  There's the same calls for different endpoints.  Will be able to reuse all the types and just switch the path, though, so this can be done last.
-- [x] BETA Wrap SEPA endpoint (medium)
-- [x] Wrap Signet endpoints (this will be challenging to test bc they only work in prod)
-- [x] BETA Wrap SEN endpoints (medium)
-- [ ] Figure out a way to create balances for accounts via API to test payouts.  Right now all tests for payments/payouts/balances only test that the sad paths work when there's no money.
-
-### Extra goodies
-
-- [ ] Add support for showing the `X-Request-Id` on requests so that consumers of this library can take advantage of debugging their requests with the Circle API team
+As with many things in software development, this project was made possible by the hard work of the folks I mentioned (and the other contributors to those projects) who came before.  I'm eternally grateful to all of you.  Thanks for letting my stand on your shoulders.

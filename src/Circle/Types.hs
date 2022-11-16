@@ -18,220 +18,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Unknot.Types where
-
--- ( -- Types for connecting to and wrapping Circle's API
---   ApiToken (..),
---   Reply,
---   Method,
---   CircleAPIRequest (..),
---   CircleError (..),
---   CircleResponseBody (..),
---   CircleRequest,
---   Host,
---   CircleHost (..),
---   CircleConfig (..),
---   Params (..),
---   Body (..),
---   Query (..),
---   TupleBS8,
---   (-&-),
---   mkCircleAPIRequest,
---   hostUri,
---   prodEnvConfig,
---   sandboxEnvConfig,
---   joinQueryParams,
---   -- Query Params
---   QueryParams (..),
---   PaginationQueryParam (..),
---   -- Wires Endpoint
---   WireAccountRequestBody (..),
---   USBankAccountRequestBody (..),
---   IBANBankAccountRequestBody (..),
---   NonIBANBankAccountRequestBody (..),
---   WireAccountResponseBody (..),
---   WireInstructionsResponseData (..),
---   WireAccountRequest,
---   WireAccountsRequest,
---   WireInstructionsRequest,
---   -- Signet Bank Endpoints,
---   SignetBankAccountRequest,
---   SignetBankAccountsRequest,
---   SignetBankAccountRequestBody (..),
---   SignetBankAccountResponseData (..),
---   SignetBankInstructionsResponseData (..),
---   -- Balance Endpoint
---   BalanceRequest,
---   BalanceResponseBody (..),
---   -- Management Endpoint
---   ConfigurationRequest,
---   ConfigurationResponseBody (..),
---   -- Encryption Endpoint
---   EncryptionRequest,
---   EncryptionResponseBody (..),
---   -- Channels Endpoint
---   ChannelsRequest,
---   -- Stablecoins Endpoint
---   StablecoinsRequest,
---   -- Subscriptions Endpoint
---   SubscriptionsRequest,
---   SubscriptionRequest,
---   SubscriptionRequestBody (..),
---   -- Payouts Endpoint
---   PayoutsRequest,
---   PayoutRequest,
---   PayoutResponseBody (..),
---   PayoutRequestBody (..),
---   BusinessPayoutRequestBody (..),
---   -- Transfers Endpoint
---   TransfersRequest,
---   TransferRequest,
---   BusinessTransferRequestBody (..),
---   TransferRequestBody (..),
---   TransferDestination (..),
---   TransferType (..),
---   TransferResponseBody (..),
---   DestinationType (..),
---   -- Addresses Endpoint
---   DepositAddressesRequest,
---   DepositAddressRequest,
---   DepositAddressResponseBody (..),
---   DepositAddressRequestBody (..),
---   RecipientAddressesRequest,
---   RecipientAddressRequest,
---   RecipientAddressResponseBody (..),
---   RecipientAddressRequestBody (..),
---   -- Deposits Endpoints
---   DepositsRequest,
---   DepositResponseBody (..),
---   -- Silvergate SEN Endpoints
---   SENAccountRequestBody (..),
---   SENAccountResponseBody (..),
---   SENInstructionsResponseData (..),
---   SENAccountRequest,
---   SENAccountsRequest,
---   SENInstructionsRequest,
---   -- Shared types across different endpoints
---   DestinationBankAccount (..),
---   HexString (..),
---   CircleId (..),
---   MoneyAmount (..),
---   BankAccountType (..),
---   SupportedCurrencies (..),
---   Chain (..),
---   Amount (..),
---   AddressLine (..),
---   AccountNumber (..),
---   accountNumberLastFour,
---   accountNumberRegex,
---   accountNumberToByteString,
---   accountNumberToText,
---   compileAccountNumber,
---   mkAccountNumber,
---   RoutingNumber (..),
---   mkRoutingNumber,
---   compileRoutingNumber,
---   routingNumberToText,
---   routingNumberToByteString,
---   City (..),
---   PostalCode (..),
---   District (..),
---   ISO3166Alpha2 (..),
---   americanSamoa,
---   guam,
---   northernMarianaIslands,
---   puertoRico,
---   unitedStatesMinorOutlyingIslands,
---   unitedStatesOfAmerica,
---   virginIslandsUs,
---   BankAddress (..),
---   BillingDetails (..),
---   BeneficiaryBankDetails (..),
---   BeneficiaryDetails,
---   SwiftCode (..),
---   mkSwiftCode,
---   swiftCodeRegex,
---   compileSwiftCode,
---   swiftCodeToText,
---   getCountryFromSwiftCode,
---   get8DigitSwiftCode,
---   getBranchCodeFromSwiftCode,
---   ResponseStatus (..),
---   ResponseMessage (..),
---   PayoutErrorCode (..),
---   UUID (..),
---   compileUUID,
---   TrackingReference (..),
---   catThats,
---   catThises,
---   thisOrThat,
---   thisOrThatToEither,
---   ThisOrThat (..),
---   -- Payments API --
---   -- Payments endpoints
---   PaymentRequest,
---   PaymentsRequest,
---   CreatePaymentRequestBody (..),
---   -- CryptoPayment (..),
---   FiatOrCryptoPaymentResponseBody (..),
---   RequestMetadata (..),
---   PaymentErrorCode (..),
---   ResponseMetadata (..),
---   FiatCancelOrRefundResponseBody (..),
---   -- FiatCancel (..),
---   VerificationType (..),
---   PaymentSource (..),
---   PaymentSourceType (..),
---   CancelPaymentRequestBody (..),
---   CancelPaymentReason (..),
---   RefundPaymentRequestBody (..),
---   MockPaymentRequest,
---   MockAccountRequest,
---   MockSenOrWirePaymentRequestBody (..),
---   MockBeneficiaryBankDetails (..),
---   MockSEPAPaymentRequestBody (..),
---   MockPaymentResponseBody (..),
---   -- On-chain Payments Endpoint
---   OnChainTransferRequest,
---   OnChainTransfersRequest,
---   OnChainTransferRequestBody (..),
---   -- Cards Endpoint
---   CardsRequest,
---   CardRequest,
---   CardResponseBody (..),
---   ListCardResponseBody (..),
---   CreateCardRequestBody (..),
---   UpdateCardRequestBody (..),
---   -- ACH Endpoint
---   ACHBankAccountRequest,
---   ACHBankAccountResponseBody (..),
---   CreateACHBankAccountRequestBody (..),
---   CreateMockACHBankAccountRequestBody (..),
---   -- SEPA Endpoint
---   SEPAAccountResponseBody (..),
---   SEPAAccountRequest,
---   SEPAAccountRequestBody (..),
---   SEPAInstructionsRequest,
---   -- Settlements Endpoint
---   SettlementsRequest,
---   SettlementRequest,
---   -- Chargebacks Endpoint
---   ChargebacksRequest,
---   ChargebackRequest,
---   MockChargebackRequest,
---   -- Reversals Endpoint
---   ReversalsRequest,
---   -- Payment Intents Endpoints
---   PaymentIntentRequest,
---   PaymentIntentsRequest,
---   CreatePaymentIntentRequestBody (..),
---   -- Returns endpoint
---   ReturnsRequest,
---   -- Wallets endpoint
---   WalletRequest,
---   WalletsRequest,
---   CreateWalletRequestBody (..),
--- )
+module Circle.Types where
 
 import Autodocodec
   ( Autodocodec (Autodocodec),
@@ -251,7 +38,6 @@ import Country
   ( Country,
     alphaTwoUpper,
   )
--- import Country.Identifier (americanSamoa, guam, northernMarianaIslands, puertoRico, unitedStatesMinorOutlyingIslands, unitedStatesOfAmerica, virginIslandsUs)
 import Data.Aeson
   ( FromJSON (parseJSON),
     Result (Error, Success),
@@ -1008,7 +794,7 @@ instance HasCodec ChainAmount where
         <*> requiredField' "chain" .= chainAmountChain
         <*> requiredField' "updateDate" .= chainAmountUpdateDate
 
-data Chain = ALGO | ARB | AVAX | ChainBTC | ChainETH | FLOW | HBAR | MATIC | NEAR | SOL | TRX | XLM
+data Chain = ALGO | ARB | AVAX | ChainBTC | ChainETH | FLOW | HBAR | MATIC | NEAR | OP | SOL | TRX | XLM
   deriving (Eq, Show)
   deriving
     ( FromJSON,
@@ -1029,6 +815,7 @@ instance HasCodec Chain where
           (HBAR, "HBAR"),
           (MATIC, "MATIC"),
           (NEAR, "NEAR"),
+          (OP, "OP"),
           (SOL, "SOL"),
           (TRX, "TRX"),
           (XLM, "XLM")
