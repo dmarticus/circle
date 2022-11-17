@@ -617,6 +617,7 @@ instance HasCodec PayoutMetadata where
       PayoutMetadata
         <$> requiredField' "beneficiaryEmail" .= payoutMetadataBeneficiaryEmail
 
+-- | Request body to create a payout.
 data PayoutRequestBody = PayoutRequestBody
   { payoutIdempotencyKey :: !UUID,
     payoutSource :: !(Maybe PaymentSource),
@@ -1466,6 +1467,7 @@ instance HasCodec MockPaymentResponseBody where
         <*> optionalField' "beneficiaryBank" .= mockPaymentResponseBodyBeneficiaryBank
         <*> optionalField' "status" .= mockPaymentResponseBodyStatus
 
+-- | Request body to create a mock SEN or Wire payment (in the sandbox only).
 data MockSenOrWirePaymentRequestBody = MockSenOrWirePaymentRequestBody
   { mockSenOrWirePaymentRequestBodyTrackingRef :: !TrackingReference,
     mockSenOrWirePaymentRequestBodyAmount :: !MoneyAmount,
@@ -1486,6 +1488,8 @@ instance HasCodec MockSenOrWirePaymentRequestBody where
         <*> requiredField' "amount" .= mockSenOrWirePaymentRequestBodyAmount
         <*> requiredField' "beneficiaryBank" .= mockSenOrWirePaymentRequestBodyBeneficiaryBank
 
+
+-- | Request body to create a mock SEPA payment (in the sandbox only).
 data MockSEPAPaymentRequestBody = MockSEPAPaymentRequestBody
   { mockSEPAPaymentRequestBodyTrackingRef :: !TrackingReference,
     mockSEPAPaymentRequestBodyAmount :: !MoneyAmount
@@ -1526,6 +1530,7 @@ data SENInstructionsRequest
 
 type instance CircleRequest SENInstructionsRequest = CircleResponseBody SENInstructionsResponseData
 
+-- | Request body to create a Silvergate SEN account.
 data SENAccountRequestBody = SENAccountRequestBody
   { senAccountRequestBodyIdempotencyKey :: !UUID,
     senAccountRequestBodyAccountNumber :: !AccountNumber,
@@ -1610,6 +1615,7 @@ data SignetBankInstructionsRequest
 
 type instance CircleRequest SignetBankInstructionsRequest = CircleResponseBody SignetBankInstructionsResponseData
 
+-- | Request body to create Signet Bank bank account.
 data SignetBankAccountRequestBody = SignetBankAccountRequestBody
   { signetBankAccountRequestBodyIdempotencyKey :: !UUID,
     signetBankAccountRequestBodyWalletAddress :: !HexString
@@ -1855,6 +1861,7 @@ instance CircleHasParam PaymentsRequest SettlementIdQueryParam
 
 instance CircleHasParam PaymentsRequest PaymentIntentIdQueryParam
 
+-- | Request body to create any kind of payment.
 data CreatePaymentRequestBody = CreatePaymentRequestBody
   { createPaymentIdempotencyKey :: !UUID,
     createPaymentKeyId :: !Text, -- TODO this is actually a UUID, but in Sandbox it has to be `key1`.  Figure out how to reconcile this later.
@@ -2351,6 +2358,7 @@ data PaymentSourceType = Card | ACH | WireSource | SEPA
 instance HasCodec PaymentSourceType where
   codec = stringConstCodec $ NE.fromList [(Card, "card"), (ACH, "ach"), (WireSource, "wire"), (SEPA, "sepa")]
 
+-- | Request body to cancel a fiat payment.
 data CancelPaymentRequestBody = CancelPaymentRequestBody
   { cancelPaymentIdempotencyKey :: !UUID,
     cancelPaymentReason :: !(Maybe CancelPaymentReason)
@@ -2397,6 +2405,7 @@ instance HasCodec CancelPaymentReason where
           (CancelPaymentReasonPaymentStoppedByIssuer, "payment_stopped_by_issuer")
         ]
 
+-- | Request body to refund a fiat payment.
 data RefundPaymentRequestBody = RefundPaymentRequestBody
   { refundPaymentIdempotencyKey :: !UUID,
     refundPaymentAmount :: !MoneyAmount,
@@ -2451,6 +2460,7 @@ data OnChainAddressRequest
 
 type instance CircleRequest OnChainAddressRequest = CircleResponseBody DepositAddressResponseBody
 
+-- | Request body to create an on-chain transfer
 data OnChainTransferRequestBody = OnChainTransferRequestBody
   { onChainTransferRequestBodyIdempotencyKey :: !UUID,
     onChainTransferRequestBodySource :: !SourceWallet,
@@ -2573,6 +2583,7 @@ instance HasCodec CardResponseBody where
         <*> requiredField' "createDate" .= cardCreateDate
         <*> requiredField' "updateDate" .= cardUpdateDate
 
+-- | Request body to create a debit card.
 data CreateCardRequestBody = CreateCardRequestBody
   { createCardIdempotencyKey :: !UUID,
     createCardKeyId :: !(Maybe Text), -- key1 in sandbox
@@ -2601,6 +2612,7 @@ instance HasCodec CreateCardRequestBody where
         <*> requiredField' "expYear" .= createCardExpiryYear
         <*> requiredField' "metadata" .= createCardMetadata
 
+-- | Request body to update a debit card.
 data UpdateCardRequestBody = UpdateCardRequestBody
   { updateCardKeyId :: !(Maybe Text), -- key1 in sandbox
     updateCardEncryptedData :: !(Maybe Text), -- NB: this encrypted data contains the CVV AND the card number somehow
@@ -2802,6 +2814,7 @@ instance HasCodec ACHBankAccountErrorCode where
           (ACHBankAccountVerificationFailed, "verification_failed")
         ]
 
+-- | Request body to an ACH bank account.
 data CreateACHBankAccountRequestBody = CreateACHBankAccountRequestBody
   { achBankAccountBodyIdempotencyKey :: !UUID,
     achBankAccountBodyPlaidProcessorToken :: !ProcessorToken,
@@ -2834,6 +2847,7 @@ data MockAccountRequest
 
 type instance CircleRequest MockAccountRequest = CircleResponseBody MockACHBankAccountResponseBody
 
+-- | Request body to create a mock ACH bank account (in the sandbox only).
 data CreateMockACHBankAccountRequestBody = CreateMockACHBankAccountRequestBody
   { mockACHBankAccountBodyAccount :: !MockACHBankAccount,
     mockACHBankAccountBodyBalance :: !MoneyAmount
@@ -2937,6 +2951,7 @@ data SEPAInstructionsRequest
 
 type instance CircleRequest SEPAInstructionsRequest = CircleResponseBody WireInstructionsResponseData
 
+-- | Request body to create a SEPA account.
 data SEPAAccountRequestBody = SEPAAccountRequestBody
   { sepaAccountRequestBodyIdempotencyKey :: !UUID,
     sepaAccountRequestBodyIBAN :: !Iban,
@@ -3281,6 +3296,7 @@ instance CircleHasParam PaymentIntentsRequest PaymentStatusQueryParams
 
 instance CircleHasParam PaymentIntentsRequest PaymentIntentContextQueryParams
 
+-- | Request body to create a payment intent for a blockchain payment
 data CreatePaymentIntentRequestBody = CreatePaymentIntentRequestBody
   { createPaymentIntentIdempotencyKey :: !UUID,
     createPaymentIntentAmount :: !MoneyAmount,
@@ -3441,6 +3457,7 @@ instance HasCodec WalletResponseBody where
         <*> optionalField' "description" .= walletResponseBodyDescription
         <*> requiredField' "balances" .= walletResponseBodyBalances
 
+-- | Request body to create a Circle wallet.
 data CreateWalletRequestBody = CreateWalletRequestBody
   { createWalletRequestBodyIdempotencyKey :: !UUID,
     createWalletRequestBodyDescription :: !(Maybe Text)
