@@ -25,11 +25,60 @@ This library provides Haskell bindings for [Circle's V1 API](https://developers.
 
 ## Usage
 
+You'll need to set the environment variable `CIRCLE_API_KEY` (or something like that) to connect to Circle's sandbox (or production) environments.  Get your keys [here](https://developers.circle.com/docs/api-keys).
 
+```hs
+import Circle.Client
+import Circle.Types
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+--
+main :: IO ()
+main = do
+  manager <- newManager tlsManagerSettings
+  config <- sandboxEnvConfig "CIRCLE_API_KEY" -- or whatever you ended up using for your environment variable
+  result <- circle config manager getConfigurationInfo
+  case result of
+    Right CircleResponseBody b -> print bs
+    Left CircleError e -> print e
+```
 
-## Local Development
+## Optional Parameters
 
-You'll need to set the environment variable `CIRCLE_API_KEY` to test this library locally.  Get your keys [here](https://developers.circle.com/docs/api-keys).
+Stripe API calls can take multiple optional parameters.
+`circle` supports optional parameters through the use of type-families and typeclasses.
+
+In practice, the function to use is `(-&-)` to specify optional parameters on a request.
+
+For a deeper dive into how this works, please see this [blog post](https://alexeyzabelin.com/haskell-api-wrapper).  [stripe-haskell](https://github.com/dmjio/stripe/blob/master/README.md#optional-parameters) does this too.
+
+Example:
+
+```hs
+main :: IO ()
+main = do
+  manager <- newManager tlsManagerSettings
+  config <- sandboxEnvConfig "CIRCLE_API_KEY"
+  result <- circle config manager listAllBalances -&- PaginationQueryParams (PageBefore "a8899b8e-782a-4526-b674-0efe1e04526d")
+  case result of
+    Right CircleResponseBody b -> print bs
+    Left CircleError e -> print e
+```
+
+## Testing
+
+This method wraps all 59 methods supported by the V1 API, and there's an integration test (it calls the API sandbox with my token) for each method.  
+
+```text
+Finished in 14.9400 seconds
+59 examples, 0 failures, 5 pending
+```
+
+The subscription tests are skipped for now (since the sandbox doesn't let me delete subscriptions and has a maximum of 3 subscriptions).  The unit tests are pretty simple; they're just making sure that the method calls the correct endpoint and then correctly parses the response into the appropriate types.  There could definitely be more test coverage, and that's coming in future versions.  But I've verified that at least simple happy-paths work for each method!
+
+## Issues
+
+Any feature requests or bugs can be reported on the GitHub issue tracker. Pull requests welcome!  I hope anyone uses this, frankly.
 
 ## Inspiration
 

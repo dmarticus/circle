@@ -1,9 +1,9 @@
 name:          circle
 version:       0.1.0.0
-synopsis:      Circle API client
-description:   Please see README.md
+synopsis:      Circle API client for Haskell
+description:   For usage information please consult README.md
 homepage:      https://github.com/dmarticus/circle#readme
-license:       BSD3
+license:       MIT
 license-file:  LICENSE
 author:        Dylan Martin
 maintainer:    dmarticus@gmail.com
