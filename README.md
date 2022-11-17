@@ -65,6 +65,17 @@ main = do
     Left CircleError e -> print e
 ```
 
+## Testing
+
+This method wraps all 59 methods supported by the V1 API, and there's an integration test (it calls the API sandbox with my token) for each method.  
+
+```text
+Finished in 14.9400 seconds
+59 examples, 0 failures, 5 pending
+```
+
+The subscription tests are skipped for now (since the sandbox doesn't let me delete subscriptions and has a maximum of 3 subscriptions).  The unit tests are pretty simple; they're just making sure that the method calls the correct endpoint and then correctly parses the response into the appropriate types.  There could definitely be more test coverage, and that's coming in future versions.  But I've verified that at least simple happy-paths work for each method!
+
 ## Issues
 
 Any feature requests or bugs can be reported on the GitHub issue tracker. Pull requests welcome!  I hope anyone uses this, frankly.
