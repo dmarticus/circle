@@ -547,7 +547,7 @@ instance CircleHasParam PayoutsRequest TypeQueryParam
 
 instance CircleHasParam PayoutsRequest DestinationQueryParam
 
--- | Response body for all calls to the "businessAccount/payouts" or "payouts" endpoints
+-- | Response body for methods that call "businessAccount/payouts" or "payouts" endpoints
 data PayoutResponseBody = PayoutResponseBody
   { payoutResponseBodyId :: !UUID,
     payoutResponseBodySourceWalletId :: !WalletId,
@@ -928,7 +928,7 @@ data SubscriptionRequest
 
 type instance CircleRequest SubscriptionRequest = CircleResponseBody SubscriptionResponseBody
 
--- | Response body for all methods that call "notifications/subscriptions"
+-- | Response body for methods that call "notifications/subscriptions"
 data SubscriptionResponseBody = SubscriptionResponseBody
   { subscriptionResponseBodyId :: !UUID,
     subscriptionResponseBodyEndpoint :: !URL,
@@ -1091,7 +1091,7 @@ instance HasCodec DestinationType where
         [ (VerifiedBlockchain, "verified_blockchain")
         ]
 
--- | Response body for all calls to the "businessAccount/transfers" and "transfers" endpoints
+-- | Response body for methods that call the "businessAccount/transfers" and "transfers" endpoints
 data TransferResponseBody = TransferResponseBody
   { transferResponseBodyId :: !UUID,
     transferResponseBodySource :: !(ThisOrThat SourceWallet SourceBlockchain),
@@ -1810,7 +1810,7 @@ instance HasCodec WireInstructionsResponseData where
         <*> requiredField' "beneficiary" .= wireInstructionsResponseDataBeneficiaryDetails
         <*> requiredField' "beneficiaryBank" .= wireInstructionsResponseDataBeneficiaryBankDetails
 
--- | Response body for any requests to the "/wires" or "businessAccount/wires" endpoint
+-- | Response body for methods that call the "/wires" or "businessAccount/wires" endpoints
 data WireAccountResponseBody = WireAccountResponseBody
   { wireAccountResponseBodyId :: !UUID,
     wireAccountResponseBodyStatus :: !Status,
@@ -2550,7 +2550,7 @@ instance HasCodec ListCardResponseBody where
         <*> requiredField' "createDate" .= listCardCreateDate
         <*> requiredField' "updateDate" .= listCardUpdateDate
 
--- | Response body for methods that interface with an individual card `createCard`, `getCard`, and `updateCard`
+-- | Response body for methods that interface with an individual card: `createCard`, `getCard`, and `updateCard`
 data CardResponseBody = CardResponseBody
   { cardId :: !UUID,
     cardStatus :: !Status,
