@@ -1,3 +1,14 @@
+-------------------------------------------
+-- |
+-- Module      : Circle.Types
+-- Copyright   : (c) Dylan Martin, 2022
+-- Maintainer  : dmarticus@gmail.com
+-- Stability   : experimental
+-- Portability : POSIX
+--
+-- < https:/\/\developers.circle.com/developer/v1/docs/circle-api-resources >
+-------------------------------------------
+
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -83,6 +94,8 @@ newtype ApiToken = ApiToken
   }
   deriving (Read, Show, Eq)
 
+-- | Type to represent the 3 main components (method, endpoint, and params)
+-- needed to call Circle's API.
 data CircleAPIRequest a b c = CircleAPIRequest
   { -- | Method of CircleAPIRequest
     rMethod :: !Method,
@@ -93,6 +106,7 @@ data CircleAPIRequest a b c = CircleAPIRequest
   }
   deriving (Show)
 
+-- | Create a @CircleAPIRequest@
 mkCircleAPIRequest ::
   Method ->
   Text ->
@@ -102,12 +116,17 @@ mkCircleAPIRequest = CircleAPIRequest
 
 type family CircleRequest a :: *
 
+-- | CircleErrors have contain both the error reason (`parseError`) and the
+-- full error response body as a ByteString.
 data CircleError = CircleError
   { parseError :: !Text,
     errorResponseBody :: !Reply
   }
   deriving (Show)
 
+-- | The CircleResponseBody will have `Nothing` for the `circleResponseCode` and
+-- `circleResponseMessage` if the request succeeds, and `Nothing` for the `circleResponseData`
+-- if the request fails.
 data CircleResponseBody a = CircleResponseBody
   { circleResponseCode :: !(Maybe ResponseStatus),
     circleResponseMessage :: !(Maybe ResponseMessage),
@@ -115,7 +134,7 @@ data CircleResponseBody a = CircleResponseBody
   }
   deriving (Eq, Show)
 
--- NB: This type parses every response from the Circle API, so I can't use Autodocodec to derive FromJSON here
+-- NB: This FromJSON instance parses every response from the Circle API, so I can't use Autodocodec to derive FromJSON here
 -- because I'm using ThisOrThat (see below) as a smart parser for certain types, and that type doesn't have Autodocodec instances
 instance FromJSON a => FromJSON (CircleResponseBody a) where
   parseJSON = withObject "CircleResponseBody" parse
@@ -126,7 +145,7 @@ instance FromJSON a => FromJSON (CircleResponseBody a) where
           <*> o .:? "message"
           <*> o .:? "data"
 
--- these types have to do with Circle's actual API
+-- Utility types have for interacting with the data returned from Circle's actual API
 newtype ResponseStatus = ResponseStatus
   { unResponseStatus :: Int
   }
@@ -165,20 +184,56 @@ data CircleConfig = CircleConfig
   }
   deriving (Eq, Show)
 
--- Possibly a bad idea. I don't know
--- why they auth like this.
-credentialsEnv :: IO ApiToken
-credentialsEnv = do
-  token <- getEnv "CIRCLE_API_KEY"
+-- | Creates an API token using a secrete stored at `CIRCLE_API_KEY` (the default key for storing the Circle secret)
+credentialsEnv :: Maybe String -> IO ApiToken
+credentialsEnv mKey = do
+  key <- case mKey of
+    Just k -> pure k
+    Nothing -> pure "CIRCLE_API_KEY"
+  token <- getEnv key
   return (ApiToken $ BS8.pack token)
 
-prodEnvConfig :: IO CircleConfig
-prodEnvConfig = do
-  CircleConfig CircleProduction <$> credentialsEnv
+-- | Helper method for instantiating a Circle config that calls the production endpoint: https://api.circle.com/v1/
+-- Example usage:
+-- @
+-- import Circle.Client
+-- import Circle.Types
+-- import Network.HTTP.Client (newManager)
+-- import Network.HTTP.Client.TLS (tlsManagerSettings)
+--
+-- main :: IO ()
+-- main = do
+--   manager <- newManager tlsManagerSettings
+--   config <- prodEnvConfig "CIRCLE_API_KEY"
+--   result <- circle config manager getConfigurationInfo
+--   case result of
+--     Right CircleResponseBody b -> print bs
+--     Left CircleError e -> print e
+-- @
+prodEnvConfig :: Maybe String -> IO CircleConfig
+prodEnvConfig key = do
+  CircleConfig CircleProduction <$> credentialsEnv key
 
-sandboxEnvConfig :: IO CircleConfig
-sandboxEnvConfig = do
-  CircleConfig CircleSandbox <$> credentialsEnv
+-- | Helper method for instantiating a Circle config that calls the production endpoint: https://api-sandbox.circle.com/v1/
+-- Example usage:
+-- @
+-- import Circle.Client
+-- import Circle.Types
+-- import Network.HTTP.Client (newManager)
+-- import Network.HTTP.Client.TLS (tlsManagerSettings)
+--
+-- main :: IO ()
+-- main = do
+--   manager <- newManager tlsManagerSettings
+--   config <- sandboxEnvConfig "CIRCLE_API_KEY"
+--   result <- circle config manager getConfigurationInfo
+--   case result of
+--     Right CircleResponseBody b -> print bs
+--     Left CircleError e -> print e
+-- @
+sandboxEnvConfig :: Maybe String -> IO CircleConfig
+sandboxEnvConfig key = do
+  CircleConfig CircleSandbox <$> credentialsEnv key
 
 newtype Query = Query
   { unQuery :: TupleBS8
@@ -209,12 +264,26 @@ class ToCircleParam param where
 
 class (ToCircleParam param) => CircleHasParam request param
 
--- | Add an optional query parameter
+-- | Supports adding an optional query parameter.
+-- Example usage:
+-- @
+-- import Circle.Client
+-- import Circle.Types
+-- import Network.HTTP.Client (newManager)
+-- import Network.HTTP.Client.TLS (tlsManagerSettings)
+--
+-- main :: IO ()
+-- main = do
+--   manager <- newManager tlsManagerSettings
+--   config <- sandboxEnvConfig "CIRCLE_API_KEY"
+--   result <- circle config manager listAllBalances -&- PaginationQueryParams (PageBefore "a8899b8e-782a-4526-b674-0efe1e04526d")
+--   case result of
+--     Right CircleResponseBody b -> print bs
+--     Left CircleError e -> print e
+-- @
 (-&-) ::
   CircleHasParam r param =>
-  -- | TODO
   CircleAPIRequest r b c ->
-  -- | TODO
   param ->
   CircleAPIRequest r b c
 circleAPIRequest -&- param =
@@ -231,15 +300,15 @@ newtype PaginationQueryParams = PaginationQueryParams
   }
   deriving (Eq, Show)
 
--- Depending on which endpoint is being called, the IDs after the `PageBefore` and `PageAfter` params could either be UUIDs or non-UUIDs. Let's just keep them as text for now.
+-- | Depending on which endpoint is being called, the IDs after the `PageBefore` and `PageAfter` params could either be UUIDs or non-UUIDs. Let's just keep them as text for now.
 -- TODO maybe improve this one day.
 data PaginationQueryParam = PageBefore !Text | PageAfter !Text deriving (Show, Eq)
 
+-- | Circle has some BS pagination where they let users supply some canonical
+-- collection ID, and then this pagination rule will return `n` entries before OR after that page,
+-- where `n` is controlled by the pageSize param.  This type exists to prevent callers from providing both params, which would error out
 instance ToCircleParam PaginationQueryParams where
   toCircleParam (PaginationQueryParams p) =
-    -- Circle has some BS pagination where they let users supply some canonical
-    -- collection ID, and then this pagination rule will return `n` entries before OR after that page,
-    -- where `n` is controlled by the pageSize param.  This type exists to prevent callers from providing both params, which would error out
     case p of
       PageBefore a ->
         joinQueryParams $ Params Nothing [Query ("pageBefore", TE.encodeUtf8 a)]
@@ -517,6 +586,7 @@ instance HasCodec PayoutResponseBody where
         <*> requiredField' "createDate" .= payoutResponseBodyCreateDate
         <*> requiredField' "updateDate" .= payoutResponseBodyUpdateDate
 
+-- | Request body for creating a new business account payout
 data BusinessPayoutRequestBody = BusinessPayoutRequestBody
   { businessPayoutIdempotencyKey :: !UUID,
     businessPayoutDestination :: !DestinationBankAccount,
@@ -888,6 +958,7 @@ instance HasCodec SubscriptionDetails where
         <$> requiredField' "url" .= subscriptionDetailsUrl
         <*> requiredField' "status" .= subscriptionDetailsStatus
 
+-- | Request body for creating a new subscription
 newtype SubscriptionRequestBody = SubscriptionRequestBody
   { subscriptionRequestBodyEndpoint :: Text
   }
@@ -934,6 +1005,7 @@ type instance CircleRequest TransferRequest = CircleResponseBody TransferRespons
 
 instance CircleHasParam TransferRequest ReturnIdentitiesQueryParam
 
+-- | Request body for creating a new business account transfer
 data BusinessTransferRequestBody = BusinessTransferRequestBody
   { businessTransferRequestBodyIdempotencyKey :: !UUID,
     businessTransferRequestBodyDestination :: !TransferDestination,
@@ -954,6 +1026,7 @@ instance HasCodec BusinessTransferRequestBody where
         <*> requiredField' "destination" .= businessTransferRequestBodyDestination
         <*> requiredField' "amount" .= businessTransferRequestBodyAmount
 
+-- | Request body for creating a new transfer
 data TransferRequestBody = TransferRequestBody
   { transferRequestBodyIdempotencyKey :: !UUID,
     transferRequestBodySource :: !PaymentSource,
@@ -1223,6 +1296,7 @@ instance HasCodec DepositAddressResponseBody where
         <*> requiredField' "currency" .= depositAddressResponseBodyCurrency
         <*> requiredField' "chain" .= depositAddressResponseBodyChain
 
+-- | Request body for creating a new deposit address
 data DepositAddressRequestBody = DepositAddressRequestBody
   { depositAddressRequestBodyIdempotencyKey :: !UUID,
     depositAddressRequestBodyCurrency :: !SupportedCurrencies,
@@ -1285,6 +1359,7 @@ instance HasCodec RecipientAddressResponseBody where
         <*> requiredField' "currency" .= recipientAddressResponseBodyCurrency
         <*> requiredField' "description" .= recipientAddressResponseBodyDescription
 
+-- | Request body for creating a new recipient address
 data RecipientAddressRequestBody = RecipientAddressRequestBody
   { recipientAddressRequestBodyIdempotencyKey :: !UUID,
     recipientAddressRequestBodyAddress :: !HexString,
@@ -1615,6 +1690,8 @@ type instance CircleRequest WireInstructionsRequest = CircleResponseBody WireIns
 
 instance CircleHasParam WireInstructionsRequest PaginationQueryParams
 
+-- | Request body to create a wire account.  Sum type because this endpoint supports several
+-- different types of wire accounts.
 data WireAccountRequestBody
   = USBankAccount !USBankAccountRequestBody
   | IBANBankAccount !IBANBankAccountRequestBody
