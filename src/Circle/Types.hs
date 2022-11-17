@@ -503,6 +503,7 @@ data BalanceRequest
 
 type instance CircleRequest BalanceRequest = CircleResponseBody BalanceResponseBody
 
+-- | Response body for `listAllBusinessBalances` and `listAllBalances`
 data BalanceResponseBody = BalanceResponseBody
   { balanceResponseBodyAvailable :: ![MoneyAmount],
     balanceResponseBodyUnsettled :: ![MoneyAmount]
@@ -546,6 +547,7 @@ instance CircleHasParam PayoutsRequest TypeQueryParam
 
 instance CircleHasParam PayoutsRequest DestinationQueryParam
 
+-- | Response body for all calls to the "businessAccount/payouts" or "payouts" endpoints
 data PayoutResponseBody = PayoutResponseBody
   { payoutResponseBodyId :: !UUID,
     payoutResponseBodySourceWalletId :: !WalletId,
@@ -642,6 +644,7 @@ instance HasCodec PayoutRequestBody where
         <*> requiredField' "amount" .= payoutAmount
         <*> requiredField' "metadata" .= payoutMetadata
 
+-- | Response body for methods that call the "returns" endpoint
 data PayoutReturnResponseBody = PayoutReturnResponseBody
   { payoutReturnResponseBodyId :: !UUID,
     payoutReturnResponseBodyOriginalPayoutId :: !UUID,
@@ -714,6 +717,7 @@ data ConfigurationRequest
 
 type instance CircleRequest ConfigurationRequest = CircleResponseBody ConfigurationResponseBody
 
+-- | Response body for `getConfigurationInfo`
 newtype ConfigurationResponseBody = ConfigurationResponseBody {configurationResponseBodyPayments :: WalletConfig}
   deriving (Eq, Show)
   deriving
@@ -750,6 +754,7 @@ data EncryptionRequest
 
 type instance CircleRequest EncryptionRequest = CircleResponseBody EncryptionResponseBody
 
+-- | Response body for `getPublicKey`
 data EncryptionResponseBody = EncryptionResponseBody
   { encryptionResponseBodyKeyId :: !Text, -- TODO this should actually be a UUID, but for the tests to work it needs to be relaxed a bit
     encryptionResponseBodyPublicKey :: !PGPKey
@@ -779,6 +784,7 @@ data ChannelsRequest
 
 type instance CircleRequest ChannelsRequest = CircleResponseBody ChannelResponseBody
 
+-- | Response body for `listAllChannels`
 newtype ChannelResponseBody = ChannelResponseBody {channels :: [Channel]}
   deriving (Eq, Show)
   deriving
@@ -823,6 +829,7 @@ data StablecoinsRequest
 
 type instance CircleRequest StablecoinsRequest = CircleResponseBody [StablecoinResponseBody]
 
+-- | Response body for `listAllStablecoins`
 data StablecoinResponseBody = StablecoinResponseBody
   { stablecoinResponseBodyName :: !Text,
     stablecoinResponseBodySymbol :: !Stablecoin,
@@ -921,6 +928,7 @@ data SubscriptionRequest
 
 type instance CircleRequest SubscriptionRequest = CircleResponseBody SubscriptionResponseBody
 
+-- | Response body for all methods that call "notifications/subscriptions"
 data SubscriptionResponseBody = SubscriptionResponseBody
   { subscriptionResponseBodyId :: !UUID,
     subscriptionResponseBodyEndpoint :: !URL,
@@ -1083,6 +1091,7 @@ instance HasCodec DestinationType where
         [ (VerifiedBlockchain, "verified_blockchain")
         ]
 
+-- | Response body for all calls to the "businessAccount/transfers" and "transfers" endpoints
 data TransferResponseBody = TransferResponseBody
   { transferResponseBodyId :: !UUID,
     transferResponseBodySource :: !(ThisOrThat SourceWallet SourceBlockchain),
@@ -1275,6 +1284,7 @@ data DepositAddressRequest
 
 type instance CircleRequest DepositAddressRequest = CircleResponseBody DepositAddressResponseBody
 
+-- | Response body for methods that call the "businessAccount/wallets/addresses/deposit" endpoint
 data DepositAddressResponseBody = DepositAddressResponseBody
   { depositAddressResponseBodyAddress :: !HexString,
     depositAddressResponseBodyAddressTag :: !(Maybe Text), -- The docs say it's on the response, but the sandbox API doesn't return in. Make it a `Maybe` for now.
@@ -1334,6 +1344,7 @@ data RecipientAddressRequest
 
 type instance CircleRequest RecipientAddressRequest = CircleResponseBody RecipientAddressResponseBody
 
+-- | Response body for methods that call the "businessAccount/wallets/addresses/recipient" endpoint
 data RecipientAddressResponseBody = RecipientAddressResponseBody
   { recipientAddressResponseBodyId :: !UUID,
     recipientAddressResponseBodyAddress :: !HexString,
@@ -1405,6 +1416,7 @@ instance CircleHasParam DepositsRequest ToQueryParam
 
 instance CircleHasParam DepositsRequest PageSizeQueryParam
 
+-- | Response body for methods that call the "businessAccount/deposits" endpoint
 data DepositResponseBody = DepositResponseBody
   { depositResponseBodyId :: !UUID,
     depositResponseBodySourceWalletId :: !(Maybe WalletId),
@@ -1445,6 +1457,7 @@ data MockPaymentRequest
 
 type instance CircleRequest MockPaymentRequest = CircleResponseBody MockPaymentResponseBody
 
+-- | Response body for methods that call the "mock/payments/*" endpoint
 data MockPaymentResponseBody = MockPaymentResponseBody
   { mockPaymentResponseBodyTrackingRef :: !(Maybe TrackingReference),
     mockPaymentResponseBodyAmount :: !(Maybe MoneyAmount),
@@ -1551,6 +1564,7 @@ instance HasCodec SENAccountRequestBody where
         <*> requiredField' "accountNumber" .= senAccountRequestBodyAccountNumber
         <*> optionalField' "currency" .= senAccountRequestBodyCurrency
 
+-- | Response body for methods that call the "businessAccount/banks/sen" endpoint
 data SENAccountResponseBody = SENAccountResponseBody
   { senAccountResponseBodyId :: !UUID,
     senAccountResponseBodyStatus :: !Status,
@@ -1634,6 +1648,7 @@ instance HasCodec SignetBankAccountRequestBody where
         <$> requiredField' "idempotencyKey" .= signetBankAccountRequestBodyIdempotencyKey
         <*> requiredField' "walletAddress" .= signetBankAccountRequestBodyWalletAddress
 
+-- | Response body for methods that call the "businessAccount/banks/signet" endpoint
 data SignetBankAccountResponseData = SignetBankAccountResponseData
   { signetBankAccountId :: !UUID,
     signetBankAccountStatus :: !Status,
@@ -1774,6 +1789,7 @@ instance HasCodec NonIBANBankAccountRequestBody where
         <*> requiredField' "billingDetails" .= nonIBANBankAccountBillingDetails
         <*> requiredField' "bankAddress" .= nonIBANBankAccountBankAddress
 
+-- | Response body for `getWireAccountInstructions`
 data WireInstructionsResponseData = WireInstructionsResponseData
   { wireInstructionsResponseDataTrackingRef :: !TrackingReference,
     wireInstructionsResponseDataBeneficiaryDetails :: !BeneficiaryDetails,
@@ -1794,6 +1810,7 @@ instance HasCodec WireInstructionsResponseData where
         <*> requiredField' "beneficiary" .= wireInstructionsResponseDataBeneficiaryDetails
         <*> requiredField' "beneficiaryBank" .= wireInstructionsResponseDataBeneficiaryBankDetails
 
+-- | Response body for any requests to the "/wires" or "businessAccount/wires" endpoint
 data WireAccountResponseBody = WireAccountResponseBody
   { wireAccountResponseBodyId :: !UUID,
     wireAccountResponseBodyStatus :: !Status,
@@ -1825,9 +1842,6 @@ instance HasCodec WireAccountResponseBody where
         <*> requiredField' "bankAddress" .= wireAccountResponseBodyBankAddress
         <*> requiredField' "createDate" .= wireAccountResponseBodyCreateDate
         <*> requiredField' "updateDate" .= wireAccountResponseBodyUpdateDate
-
--- Payments API
--- this could maybe be a new module?  IDK.
 
 ---------------------------------------------------------------
 -- Payment Types
@@ -2495,6 +2509,7 @@ data CardRequest
 
 type instance CircleRequest CardRequest = CircleResponseBody CardResponseBody
 
+-- | Response body for `listAllCards`
 data ListCardResponseBody = ListCardResponseBody
   { listCardId :: !UUID,
     listCardStatus :: !Status,
@@ -2535,6 +2550,7 @@ instance HasCodec ListCardResponseBody where
         <*> requiredField' "createDate" .= listCardCreateDate
         <*> requiredField' "updateDate" .= listCardUpdateDate
 
+-- | Response body for methods that interface with an individual card `createCard`, `getCard`, and `updateCard`
 data CardResponseBody = CardResponseBody
   { cardId :: !UUID,
     cardStatus :: !Status,
@@ -2746,6 +2762,7 @@ data ACHBankAccountRequest
 
 type instance CircleRequest ACHBankAccountRequest = CircleResponseBody ACHBankAccountResponseBody
 
+-- | Response body for `createACHAccount` and `getACHAccount`
 data ACHBankAccountResponseBody = ACHBankAccountResponseBody
   { achBankAccountId :: !UUID,
     achBankAccountStatus :: !Status,
@@ -2866,6 +2883,7 @@ instance HasCodec CreateMockACHBankAccountRequestBody where
         <$> requiredField' "account" .= mockACHBankAccountBodyAccount
         <*> requiredField' "balance" .= mockACHBankAccountBodyBalance
 
+-- | Response body for methods that call the "mocks/ach/account" endpoint
 data MockACHBankAccountResponseBody = MockACHBankAccountResponseBody
   { mockACHBankAccountResponseBodyAccount :: !MockACHBankAccount,
     mockACHBankAccountResponseBodyBalance :: !MoneyAmount,
@@ -2972,6 +2990,7 @@ instance HasCodec SEPAAccountRequestBody where
         <*> requiredField' "iban" .= sepaAccountRequestBodyIBAN
         <*> requiredField' "billingDetails" .= sepaAccountRequestBodyBillingDetails
 
+-- | Response body for methods that call the "banks/sepa" endpoint
 data SEPAAccountResponseBody = SEPAAccountResponseBody
   { sepaAccountResponseBodyId :: !UUID,
     sepaAccountResponseBodyStatus :: !Status,
@@ -3024,6 +3043,7 @@ instance CircleHasParam SettlementsRequest ToQueryParam
 
 instance CircleHasParam SettlementsRequest PageSizeQueryParam
 
+-- | Response body for methods that call the "settlements" endpoint
 data SettlementResponseBody = SettlementResponseBody
   { settlementResponseBodyId :: !UUID,
     settlementResponseBodyMerchantWalletId :: !UUID,
@@ -3082,6 +3102,7 @@ data MockChargebackRequest
 
 type instance CircleRequest MockChargebackRequest = CircleResponseBody ChargebackResponseBody
 
+-- | Response body for methods that call the "cards/chargebacks" and "mocks/cards/chargebacks" endpoints
 data ChargebackResponseBody = ChargebackResponseBody
   { chargebackResponseBodyId :: !UUID,
     chargebackResponseBodyPaymentId :: !UUID,
@@ -3202,6 +3223,7 @@ instance CircleHasParam ReversalsRequest PageSizeQueryParam
 
 instance CircleHasParam ReversalsRequest PaymentStatusQueryParams
 
+-- | Response body for methods that call the "reversals" endpoint
 data ReversalResponseBody = ReversalResponseBody
   { reversalResponseBodyId :: !UUID,
     reversalResponseBodyPaymentId :: !UUID,
@@ -3319,6 +3341,7 @@ instance HasCodec CreatePaymentIntentRequestBody where
         <*> requiredField' "settlementCurrency" .= createPaymentIntentSettlementCurrency
         <*> requiredField' "paymentMethods" .= createPaymentIntentPaymentMethods
 
+-- | Response body for methods that call the "paymentIntents" endpoint
 data PaymentIntentResponseBody = PaymentIntentResponseBody
   { paymentIntentResponseBodyIdempotencyKey :: !UUID,
     paymentIntentResponseBodyId :: !UUID,
@@ -3433,6 +3456,7 @@ instance CircleHasParam WalletsRequest ToQueryParam
 
 instance CircleHasParam WalletsRequest PageSizeQueryParam
 
+-- | Response body for methods that call the "wallets" endpoint
 data WalletResponseBody = WalletResponseBody
   { walletResponseBodyWalletId :: !WalletId,
     walletResponseBodyEntityId :: !UUID,
