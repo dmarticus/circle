@@ -1,4 +1,5 @@
 -------------------------------------------
+
 -- |
 -- Module      : Circle
 -- Copyright   : (c) Dylan Martin, 2022
@@ -23,11 +24,11 @@
 --     Right CircleResponseBody b -> print bs
 --     Left CircleError e -> print e
 -- @
-
 module Circle
-  ( module Circle.Client
-  , module Circle.Types
-  ) where
+  ( module Circle.Client,
+    module Circle.Types,
+  )
+where
 
-import           Circle.Client
-import           Circle.Types
+import Circle.Client
+import Circle.Types

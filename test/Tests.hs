@@ -7,8 +7,8 @@ module Main where
 
 import Circle.Client
 import Circle.Types
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad
+import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (for_)
 import Data.Maybe (fromJust)
 import Data.Text as T

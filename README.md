@@ -86,7 +86,7 @@ This project came out of tinkering with writing a Haskell client for a USDC API 
 
 In terms of implementation, I was heavily inspired by the following libraries
 
-- (my old coworker) Alexey Zabelin's [shipwire](https://www.shipwire.com/) API wrapper: [ballast](https://github.com/alexeyzab/ballast)
-- David Johnson's [stripe](https://github.com/dmjio/stripe) API wrapper (from which I'm pretty sure Alexey drew his inspiration).
+* (my old coworker) Alexey Zabelin's [shipwire](https://www.shipwire.com/) API wrapper: [ballast](https://github.com/alexeyzab/ballast)
+* David Johnson's [stripe](https://github.com/dmjio/stripe) API wrapper (from which I'm pretty sure Alexey drew his inspiration).
 
 As with many things in software development, this project was made possible by the hard work of the folks I mentioned (and the other contributors to those projects) who came before.  I'm eternally grateful to all of you.  Thanks for letting my stand on your shoulders.
