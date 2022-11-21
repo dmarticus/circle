@@ -42,10 +42,10 @@ library
     , vector                >=0.10.9 && <0.13
 
   default-language: Haskell2010
-  ghc-options:      -Wall -Werror -fwarn-unused-binds -fwarn-unused-imports
+  ghc-options:      -Wall -fwarn-unused-binds -fwarn-unused-imports
 
 test-suite test
-  ghc-options:      -Wall -Werror -fwarn-unused-binds -fwarn-unused-imports
+  ghc-options:      -Wall -fwarn-unused-binds -fwarn-unused-imports
   type:             exitcode-stdio-1.0
   main-is:          Tests.hs
   hs-source-dirs:   test
