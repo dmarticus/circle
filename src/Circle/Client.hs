@@ -1,4 +1,9 @@
 -------------------------------------------
+-------------------------------------------
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+
 -- |
 -- Module      : Circle.Client
 -- Copyright   : (c) Dylan Martin, 2022
@@ -7,12 +12,6 @@
 -- Portability : POSIX
 --
 -- < https:/\/\developers.circle.com/developer/v1/docs >
--------------------------------------------
-
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-
 module Circle.Client where
 
 import Circle.Types
@@ -347,7 +346,6 @@ getSignetAccountInstructions signetBankAccountId = do
     url = "businessAccount/banks/signet/" <> UUID.toText signetBankAccountId <> "/instructions"
     params = Params Nothing []
 
-
 ---------------------------------------------------------------
 -- /businessAccount/banks/sen endpoint (Silvergate SEN operations)
 ---------------------------------------------------------------
@@ -494,9 +492,9 @@ createMockACHBankAccount achPaymentBody = do
 ---------------------------------------------------------------
 
 -- | Create mock chargeback SANDBOX ONLY
--- In the sandbox environment, initiate a mock chargeback of a specified payment. 
--- The entire payment will be charged back for its full value. The payment must be in the paid state 
--- (otherwise the endpoint will return a 404), and each payment can only be charged back once 
+-- In the sandbox environment, initiate a mock chargeback of a specified payment.
+-- The entire payment will be charged back for its full value. The payment must be in the paid state
+-- (otherwise the endpoint will return a 404), and each payment can only be charged back once
 -- (otherwise the endpoint will return a 409). This endpoint is only available in the sandbox environment.
 -- https://developers.circle.com/developer/v1/reference/payments-chargebacks-mock-create
 createMockChargeback :: UUID -> CircleAPIRequest MockChargebackRequest TupleBS8 BSL.ByteString
@@ -851,7 +849,7 @@ createTransfer transferBody = do
 -- /returns endpoint
 ---------------------------------------------------------------
 
--- | Retrieve a list of Wire and ACH payout returns. Results will be sorted by create date descending; 
+-- | Retrieve a list of Wire and ACH payout returns. Results will be sorted by create date descending;
 -- more recent returns will be at the beginning of the list.
 -- https://developers.circle.com/developer/v1/reference/listreturns
 listAllReturns :: CircleAPIRequest ReturnsRequest TupleBS8 BSL.ByteString
@@ -919,6 +917,7 @@ listAllAddresses walletId = do
 ---------------------------------------------------------------
 -- Utility methods for calling Circle's API
 ---------------------------------------------------------------
+
 -- | Create a request to `circle`'s API
 circle ::
   (FromJSON (CircleRequest a)) =>

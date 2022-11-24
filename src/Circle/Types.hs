@@ -1,14 +1,5 @@
 -------------------------------------------
--- |
--- Module      : Circle.Types
--- Copyright   : (c) Dylan Martin, 2022
--- Maintainer  : dmarticus@gmail.com
--- Stability   : experimental
--- Portability : POSIX
---
--- < https:/\/\developers.circle.com/developer/v1/docs/circle-api-resources >
 -------------------------------------------
-
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -29,6 +20,14 @@
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
+-- |
+-- Module      : Circle.Types
+-- Copyright   : (c) Dylan Martin, 2022
+-- Maintainer  : dmarticus@gmail.com
+-- Stability   : experimental
+-- Portability : POSIX
+--
+-- < https:/\/\developers.circle.com/developer/v1/docs/circle-api-resources >
 module Circle.Types where
 
 import Autodocodec
@@ -764,6 +763,7 @@ newtype PGPKey = PGPKey
 
 instance HasCodec PGPKey where
   codec = dimapCodec PGPKey unPGPKey codec
+
 instance HasCodec EncryptionResponseBody where
   codec =
     object "EncryptionResponseBody" $
@@ -1488,7 +1488,6 @@ instance HasCodec MockSenOrWirePaymentRequestBody where
         <*> requiredField' "amount" .= mockSenOrWirePaymentRequestBodyAmount
         <*> requiredField' "beneficiaryBank" .= mockSenOrWirePaymentRequestBodyBeneficiaryBank
 
-
 -- | Request body to create a mock SEPA payment (in the sandbox only).
 data MockSEPAPaymentRequestBody = MockSEPAPaymentRequestBody
   { mockSEPAPaymentRequestBodyTrackingRef :: !TrackingReference,
@@ -1870,7 +1869,7 @@ data CreatePaymentRequestBody = CreatePaymentRequestBody
     createPaymentAutoCapture :: !(Maybe Bool),
     createPaymentVerification :: !VerificationType,
     -- | The following two fields are only present if VerificationType = ThreeDSecure
-    createPaymentVerificationSuccessUrl :: !(Maybe URL), 
+    createPaymentVerificationSuccessUrl :: !(Maybe URL),
     createPaymentVerificationFailureUrl :: !(Maybe URL),
     createPaymentSource :: !PaymentSource,
     createPaymentDescription :: !(Maybe Text),
@@ -2194,8 +2193,7 @@ instance HasCodec PaymentDepositAddress where
 -- Cancellations apply only to card payments, and its presence doesn't necessarily mean that the cancellation was successful.
 -- A successful cancellation has a status of paid, a successful refund has a status of confirmed.
 data FiatCancelOrRefundResponseBody = FiatCancelOrRefundResponseBody
-  { 
-    -- TODO I could likely do some better data modeling here, there's a ton of shared fields between these
+  { -- TODO I could likely do some better data modeling here, there's a ton of shared fields between these
     -- types so I kinda cheated and just made one mega type with maybes, but it'll be more ergonomic for devs
     -- to have a specific type that's generated from the parsing.  The tricky part is the differentiator is the
     -- field `type`, so I think I'll need to be clever about this.
@@ -3722,7 +3720,7 @@ instance HasCodec DestinationBankAccount where
         <*> requiredField' "id" .= destinationBankAccountId
         <*> optionalField' "name" .= destinationBankAccountName
 
--- TODO can we do type narrowing to have other types that represent subsets of 
+-- TODO can we do type narrowing to have other types that represent subsets of
 -- this one without have to write custom constructors?
 data SupportedCurrencies = USD | EUR | BTC | ETH
   deriving (Eq, Show, Enum, Bounded)
@@ -4180,10 +4178,10 @@ instance FromJSON Email where
 compileEmail :: QuasiQuoter
 compileEmail =
   QuasiQuoter
-    { quoteExp = compileEmail'
-    , quotePat = error "Email is not a pattern; use `emailToText` instead"
-    , quoteDec = error "email is not supported at top-level"
-    , quoteType = error "email is not supported as a type"
+    { quoteExp = compileEmail',
+      quotePat = error "Email is not a pattern; use `emailToText` instead",
+      quoteDec = error "email is not supported at top-level",
+      quoteType = error "email is not supported as a type"
     }
   where
     compileEmail' :: String -> Q Exp
@@ -4308,7 +4306,7 @@ newtype TrackingReference = TrackingReference
 instance HasCodec TrackingReference where
   codec = dimapCodec TrackingReference unTrackingReference codec
 
--- TODO consider adding validation to this type if necessary.  
+-- TODO consider adding validation to this type if necessary.
 -- The string looks like this 0xcac04f0069e4ac9314ac4e608e99278a3bebabcd
 newtype HexString = HexString
   { unHexString :: Text
