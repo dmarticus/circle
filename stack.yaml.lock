@@ -12,19 +12,12 @@ packages:
   original:
     hackage: http-client-0.7.8@sha256:ed76dcd7edec3aaebe012541ca0a52594405e9b21d69420d26c0223bc4d5dc82,5400
 - completed:
-    hackage: autodocodec-0.1.0.1@sha256:4951b61e366a8b082bb1ac8d0ee4b3c8e5a9616327e3752df5d3106f281cdae6,1578
+    hackage: autodocodec-0.2.0.1@sha256:6ef0693ef3c72c767af2ca9644267a95f8e79965c8f583b8c872da1e20665e89,1652
     pantry-tree:
-      size: 760
-      sha256: d2aa8b7273960c05e4b39b1251267abd3c43143437b684a92f15453c0fbf572c
+      size: 761
+      sha256: b21f9523507e2c41a9469fb24a4f0017588a31b81ae596da26468456ddcb6637
   original:
-    hackage: autodocodec-0.1.0.1
-- completed:
-    hackage: validity-0.11.0.1@sha256:e660f9593cb7be9860a4b8f84c72ab1e2efbb01aa4d45bfffa0aa032212886a3,2602
-    pantry-tree:
-      size: 399
-      sha256: 5af646ce3b107866a9a82c43ef3c0f9f1f9d84062f3757d30c86e77c0fb30112
-  original:
-    hackage: validity-0.11.0.1
+    hackage: autodocodec-0.2.0.1
 snapshots:
 - completed:
     size: 586103
