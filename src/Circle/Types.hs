@@ -4011,10 +4011,10 @@ newtype URL = URL {unURL :: Text}
   deriving stock (Eq, Show, Lift)
   deriving newtype (ToJSON)
 
--- From https:\/\/daringfireball.net\/2010\/07\/improved_regex_for_matching_urls
+-- From https://daringfireball.net/2010/07/improved_regex_for_matching_urls
 urlRegex :: Regex
 urlRegex =
-  [re|(?i)\b((?:[a-z][\w-]+:(?:\/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}\/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))|]
+  [re|(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))|]
 
 mkURL :: Text -> Maybe URL
 mkURL t =
@@ -4169,7 +4169,7 @@ newtype Email = Email {getEmailText :: Text}
   deriving newtype (Eq, Ord, ToJSON)
 
 emailRegex :: Regex
-emailRegex = [re|^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$|]
+emailRegex = [re|^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$|]
 
 -- | Attempt to create an email from text, returning 'Nothing' if it doesn't
 -- match our email regular expression.
