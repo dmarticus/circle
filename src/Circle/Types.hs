@@ -27,7 +27,7 @@
 -- Stability   : experimental
 -- Portability : POSIX
 --
--- < https:/\/\developers.circle.com/developer/v1/docs/circle-api-resources >
+-- < https:\/\\/\developers.circle.com\/developer\/v1\/docs\/circle-api-resources >
 module Circle.Types where
 
 import Autodocodec
@@ -192,7 +192,7 @@ credentialsEnv mKey = do
   token <- getEnv key
   return (ApiToken $ BS8.pack token)
 
--- | Helper method for instantiating a Circle config that calls the production endpoint: https://api.circle.com/v1/
+-- | Helper method for instantiating a Circle config that calls the production endpoint: https:\/\/api.circle.com\/v1\/
 -- Example usage:
 -- @
 -- import Circle.Client
@@ -213,7 +213,7 @@ prodEnvConfig :: Maybe String -> IO CircleConfig
 prodEnvConfig key = do
   CircleConfig CircleProduction <$> credentialsEnv key
 
--- | Helper method for instantiating a Circle config that calls the production endpoint: https://api-sandbox.circle.com/v1/
+-- | Helper method for instantiating a Circle config that calls the production endpoint: https:\/\/api-sandbox.circle.com\/v1\/
 -- Example usage:
 -- @
 -- import Circle.Client
@@ -257,7 +257,7 @@ joinQueryParams (Params _ xs) (Params b ys) = Params b (xs ++ ys)
 -- | Type alias for query parameters
 type TupleBS8 = (BS8.ByteString, BS8.ByteString)
 
--- | Convert a parameter to a key/value
+-- | Convert a parameter to a key\/value
 class ToCircleParam param where
   toCircleParam :: param -> Params TupleBS8 c -> Params TupleBS8 c
 
@@ -546,7 +546,7 @@ instance CircleHasParam PayoutsRequest TypeQueryParam
 
 instance CircleHasParam PayoutsRequest DestinationQueryParam
 
--- | Response body for methods that call "businessAccount/payouts" or "payouts" endpoints
+-- | Response body for methods that call "businessAccount\/payouts" or "payouts" endpoints
 data PayoutResponseBody = PayoutResponseBody
   { payoutResponseBodyId :: !UUID,
     payoutResponseBodySourceWalletId :: !WalletId,
@@ -928,7 +928,7 @@ data SubscriptionRequest
 
 type instance CircleRequest SubscriptionRequest = CircleResponseBody SubscriptionResponseBody
 
--- | Response body for methods that call "notifications/subscriptions"
+-- | Response body for methods that call "notifications\/subscriptions"
 data SubscriptionResponseBody = SubscriptionResponseBody
   { subscriptionResponseBodyId :: !UUID,
     subscriptionResponseBodyEndpoint :: !URL,
@@ -1091,7 +1091,7 @@ instance HasCodec DestinationType where
         [ (VerifiedBlockchain, "verified_blockchain")
         ]
 
--- | Response body for methods that call the "businessAccount/transfers" and "transfers" endpoints
+-- | Response body for methods that call the "businessAccount\/transfers" and "transfers" endpoints
 data TransferResponseBody = TransferResponseBody
   { transferResponseBodyId :: !UUID,
     transferResponseBodySource :: !(ThisOrThat SourceWallet SourceBlockchain),
@@ -1284,7 +1284,7 @@ data DepositAddressRequest
 
 type instance CircleRequest DepositAddressRequest = CircleResponseBody DepositAddressResponseBody
 
--- | Response body for methods that call the "businessAccount/wallets/addresses/deposit" endpoint
+-- | Response body for methods that call the "businessAccount\/wallets\/addresses\/deposit" endpoint
 data DepositAddressResponseBody = DepositAddressResponseBody
   { depositAddressResponseBodyAddress :: !HexString,
     depositAddressResponseBodyAddressTag :: !(Maybe Text), -- The docs say it's on the response, but the sandbox API doesn't return in. Make it a `Maybe` for now.
@@ -1344,7 +1344,7 @@ data RecipientAddressRequest
 
 type instance CircleRequest RecipientAddressRequest = CircleResponseBody RecipientAddressResponseBody
 
--- | Response body for methods that call the "businessAccount/wallets/addresses/recipient" endpoint
+-- | Response body for methods that call the "businessAccount\/wallets\/addresses\/recipient" endpoint
 data RecipientAddressResponseBody = RecipientAddressResponseBody
   { recipientAddressResponseBodyId :: !UUID,
     recipientAddressResponseBodyAddress :: !HexString,
@@ -1416,7 +1416,7 @@ instance CircleHasParam DepositsRequest ToQueryParam
 
 instance CircleHasParam DepositsRequest PageSizeQueryParam
 
--- | Response body for methods that call the "businessAccount/deposits" endpoint
+-- | Response body for methods that call the "businessAccount\/deposits" endpoint
 data DepositResponseBody = DepositResponseBody
   { depositResponseBodyId :: !UUID,
     depositResponseBodySourceWalletId :: !(Maybe WalletId),
@@ -1457,7 +1457,7 @@ data MockPaymentRequest
 
 type instance CircleRequest MockPaymentRequest = CircleResponseBody MockPaymentResponseBody
 
--- | Response body for methods that call the "mock/payments/*" endpoint
+-- | Response body for methods that call the "mock\/payments\/*" endpoint
 data MockPaymentResponseBody = MockPaymentResponseBody
   { mockPaymentResponseBodyTrackingRef :: !(Maybe TrackingReference),
     mockPaymentResponseBodyAmount :: !(Maybe MoneyAmount),
@@ -1563,7 +1563,7 @@ instance HasCodec SENAccountRequestBody where
         <*> requiredField' "accountNumber" .= senAccountRequestBodyAccountNumber
         <*> optionalField' "currency" .= senAccountRequestBodyCurrency
 
--- | Response body for methods that call the "businessAccount/banks/sen" endpoint
+-- | Response body for methods that call the "businessAccount\/banks\/sen" endpoint
 data SENAccountResponseBody = SENAccountResponseBody
   { senAccountResponseBodyId :: !UUID,
     senAccountResponseBodyStatus :: !Status,
@@ -1647,7 +1647,7 @@ instance HasCodec SignetBankAccountRequestBody where
         <$> requiredField' "idempotencyKey" .= signetBankAccountRequestBodyIdempotencyKey
         <*> requiredField' "walletAddress" .= signetBankAccountRequestBodyWalletAddress
 
--- | Response body for methods that call the "businessAccount/banks/signet" endpoint
+-- | Response body for methods that call the "businessAccount\/banks\/signet" endpoint
 data SignetBankAccountResponseData = SignetBankAccountResponseData
   { signetBankAccountId :: !UUID,
     signetBankAccountStatus :: !Status,
@@ -1809,7 +1809,7 @@ instance HasCodec WireInstructionsResponseData where
         <*> requiredField' "beneficiary" .= wireInstructionsResponseDataBeneficiaryDetails
         <*> requiredField' "beneficiaryBank" .= wireInstructionsResponseDataBeneficiaryBankDetails
 
--- | Response body for methods that call the "/wires" or "businessAccount/wires" endpoints
+-- | Response body for methods that call the "\/wires" or "businessAccount\/wires" endpoints
 data WireAccountResponseBody = WireAccountResponseBody
   { wireAccountResponseBodyId :: !UUID,
     wireAccountResponseBodyStatus :: !Status,
@@ -2881,7 +2881,7 @@ instance HasCodec CreateMockACHBankAccountRequestBody where
         <$> requiredField' "account" .= mockACHBankAccountBodyAccount
         <*> requiredField' "balance" .= mockACHBankAccountBodyBalance
 
--- | Response body for methods that call the "mocks/ach/account" endpoint
+-- | Response body for methods that call the "mocks\/ach\/account" endpoint
 data MockACHBankAccountResponseBody = MockACHBankAccountResponseBody
   { mockACHBankAccountResponseBodyAccount :: !MockACHBankAccount,
     mockACHBankAccountResponseBodyBalance :: !MoneyAmount,
@@ -2988,7 +2988,7 @@ instance HasCodec SEPAAccountRequestBody where
         <*> requiredField' "iban" .= sepaAccountRequestBodyIBAN
         <*> requiredField' "billingDetails" .= sepaAccountRequestBodyBillingDetails
 
--- | Response body for methods that call the "banks/sepa" endpoint
+-- | Response body for methods that call the "banks\/sepa" endpoint
 data SEPAAccountResponseBody = SEPAAccountResponseBody
   { sepaAccountResponseBodyId :: !UUID,
     sepaAccountResponseBodyStatus :: !Status,
@@ -3100,7 +3100,7 @@ data MockChargebackRequest
 
 type instance CircleRequest MockChargebackRequest = CircleResponseBody ChargebackResponseBody
 
--- | Response body for methods that call the "cards/chargebacks" and "mocks/cards/chargebacks" endpoints
+-- | Response body for methods that call the "cards\/chargebacks" and "mocks\/cards\/chargebacks" endpoints
 data ChargebackResponseBody = ChargebackResponseBody
   { chargebackResponseBodyId :: !UUID,
     chargebackResponseBodyPaymentId :: !UUID,
@@ -3848,7 +3848,7 @@ instance HasCodec Decision where
 
 data RiskEvaluation = RiskEvaluation
   { riskEvaluationDecision :: !Decision,
-    -- Parsing riskEvaluationReason as a text because it's pretty open-ended: https://developers.circle.com/developer/docs/cards-banks-and-payments-risk-evaluation
+    -- Parsing riskEvaluationReason as a text because it's pretty open-ended: https:\/\/developers.circle.com\/developer\/docs\/cards-banks-and-payments-risk-evaluation
     -- TODO maybe eventually add type constraints around these potential fields (unlikely though, there are a lot)
     riskEvaluationReason :: !Text
   }
@@ -4011,10 +4011,10 @@ newtype URL = URL {unURL :: Text}
   deriving stock (Eq, Show, Lift)
   deriving newtype (ToJSON)
 
--- From https://daringfireball.net/2010/07/improved_regex_for_matching_urls
+-- From https:\/\/daringfireball.net\/2010\/07\/improved_regex_for_matching_urls
 urlRegex :: Regex
 urlRegex =
-  [re|(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))|]
+  [re|(?i)\b((?:[a-z][\w-]+:(?:\/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}\/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))|]
 
 mkURL :: Text -> Maybe URL
 mkURL t =
@@ -4163,13 +4163,13 @@ ibanToText :: Iban -> Text
 ibanToText (Iban t) = t
 
 -- | A newtype around email text.
--- This newtype verifies the email is formatted correctly using HTML5's email regexp https://www.w3.org/TR/html5/forms.html#valid-e-mail-address
+-- This newtype verifies the email is formatted correctly using HTML5's email regexp https:\/\/www.w3.org\/TR\/html5\/forms.html#valid-e-mail-address
 newtype Email = Email {getEmailText :: Text}
   deriving stock (Show, Lift)
   deriving newtype (Eq, Ord, ToJSON)
 
 emailRegex :: Regex
-emailRegex = [re|^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$|]
+emailRegex = [re|^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$|]
 
 -- | Attempt to create an email from text, returning 'Nothing' if it doesn't
 -- match our email regular expression.
