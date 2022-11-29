@@ -27,7 +27,7 @@
 -- Stability   : experimental
 -- Portability : POSIX
 --
--- < https:\/\\/\developers.circle.com\/developer\/v1\/docs\/circle-api-resources >
+-- < https:\/\/developers.circle.com\/developer\/v1\/docs\/circle-api-resources >
 module Circle.Types where
 
 import Autodocodec
