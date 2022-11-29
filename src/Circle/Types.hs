@@ -183,7 +183,7 @@ data CircleConfig = CircleConfig
   }
   deriving (Eq, Show)
 
--- | Creates an API token using a secrete stored at `CIRCLE_API_KEY` (the default key for storing the Circle secret)
+-- | Creates an API token using a secrete stored at \$CIRCLE_API_KEY (the default key for storing the Circle secret)
 credentialsEnv :: Maybe String -> IO ApiToken
 credentialsEnv mKey = do
   key <- case mKey of
@@ -203,7 +203,7 @@ credentialsEnv mKey = do
 -- main :: IO ()
 -- main = do
 --   manager <- newManager tlsManagerSettings
---   config <- prodEnvConfig "CIRCLE_API_KEY"
+--   config <- prodEnvConfig \"CIRCLE_API_KEY\"
 --   result <- circle config manager getConfigurationInfo
 --   case result of
 --     Right CircleResponseBody b -> print bs
@@ -224,7 +224,7 @@ prodEnvConfig key = do
 -- main :: IO ()
 -- main = do
 --   manager <- newManager tlsManagerSettings
---   config <- sandboxEnvConfig "CIRCLE_API_KEY"
+--   config <- sandboxEnvConfig \"CIRCLE_API_KEY\"
 --   result <- circle config manager getConfigurationInfo
 --   case result of
 --     Right CircleResponseBody b -> print bs
@@ -274,7 +274,7 @@ class (ToCircleParam param) => CircleHasParam request param
 -- main :: IO ()
 -- main = do
 --   manager <- newManager tlsManagerSettings
---   config <- sandboxEnvConfig "CIRCLE_API_KEY"
+--   config <- sandboxEnvConfig \"CIRCLE_API_KEY\"
 --   result <- circle config manager listAllBalances -&- PaginationQueryParams (PageBefore "a8899b8e-782a-4526-b674-0efe1e04526d")
 --   case result of
 --     Right CircleResponseBody b -> print bs
@@ -502,7 +502,7 @@ data BalanceRequest
 
 type instance CircleRequest BalanceRequest = CircleResponseBody BalanceResponseBody
 
--- | Response body for `listAllBusinessBalances` and `listAllBalances`
+-- | Response body for the "businessAccount\/balances" and "\/balances" endpoints
 data BalanceResponseBody = BalanceResponseBody
   { balanceResponseBodyAvailable :: ![MoneyAmount],
     balanceResponseBodyUnsettled :: ![MoneyAmount]
@@ -716,7 +716,7 @@ data ConfigurationRequest
 
 type instance CircleRequest ConfigurationRequest = CircleResponseBody ConfigurationResponseBody
 
--- | Response body for `getConfigurationInfo`
+-- | Response body for the "\/configuration" endpoint
 newtype ConfigurationResponseBody = ConfigurationResponseBody {configurationResponseBodyPayments :: WalletConfig}
   deriving (Eq, Show)
   deriving
@@ -753,7 +753,7 @@ data EncryptionRequest
 
 type instance CircleRequest EncryptionRequest = CircleResponseBody EncryptionResponseBody
 
--- | Response body for `getPublicKey`
+-- | Response body for the "\/encryption\/public" endpoint
 data EncryptionResponseBody = EncryptionResponseBody
   { encryptionResponseBodyKeyId :: !Text, -- TODO this should actually be a UUID, but for the tests to work it needs to be relaxed a bit
     encryptionResponseBodyPublicKey :: !PGPKey
@@ -784,7 +784,7 @@ data ChannelsRequest
 
 type instance CircleRequest ChannelsRequest = CircleResponseBody ChannelResponseBody
 
--- | Response body for `listAllChannels`
+-- | Response body for the "\/channels" endpoint
 newtype ChannelResponseBody = ChannelResponseBody {channels :: [Channel]}
   deriving (Eq, Show)
   deriving
@@ -829,7 +829,7 @@ data StablecoinsRequest
 
 type instance CircleRequest StablecoinsRequest = CircleResponseBody [StablecoinResponseBody]
 
--- | Response body for `listAllStablecoins`
+-- | Response body for the "\/stablecoins" endpoint
 data StablecoinResponseBody = StablecoinResponseBody
   { stablecoinResponseBodyName :: !Text,
     stablecoinResponseBodySymbol :: !Stablecoin,
@@ -4183,7 +4183,7 @@ mkEmail t =
 emailToText :: Email -> Text
 emailToText = getEmailText
 
--- | Convenience function for APIs that take emails as 'ByteString'
+-- | Convenience function for APIs that take emails as 'BS8.ByteString'
 emailToByteString :: Email -> BS8.ByteString
 emailToByteString email = TE.encodeUtf8 $ emailToText email
 

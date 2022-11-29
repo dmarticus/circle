@@ -18,7 +18,7 @@
 -- main :: IO ()
 -- main = do
 --   manager <- newManager tlsManagerSettings
---   config <- sandboxEnvConfig "CIRCLE_API_KEY"
+--   config <- sandboxEnvConfig \"CIRCLE_API_KEY\"
 --   result <- circle config manager getConfigurationInfo
 --   case result of
 --     Right CircleResponseBody b -> print bs
